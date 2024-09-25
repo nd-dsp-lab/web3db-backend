@@ -34,7 +34,7 @@ services:
       - ./hadoop.env
     ports:
       - 9870:9870
-      - 9000:9000
+      - 9001:9000
     volumes:
       - hadoop_namenode:/hadoop/dfs/name
     deploy:
@@ -68,8 +68,6 @@ services:
       SERVICE_PRECONDITION: "namenode:9000 namenode:9870 datanode:9864"
     env_file:
       - ./hadoop.env
-    ports:
-      - "8088:8088"
     deploy:
       replicas: 1
       restart_policy:

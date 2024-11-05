@@ -35,7 +35,8 @@ services:
     image: apache/spark:4.0.0-preview2
     environment:
       - SPARK_MODE=master
-      - SPARK_MASTER_HOST=spark-master
+      - SPARK_MASTER_PORT=7077
+      - SPARK_MASTER_WEBUI_PORT=8080
       - SPARK_LOCAL_IP=spark-master
       - SPARK_CONF_DIR=/opt/spark/conf
     ports:

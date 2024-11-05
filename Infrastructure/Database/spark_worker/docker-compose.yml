@@ -41,27 +41,27 @@ services:
     command: >
       /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://129.74.152.201:7077
   
-  node-app:
-    build:
-      context: ./node_app
-    volumes:
-      - ./node_app:/app
-      - ./postgresql-42.6.0.jar:/app/postgresql-42.6.0.jar
-    ports:
-      - "3000:3000"
-    depends_on:
-      - ipfs
-      - postgres
-      - spark-master
-      - hive-metastore
-    environment:
-      - FLASK_ENV=development
-      - FLASK_DEBUG=1
-      - POSTGRES_HOST=postgres
-      - POSTGRES_DB=decentralized_db
-      - POSTGRES_USER=dbuser
-      - POSTGRES_PASSWORD=dbpassword
-    command: flask run --host=0.0.0.0 --port=3000
+  # node-app:
+  #   build:
+  #     context: ./node_app
+  #   volumes:
+  #     - ./node_app:/app
+  #     - ./postgresql-42.6.0.jar:/app/postgresql-42.6.0.jar
+  #   ports:
+  #     - "3000:3000"
+  #   depends_on:
+  #     - ipfs
+  #     - postgres
+  #     - spark-master
+  #     - hive-metastore
+  #   environment:
+  #     - FLASK_ENV=development
+  #     - FLASK_DEBUG=1
+  #     - POSTGRES_HOST=postgres
+  #     - POSTGRES_DB=decentralized_db
+  #     - POSTGRES_USER=dbuser
+  #     - POSTGRES_PASSWORD=dbpassword
+  #   command: flask run --host=0.0.0.0 --port=3000
 
   hive-metastore:
     image: apache/hive:3.1.3

@@ -1,0 +1,14 @@
+services:
+  spark-worker:
+    image: apache/spark:4.0.0-preview2
+    environment:
+      - SPARK_WORKER_CORES=1
+      - SPARK_WORKER_MEMORY=1G
+    networks:
+      - web3db-network
+    command: >
+      /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://129.74.152.201:7077
+
+networks:
+  web3db-network:
+    driver: bridge

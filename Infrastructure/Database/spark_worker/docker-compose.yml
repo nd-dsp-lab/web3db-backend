@@ -9,18 +9,4 @@ services:
       /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://129.74.152.201:7077
     volumes:
       - ./spark-app:/opt/spark/work-dir
-
-  ipfs:
-    image: ipfs/go-ipfs:latest
-    volumes:
-      - ./data/ipfs:/data/ipfs
-    ports:
-      - "4001:4001"
-      - "5001:5001"
-      - "8080:8080"
-    command: daemon --migrate --init
-    restart: unless-stopped
-    networks:
-      default:
-        aliases:
-          - ipfs_node 
+ 

@@ -1,6 +1,0 @@
-Werkzeug
-flask
-flask-restx
-requests
-pyspark
-psycopg2-binary

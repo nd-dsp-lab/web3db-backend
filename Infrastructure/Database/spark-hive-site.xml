@@ -1,0 +1,22 @@
+<configuration>
+  <property>
+    <name>hive.metastore.uris</name>
+    <value>thrift://hive-metastore:9083</value>
+  </property>
+  <property>
+    <name>hive.metastore.warehouse.dir</name>
+    <value>/tmp/hive/warehouse</value>
+  </property>
+  <property>
+    <name>hive.warehouse.subdir.inherit.perms</name>
+    <value>true</value>
+  </property>
+  <property>
+    <name>hive.exec.dynamic.partition</name>
+    <value>true</value>
+  </property>
+  <property>
+    <name>hive.exec.dynamic.partition.mode</name>
+    <value>nonstrict</value>
+  </property>
+</configuration>

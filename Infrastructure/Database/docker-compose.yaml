@@ -1,0 +1,127 @@
+version: '3.8'
+services:
+  ipfs:
+    image: ipfs/go-ipfs:latest
+    volumes:
+      - ./data/ipfs:/data/ipfs
+    ports:
+      - "4001:4001"
+      - "5001:5001"
+      - "8080:8080"
+    command: daemon --migrate --init
+    restart: unless-stopped
+    networks:
+      default:
+        aliases:
+          - ipfs_node
+  postgres:
+    image: postgres:13
+    environment:
+      POSTGRES_DB: decentralized_db
+      POSTGRES_USER: dbuser
+      POSTGRES_PASSWORD: dbpassword
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-hive-db.sh:/docker-entrypoint-initdb.d/init-hive-db.sh
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dbuser -d hive_metastore"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  spark-master:
+    image: apache/spark:4.0.0-preview2
+    environment:
+      - SPARK_MODE=master
+      - SPARK_MASTER_HOST=spark-master
+      - SPARK_LOCAL_IP=spark-master
+      - SPARK_CONF_DIR=/opt/spark/conf
+    ports:
+      - "7077:7077"
+      - "8081:8080"
+    volumes:
+      - ./spark-app:/opt/spark/work-dir
+      - ./postgresql-42.6.0.jar:/opt/spark/jars/postgresql-42.6.0.jar
+      - ./spark-hive-site.xml:/opt/spark/conf/hive-site.xml
+      - ./tmp:/tmp
+    command: "/opt/spark/bin/spark-class org.apache.spark.deploy.master.Master"
+
+  spark-worker:
+    image: apache/spark:4.0.0-preview2
+    environment:
+      - SPARK_MODE=worker
+      - SPARK_MASTER_URL=spark://spark-master:7077
+      - SPARK_WORKER_CORES=1
+      - SPARK_WORKER_MEMORY=1g
+      - SPARK_DRIVER_MEMORY=512m
+      - SPARK_EXECUTOR_MEMORY=512m
+      - SPARK_LOG_LEVEL=DEBUG
+      - SPARK_CONF_DIR=/opt/spark/conf
+    volumes:
+      - ./spark-app:/opt/spark/work-dir
+      - ./postgresql-42.6.0.jar:/opt/spark/jars/postgresql-42.6.0.jar
+      - ./spark-hive-site.xml:/opt/spark/conf/hive-site.xml
+      - ./tmp:/tmp 
+    depends_on:
+      - spark-master
+      - postgres
+      - hive-metastore
+    command: "/bin/bash -c '/opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077 --webui-port 8081'"
+
+  node-app:
+    build:
+      context: ./node_app
+    volumes:
+      - ./node_app:/app
+      - ./postgresql-42.6.0.jar:/app/postgresql-42.6.0.jar
+    ports:
+      - "3000:3000"
+    depends_on:
+      - ipfs
+      - postgres
+      - spark-master
+      - hive-metastore
+    environment:
+      - FLASK_ENV=development
+      - FLASK_DEBUG=1
+      - POSTGRES_HOST=postgres
+      - POSTGRES_DB=decentralized_db
+      - POSTGRES_USER=dbuser
+      - POSTGRES_PASSWORD=dbpassword
+    command: flask run --host=0.0.0.0 --port=3000
+
+  hive-metastore:
+    image: apache/hive:3.1.3
+    environment:
+      - SERVICE_NAME=metastore
+      - DB_DRIVER=postgres
+      - DB_HOST=postgres
+      - DB_NAME=hive_metastore
+      - DB_USER=dbuser
+      - DB_PASS=dbpassword
+      - HIVE_SITE_CONF_javax_jdo_option_ConnectionURL=jdbc:postgresql://postgres/hive_metastore
+      - HIVE_SITE_CONF_javax_jdo_option_ConnectionDriverName=org.postgresql.Driver
+      - HIVE_SITE_CONF_javax_jdo_option_ConnectionUserName=dbuser
+      - HIVE_SITE_CONF_javax_jdo_option_ConnectionPassword=dbpassword
+      - HIVE_SITE_CONF_datanucleus_autoCreateSchema=false
+      - HIVE_SITE_CONF_hive_metastore_schema_verification=false
+    ports:
+      - "9083:9083"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./hive-site.xml:/opt/hive/conf/hive-site.xml
+      - ./tmp:/tmp
+    command: >
+      sh -c "
+        mkdir -p /tmp/hive &&
+        chown -R hive:hive /tmp/hive &&
+        /opt/hive/bin/schematool -dbType postgres -initSchema &&
+        /opt/hive/bin/hive --service metastore
+      "
+
+volumes:
+  postgres_data:

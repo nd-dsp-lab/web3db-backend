@@ -1,0 +1,12 @@
+version: 3
+
+agent:
+  authtoken: 2o8KiZzYgAOmIXP2TM2DCS8UWWe_65NEjLV4Rrn3eqgPcZajP
+
+tunnels:
+  basic:
+    proto: http
+    addr: 129.74.152.201:8081
+  tcp_tunnel:
+    proto: tcp
+    addr: 129.74.152.201:7077

@@ -49,27 +49,27 @@ services:
       - ./tmp:/tmp
     command: "/opt/spark/bin/spark-class org.apache.spark.deploy.master.Master"
 
-  # spark-worker:
-  #   image: apache/spark:4.0.0-preview2
-  #   environment:
-  #     - SPARK_MODE=worker
-  #     - SPARK_MASTER_URL=spark://spark-master:7077
-  #     - SPARK_WORKER_CORES=1
-  #     - SPARK_WORKER_MEMORY=1g
-  #     - SPARK_DRIVER_MEMORY=512m
-  #     - SPARK_EXECUTOR_MEMORY=512m
-  #     - SPARK_LOG_LEVEL=DEBUG
-  #     - SPARK_CONF_DIR=/opt/spark/conf
-  #   volumes:
-  #     - ./spark-app:/opt/spark/work-dir
-  #     - ./postgresql-42.6.0.jar:/opt/spark/jars/postgresql-42.6.0.jar
-  #     - ./spark-hive-site.xml:/opt/spark/conf/hive-site.xml
-  #     - ./tmp:/tmp 
-  #   depends_on:
-  #     - spark-master
-  #     - postgres
-  #     - hive-metastore
-  #   command: "/bin/bash -c '/opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077 --webui-port 8081'"
+  spark-worker:
+    image: apache/spark:4.0.0-preview2
+    environment:
+      - SPARK_MODE=worker
+      - SPARK_MASTER_URL=spark://spark-master:7077
+      - SPARK_WORKER_CORES=1
+      - SPARK_WORKER_MEMORY=1g
+      - SPARK_DRIVER_MEMORY=512m
+      - SPARK_EXECUTOR_MEMORY=512m
+      - SPARK_LOG_LEVEL=DEBUG
+      - SPARK_CONF_DIR=/opt/spark/conf
+    volumes:
+      - ./spark-app:/opt/spark/work-dir
+      - ./postgresql-42.6.0.jar:/opt/spark/jars/postgresql-42.6.0.jar
+      - ./spark-hive-site.xml:/opt/spark/conf/hive-site.xml
+      - ./tmp:/tmp 
+    depends_on:
+      - spark-master
+      - postgres
+      - hive-metastore
+    command: "/bin/bash -c '/opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077 --webui-port 8081'"
 
   node-app:
     build:

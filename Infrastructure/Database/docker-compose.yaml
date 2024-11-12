@@ -21,7 +21,6 @@ services:
       - SPARK_MODE=master
       - SPARK_MASTER_HOST=spark-master
       - SPARK_LOCAL_IP=spark-master
-      - SPARK_PUBLIC_DNS=129.74.154.85  # Add your external IP
       - SPARK_CONF_DIR=/opt/spark/conf
     ports:
       - "7077:7077"
@@ -29,30 +28,24 @@ services:
     volumes:
       - ./spark-app:/opt/spark/work-dir
     command: "/opt/spark/bin/spark-class org.apache.spark.deploy.master.Master"
-    networks:
-      - spark-network
 
   spark-worker:
     image: apache/spark:4.0.0-preview2
     environment:
       - SPARK_MODE=worker
       - SPARK_MASTER_URL=spark://spark-master:7077
-      - SPARK_WORKER_CORES=1
-      - SPARK_WORKER_MEMORY=1g
-      - SPARK_DRIVER_MEMORY=512m
-      - SPARK_EXECUTOR_MEMORY=512m
-      - SPARK_PUBLIC_DNS=129.74.154.85  # Add your external IP
+      - SPARK_WORKER_CORES=2
+      - SPARK_WORKER_MEMORY=2g
+      - SPARK_DRIVER_MEMORY=1g
+      - SPARK_EXECUTOR_MEMORY=1g
+      - SPARK_WORKER_OPTS="-Dspark.worker.cleanup.enabled=true"
       - SPARK_LOG_LEVEL=DEBUG
       - SPARK_CONF_DIR=/opt/spark/conf
-    ports:
-      - "8082:8081"  # Map worker UI to different port
     volumes:
       - ./spark-app:/opt/spark/work-dir
     depends_on:
       - spark-master
     command: "/bin/bash -c '/opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077 --webui-port 8081'"
-    networks:
-      - spark-network
 
   engine:
     build:
@@ -60,11 +53,9 @@ services:
       dockerfile: Dockerfile
     ports:
       - "8000:8000"
-      - "4040:4040"  # Expose Spark UI port
     environment:
       - IPFS_HOST=ipfs
       - SPARK_MASTER=spark://spark-master:7077
-      - SPARK_PUBLIC_DNS=129.74.154.85  # Add your external IP
     depends_on:
       - ipfs
       - spark-master

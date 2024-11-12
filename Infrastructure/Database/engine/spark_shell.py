@@ -14,17 +14,12 @@ class SparkSQLShell:
             .appName("PostgreSQL-Compatible Spark SQL Shell") \
             .master("spark://spark-master:7077") \
             .config("spark.sql.parser.quotedRegexColumnNames", "true") \
-            .config("spark.sql.legacy.timeParserPolicy", "LEGACY") \
             .config("spark.sql.ansi.enabled", "true") \
+            .config("spark.driver.memory", "1g") \
+            .config("spark.executor.memory", "1g") \
+            .config("spark.cores.max", "2") \
+            .config("spark.executor.cores", "2") \
             .config("spark.jars.packages", "org.apache.spark:spark-sql_2.12:4.0.0-preview2") \
-            .config("spark.driver.host", "129.74.154.85") \
-            .config("spark.driver.bindAddress", "0.0.0.0") \
-            .config("spark.ui.reverseProxy", "true") \
-            .config("spark.ui.reverseProxyUrl", "http://129.74.154.85:4040") \
-            .config("spark.ui.port", "4040") \
-            .config("spark.driver.extraJavaOptions", 
-                    "-Dhttp.proxyHost=129.74.154.85 -Dspark.ui.proxyBase=/") \
-            .config("spark.ui.proxyBase", "") \
             .getOrCreate()
 
         # Set log level after SparkSession creation

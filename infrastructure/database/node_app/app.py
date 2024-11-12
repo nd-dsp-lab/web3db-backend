@@ -1,6 +1,5 @@
 from flask import Flask, request, jsonify
 from flask_restx import Api, Resource, fields
-import ipfshttpclient
 from pyspark.sql import SparkSession
 import tempfile
 import os
@@ -12,7 +11,7 @@ import requests
 
 app = Flask(__name__)
 api = Api(app, version='1.0', title='Web3DB Decentralized Database API',
-          description='API for performing SQL operations with IPFS state management')
+          description='API for performing SQL operations with Web3DB')
 
 ns = api.namespace('api', description='Database operations')
 
@@ -29,7 +28,7 @@ MAX_RETRIES = 3
 RETRY_DELAY = 2  # seconds
 
 def create_spark_session():
-    """Create and return a Spark session with proper configuration"""
+    """Create and return a Spark session with initial configuration"""
     warehouse_dir = os.path.abspath("/tmp/spark-warehouse")
     if not os.path.exists(warehouse_dir):
         os.makedirs(warehouse_dir)
@@ -47,7 +46,7 @@ def create_spark_session():
         .getOrCreate()
 
 def test_ipfs_connection(retries=MAX_RETRIES):
-    """Test IPFS connection with retry mechanism"""
+    """Test IPFS connection"""
     last_exception = None
     
     for attempt in range(retries):
@@ -63,7 +62,7 @@ def test_ipfs_connection(retries=MAX_RETRIES):
     raise Exception(f"Failed to connect to IPFS node after {retries} attempts: {str(last_exception)}")
 
 def get_query_type(query):
-    """Determine the type of SQL query with error handling"""
+    """Determine the type of SQL query"""
     try:
         parsed = sqlparse.parse(query.strip())
         if not parsed:
@@ -73,7 +72,7 @@ def get_query_type(query):
         raise ValueError(f"Failed to parse SQL query: {str(e)}")
 
 def save_current_state(spark):
-    """Save current database state to IPFS using direct HTTP API"""
+    """Save current database state to IPFS"""
     temp_file = None
     try:
         # Test IPFS connection first
@@ -136,7 +135,7 @@ def save_current_state(spark):
                 os.unlink(temp_file.name)
 
 def load_state_from_ipfs(cid, spark):
-    """Load database state from IPFS using direct HTTP API"""
+    """Load database state from IPFS"""
     temp_file = None
     try:
         # Test IPFS connection first

@@ -1,9 +1,6 @@
-Werkzeug
 flask
 flask-restx
 requests
 pyspark>=3.0.0
-psycopg2-binary
-ipfshttpclient
 sqlparse
 pandas

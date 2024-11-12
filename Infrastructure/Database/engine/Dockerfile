@@ -11,6 +11,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 ENV JAVA_HOME="/usr/lib/jvm/java-17-openjdk-amd64"
 ENV PATH="$JAVA_HOME/bin:$PATH"
 
+# Download and install Spark 4.0.0-preview2
+RUN curl -o spark.tgz https://dlcdn.apache.org/spark/spark-4.0.0-preview2/spark-4.0.0-preview2-bin-hadoop3.tgz && \
+    tar -xzf spark.tgz && \
+    mv spark-4.0.0-preview2-bin-hadoop3 /opt/spark && \
+    rm spark.tgz
+
+# Set Spark environment variables
+ENV SPARK_HOME=/opt/spark
+ENV PATH=$PATH:$SPARK_HOME/bin
+ENV PYTHONPATH=$SPARK_HOME/python:$SPARK_HOME/python/lib/py4j-0.10.9.7-src.zip:$PYTHONPATH
+
 # Set working directory
 WORKDIR /app
 

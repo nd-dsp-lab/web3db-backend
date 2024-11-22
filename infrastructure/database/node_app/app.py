@@ -45,6 +45,25 @@ def create_spark_session():
         .enableHiveSupport() \
         .getOrCreate()
 
+def clean_warehouse_directory(spark):
+    """Clean up the warehouse directory and drop all tables"""
+    # Drop all existing tables
+    tables = spark.catalog.listTables()
+    for table in tables:
+        spark.sql(f"DROP TABLE IF EXISTS {table.name}")
+        
+    # Clear warehouse directory
+    warehouse_location = spark.conf.get('spark.sql.warehouse.dir')
+    if os.path.exists(warehouse_location):
+        for table_dir in os.listdir(warehouse_location):
+            table_path = os.path.join(warehouse_location, table_dir)
+            if os.path.isdir(table_path):
+                for file in os.listdir(table_path):
+                    file_path = os.path.join(table_path, file)
+                    if os.path.isfile(file_path):
+                        os.unlink(file_path)
+                os.rmdir(table_path)
+
 def test_ipfs_connection(retries=MAX_RETRIES):
     """Test IPFS connection"""
     last_exception = None
@@ -71,7 +90,70 @@ def get_query_type(query):
     except Exception as e:
         raise ValueError(f"Failed to parse SQL query: {str(e)}")
 
-def save_current_state(spark):
+def extract_schema_statements(content):
+    """Extract CREATE TABLE statements from SQL content"""
+    statements = [stmt.strip() for stmt in content.split(';') if stmt.strip()]
+    return [stmt for stmt in statements if stmt.lower().startswith('create table')]
+
+def extract_data_statements(content):
+    """Extract INSERT statements from SQL content"""
+    statements = [stmt.strip() for stmt in content.split(';') if stmt.strip()]
+    return [stmt for stmt in statements if stmt.lower().startswith('insert into')]
+
+def load_state_from_ipfs(cid, spark, load_data=True):
+    """Load database state from IPFS"""
+    try:
+        # Test IPFS connection first
+        test_ipfs_connection()
+        
+        # Clean up existing state
+        clean_warehouse_directory(spark)
+        
+        # Use IPFS HTTP API to get file
+        response = requests.post(f'{IPFS_BASE_URL}/cat?arg={cid}')
+        
+        if response.status_code != 200:
+            raise Exception(f"Failed to get file from IPFS: {response.text}")
+            
+        content = response.content.decode('utf-8')
+        
+        # First, process all CREATE TABLE statements
+        schema_statements = extract_schema_statements(content)
+        for stmt in schema_statements:
+            if stmt.lower().startswith('create table'):
+                # Parse the CREATE TABLE statement
+                table_parts = stmt.lower().split('table', 1)[1]
+                
+                # Extract table name
+                table_name = table_parts.split('(')[0].strip()
+                if 'if not exists' in table_name:
+                    table_name = table_name.split('if not exists')[1].strip()
+                    
+                # Extract column definitions
+                col_defs = stmt[stmt.find('(') + 1:stmt.rfind(')')].strip()
+                
+                # Add storage-specific details for Spark execution
+                warehouse_location = spark.conf.get('spark.sql.warehouse.dir')
+                table_location = os.path.join(warehouse_location, table_name)
+                
+                # Create table with Spark
+                modified_stmt = (
+                    f"CREATE EXTERNAL TABLE IF NOT EXISTS {table_name} "
+                    f"({col_defs}) "
+                    f"USING parquet LOCATION '{table_location}'"
+                )
+                spark.sql(modified_stmt)
+        
+        # Then, process INSERT statements if load_data is True
+        if load_data:
+            data_statements = extract_data_statements(content)
+            for stmt in data_statements:
+                spark.sql(stmt)
+                
+    except Exception as e:
+        raise Exception(f"Failed to load state from IPFS: {str(e)}")
+
+def save_current_state(spark, include_data=True):
     """Save current database state to IPFS"""
     temp_file = None
     try:
@@ -79,11 +161,10 @@ def save_current_state(spark):
         test_ipfs_connection()
         
         temp_file = tempfile.NamedTemporaryFile(mode='w', suffix='.sql', delete=False)
+        
+        # Get all tables
         tables = spark.catalog.listTables()
         
-        if not tables:
-            raise ValueError("No tables found in the database")
-            
         for table in tables:
             table_name = table.name
             
@@ -92,28 +173,28 @@ def save_current_state(spark):
             if schema_df.isEmpty():
                 continue
                 
-            create_stmt = f"CREATE EXTERNAL TABLE IF NOT EXISTS {table_name} ("
+            # Create table statement
+            create_stmt = f"CREATE TABLE IF NOT EXISTS {table_name} ("
             columns = []
             for row in schema_df.collect():
                 col_name = row['col_name']
                 col_type = row['data_type']
                 columns.append(f"{col_name} {col_type}")
             
-            warehouse_location = spark.conf.get('spark.sql.warehouse.dir')
-            table_location = os.path.join(warehouse_location, table_name)
-            create_stmt += ", ".join(columns) + f") USING parquet LOCATION '{table_location}'"
+            create_stmt += ", ".join(columns) + ")"
             temp_file.write(f"{create_stmt};\n")
             
-            # Get table data and remove duplicates
-            data = spark.table(table_name).distinct().collect()
-            for row in data:
-                values = [f"'{str(v)}'" if isinstance(v, (str, bool)) else 'NULL' if v is None else str(v) for v in row]
-                insert_stmt = f"INSERT INTO {table_name} VALUES ({', '.join(values)})"
-                temp_file.write(f"{insert_stmt};\n")
+            # Get and write data if include_data is True
+            if include_data:
+                data = spark.table(table_name).distinct().collect()
+                for row in data:
+                    values = [f"'{str(v)}'" if isinstance(v, (str, bool)) else 'NULL' if v is None else str(v) for v in row]
+                    insert_stmt = f"INSERT INTO {table_name} VALUES ({', '.join(values)})"
+                    temp_file.write(f"{insert_stmt};\n")
                 
         temp_file.flush()
         
-        # Use IPFS HTTP API to add file
+        # Add to IPFS
         with open(temp_file.name, 'rb') as fp:
             files = {
                 'file': ('state.sql', fp, 'application/sql')
@@ -133,57 +214,6 @@ def save_current_state(spark):
             temp_file.close()
             if os.path.exists(temp_file.name):
                 os.unlink(temp_file.name)
-
-def load_state_from_ipfs(cid, spark):
-    """Load database state from IPFS"""
-    temp_file = None
-    try:
-        # Test IPFS connection first
-        test_ipfs_connection()
-        
-        # Use IPFS HTTP API to get file
-        response = requests.post(f'{IPFS_BASE_URL}/cat?arg={cid}')
-        
-        if response.status_code != 200:
-            raise Exception(f"Failed to get file from IPFS: {response.text}")
-            
-        temp_file = tempfile.NamedTemporaryFile(mode='wb', delete=False)
-        temp_file.write(response.content)
-        temp_file.close()
-        
-        # Drop all existing tables
-        tables = spark.catalog.listTables()
-        for table in tables:
-            spark.sql(f"DROP TABLE IF EXISTS {table.name}")
-            
-        # Clear warehouse directory
-        warehouse_location = spark.conf.get('spark.sql.warehouse.dir')
-        if os.path.exists(warehouse_location):
-            for table_dir in os.listdir(warehouse_location):
-                table_path = os.path.join(warehouse_location, table_dir)
-                if os.path.isdir(table_path):
-                    for file in os.listdir(table_path):
-                        file_path = os.path.join(table_path, file)
-                        if os.path.isfile(file_path):
-                            os.unlink(file_path)
-                    os.rmdir(table_path)
-            
-        # Execute SQL statements
-        with open(temp_file.name, 'r') as f:
-            sql_statements = f.read().split(';')
-            for stmt in sql_statements:
-                stmt = stmt.strip()
-                if stmt:
-                    try:
-                        spark.sql(stmt)
-                    except Exception as e:
-                        raise Exception(f"Failed to execute SQL statement '{stmt}': {str(e)}")
-                        
-    except Exception as e:
-        raise Exception(f"Failed to load state from IPFS: {str(e)}")
-    finally:
-        if temp_file and os.path.exists(temp_file.name):
-            os.unlink(temp_file.name)
 
 @ns.route('/query')
 class QueryResource(Resource):
@@ -205,7 +235,7 @@ class QueryResource(Resource):
             if not statements:
                 return {'error': 'No valid SQL statements found'}, 400
                 
-            # Get the type of the first statement to determine the overall operation type
+            # Get query type
             query_type = get_query_type(statements[0])
             spark = create_spark_session()
             
@@ -214,46 +244,57 @@ class QueryResource(Resource):
                 if not cid:
                     return {'error': 'CID is required for SELECT queries'}, 400
                     
-                load_state_from_ipfs(cid, spark)
-                # Execute only the first statement for SELECT queries
-                result = spark.sql(statements[0]).distinct().toPandas().to_dict(orient='records')
+                # Load state and execute query
+                load_state_from_ipfs(cid, spark, load_data=True)
+                result_df = spark.sql(statements[0])
+                
+                if result_df.isEmpty():
+                    return jsonify([])
+                    
+                result = result_df.distinct().toPandas().to_dict(orient='records')
                 return jsonify(result)
                 
             elif query_type == 'create':
+                # Handle CREATE statements
+                # Save state without data
                 for statement in statements:
-                    if 'create table' in statement.lower() and 'external' not in statement.lower():
-                        # Extract table name and everything between parentheses
-                        table_parts = statement.split('(', 1)
-                        table_name = table_parts[0].lower().split('table', 1)[1].strip()
+                    if statement.lower().startswith('create table'):
+                        # Parse and create table in Spark
+                        table_parts = statement.lower().split('table', 1)[1]
+                        table_name = table_parts.split('(')[0].strip()
+                        if 'if not exists' in table_name:
+                            table_name = table_name.split('if not exists')[1].strip()
+                            
+                        col_defs = statement[statement.find('(') + 1:statement.rfind(')')].strip()
                         
-                        # Get the column definitions
-                        column_defs = '(' + table_parts[1].strip()
-                        if column_defs.endswith(';'):
-                            column_defs = column_defs[:-1]  # Remove semicolon
-                        
-                        # Construct the new query
                         warehouse_location = spark.conf.get('spark.sql.warehouse.dir')
                         table_location = os.path.join(warehouse_location, table_name)
                         
-                        modified_statement = f"CREATE EXTERNAL TABLE {table_name} {column_defs} USING parquet LOCATION '{table_location}'"
-                        spark.sql(modified_statement)
-                    else:
-                        spark.sql(statement)
+                        spark_statement = (
+                            f"CREATE EXTERNAL TABLE IF NOT EXISTS {table_name} "
+                            f"({col_defs}) "
+                            f"USING parquet LOCATION '{table_location}'"
+                        )
+                        spark.sql(spark_statement)
                 
-                new_cid = save_current_state(spark)
+                # Save state without including data
+                new_cid = save_current_state(spark, include_data=False)
                 return jsonify({'cid': new_cid})
-                
-            elif query_type in ['update', 'insert', 'delete']:
+                            
+            elif query_type in ['insert', 'update', 'delete']:
                 cid = data.get('cid')
                 if not cid:
                     return {'error': 'CID is required for modification queries'}, 400
                     
-                load_state_from_ipfs(cid, spark)
-                # Execute each statement in sequence
+                # Load state with data
+                load_state_from_ipfs(cid, spark, load_data=True)
+                
+                # Execute statements
                 for statement in statements:
                     spark.sql(statement)
                 
-                new_cid = save_current_state(spark)
+                # Save new state with data
+                new_cid = save_current_state(spark, include_data=True)
                 return jsonify({'cid': new_cid})
                 
             else:
@@ -266,6 +307,27 @@ class QueryResource(Resource):
         finally:
             if spark:
                 spark.stop()
+
+@ns.route('/ipfs/content/<string:cid>')
+class IPFSContentResource(Resource):
+    def get(self, cid):
+        """Retrieve content from IPFS using CID"""
+        try:
+            if not cid:
+                return {'error': 'CID is required'}, 400
+                
+            test_ipfs_connection()
+            
+            response = requests.post(f'{IPFS_BASE_URL}/cat?arg={cid}')
+            
+            if response.status_code != 200:
+                return {'error': f'Failed to get file from IPFS: {response.text}'}, 500
+                
+            content = response.content.decode('utf-8')
+            return jsonify({'content': content})
+            
+        except Exception as e:
+            return {'error': f'Failed to retrieve content from IPFS: {str(e)}'}, 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=3000)

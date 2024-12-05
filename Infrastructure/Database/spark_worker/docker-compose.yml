@@ -6,7 +6,7 @@ services:
       - SPARK_WORKER_CORES=1
       - SPARK_WORKER_MEMORY=1G
     command: >
-      /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://6.tcp.ngrok.io:11686
+      /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://8.tcp.ngrok.io:17810
     volumes:
       - ./spark-app:/opt/spark/work-dir
  

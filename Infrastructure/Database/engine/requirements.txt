@@ -4,3 +4,4 @@ pydantic
 requests
 sqlparse
 pyspark
+redis>=4.5.0

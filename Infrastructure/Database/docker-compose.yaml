@@ -28,6 +28,9 @@ services:
     volumes:
       - ./spark-app:/opt/spark/work-dir
     command: "/opt/spark/bin/spark-class org.apache.spark.deploy.master.Master"
+    networks:
+      - spark-network
+      - default
 
   spark-worker:
     image: apache/spark:4.0.0-preview2
@@ -46,6 +49,9 @@ services:
     depends_on:
       - spark-master
     command: "/bin/bash -c '/opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077 --webui-port 8081'"
+    networks:
+      - spark-network
+      - default
 
   engine:
     build:
@@ -56,17 +62,185 @@ services:
     environment:
       - IPFS_HOST=ipfs
       - SPARK_MASTER=spark://spark-master:7077
+      - REDIS_HOST=redis-master-1
+      - REDIS_PORT=6379
     depends_on:
       - ipfs
       - spark-master
+      - redis-master-1
     networks:
       - spark-network
+      - redis-cluster
       - default
     volumes:
       - ./engine:/app
 
+  redis-master-1:
+    image: redis:7.0
+    container_name: redis-master-1
+    ports:
+      - "6379:6379"
+      - "16379:16379"
+    command: >
+      redis-server 
+      --port 6379 
+      --bind 0.0.0.0 
+      --cluster-enabled yes 
+      --cluster-config-file nodes-6379.conf
+      --cluster-node-timeout 5000 
+      --appendonly yes 
+      --cluster-announce-ip redis-master-1
+    networks:
+      redis-cluster:
+        aliases:
+          - redis-master-1
+    volumes:
+      - redis-data-1:/data
+
+  redis-master-2:
+    image: redis:7.0
+    container_name: redis-master-2
+    ports:
+      - "6380:6379"
+      - "16380:16380"
+    command: >
+      redis-server 
+      --port 6379 
+      --bind 0.0.0.0 
+      --cluster-enabled yes 
+      --cluster-config-file nodes-6380.conf
+      --cluster-node-timeout 5000 
+      --appendonly yes 
+      --cluster-announce-ip redis-master-2
+    networks:
+      redis-cluster:
+        aliases:
+          - redis-master-2
+    volumes:
+      - redis-data-2:/data
+
+  redis-master-3:
+    image: redis:7.0
+    container_name: redis-master-3
+    ports:
+      - "6381:6379"
+      - "16381:16381"
+    command: >
+      redis-server 
+      --port 6379 
+      --bind 0.0.0.0 
+      --cluster-enabled yes 
+      --cluster-config-file nodes-6381.conf
+      --cluster-node-timeout 5000 
+      --appendonly yes 
+      --cluster-announce-ip redis-master-3
+    networks:
+      redis-cluster:
+        aliases:
+          - redis-master-3
+    volumes:
+      - redis-data-3:/data
+
+  redis-replica-1:
+    image: redis:7.0
+    container_name: redis-replica-1
+    ports:
+      - "6382:6379"
+      - "16382:16382"
+    command: >
+      redis-server 
+      --port 6379 
+      --bind 0.0.0.0 
+      --cluster-enabled yes 
+      --cluster-config-file nodes-6382.conf
+      --cluster-node-timeout 5000 
+      --appendonly yes 
+      --cluster-announce-ip redis-replica-1
+    networks:
+      redis-cluster:
+        aliases:
+          - redis-replica-1
+    volumes:
+      - redis-data-4:/data
+
+  redis-replica-2:
+    image: redis:7.0
+    container_name: redis-replica-2
+    ports:
+      - "6383:6379"
+      - "16383:16383"
+    command: >
+      redis-server 
+      --port 6379 
+      --bind 0.0.0.0 
+      --cluster-enabled yes 
+      --cluster-config-file nodes-6383.conf
+      --cluster-node-timeout 5000 
+      --appendonly yes 
+      --cluster-announce-ip redis-replica-2
+    networks:
+      redis-cluster:
+        aliases:
+          - redis-replica-2
+    volumes:
+      - redis-data-5:/data
+
+  redis-replica-3:
+    image: redis:7.0
+    container_name: redis-replica-3
+    ports:
+      - "6384:6379"
+      - "16384:16384"
+    command: >
+      redis-server 
+      --port 6379 
+      --bind 0.0.0.0 
+      --cluster-enabled yes 
+      --cluster-config-file nodes-6384.conf
+      --cluster-node-timeout 5000 
+      --appendonly yes 
+      --cluster-announce-ip redis-replica-3
+    networks:
+      redis-cluster:
+        aliases:
+          - redis-replica-3
+    volumes:
+      - redis-data-6:/data
+
+  redis-cluster-init:
+    image: redis:7.0
+    container_name: redis-cluster-init
+    depends_on:
+      - redis-master-1
+      - redis-master-2
+      - redis-master-3
+      - redis-replica-1
+      - redis-replica-2
+      - redis-replica-3
+    command: >
+      bash -c "echo yes | redis-cli --cluster create 
+      redis-master-1:6379 
+      redis-master-2:6379 
+      redis-master-3:6379 
+      redis-replica-1:6379 
+      redis-replica-2:6379 
+      redis-replica-3:6379 
+      --cluster-replicas 1"
+    networks:
+      - redis-cluster
+
 networks:
   spark-network:
     driver: bridge
+  redis-cluster:
+    driver: bridge
   default:
     driver: bridge
+
+volumes:
+  redis-data-1:
+  redis-data-2:
+  redis-data-3:
+  redis-data-4:
+  redis-data-5:
+  redis-data-6:

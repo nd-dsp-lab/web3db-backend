@@ -2,8 +2,12 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Tuple
 from spark_shell import SparkSQLShell
+from redis_hash_manager import RedisHashManager
+import sqlparse
+from sqlparse.sql import Token, Identifier
+from sqlparse.tokens import Keyword
 
 # Create FastAPI app
 app = FastAPI(
@@ -21,8 +25,65 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize SparkSQL shell as a global instance
+class SQLParser:
+    @staticmethod
+    def parse_query(query: str) -> Tuple[Optional[str], str]:
+        """
+        Parse SQL query to extract table name and operation type.
+        Returns (table_name, operation_type)
+        """
+        parsed = sqlparse.parse(query)[0]
+        tokens = parsed.tokens
+        
+        table_name = None
+        operation = tokens[0].value.lower()
+        
+        if operation == 'create':
+            for token in tokens:
+                if isinstance(token, Identifier):
+                    table_name = token.get_real_name()
+                    break
+                
+        elif operation in ('insert', 'update', 'delete'):
+            for token in tokens:
+                if isinstance(token, Identifier):
+                    table_name = token.get_real_name()
+                    break
+                elif token.ttype is Keyword and token.value.lower() == 'into':
+                    next_token = tokens[tokens.index(token) + 2]
+                    if isinstance(next_token, Identifier):
+                        table_name = next_token.get_real_name()
+                        break
+                        
+        elif operation == 'select':
+            from_seen = False
+            for token in tokens:
+                if from_seen and isinstance(token, Identifier):
+                    table_name = token.get_real_name()
+                    break
+                elif token.ttype is Keyword and token.value.lower() == 'from':
+                    from_seen = True
+
+        return table_name, operation
+
+# Initialize SparkSQL shell and Redis Hash Manager
 sql_shell = SparkSQLShell()
+hash_manager = RedisHashManager()
+
+# Pydantic models
+class HashMapping(BaseModel):
+    user_id: str
+    table_name: str
+    hash_value: str
+    prev_hash: Optional[str] = ""
+    record_type: str = "create"
+    flag: str = "initial"
+    row_count: int = 0
+
+class QueryRequest(BaseModel):
+    user_id: str
+    query: str
+    state_hash: Optional[str] = None
 
 class SQLQuery(BaseModel):
     query: str
@@ -33,15 +94,15 @@ class SQLResult(BaseModel):
     hash: str
     data: Optional[List[Dict[str, Any]]] = None
 
+DEFAULT_PARTITION = "0"
+
 @app.get("/", include_in_schema=False)
 async def root():
     return RedirectResponse(url="/docs")
 
 @app.post("/execute", response_model=SQLResult)
 async def execute_sql(sql_query: SQLQuery):
-    """
-    Execute SQL query with optional state hash
-    """
+    """Execute SQL query with optional state hash"""
     try:
         result = sql_shell.execute_sql(sql_query.query, sql_query.state_hash)
         if result is None:
@@ -55,11 +116,99 @@ async def execute_sql(sql_query: SQLQuery):
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+@app.post("/hash/add")
+async def add_hash_mapping(mapping: HashMapping):
+    """Add a new hash mapping"""
+    try:
+        success = hash_manager.add_hash_mapping(
+            user_id=mapping.user_id,
+            table_name=mapping.table_name,
+            partition=DEFAULT_PARTITION,
+            hash_value=mapping.hash_value,
+            prev_hash=mapping.prev_hash,
+            record_type=mapping.record_type,
+            flag=mapping.flag,
+            row_count=mapping.row_count
+        )
+        if not success:
+            raise HTTPException(status_code=400, detail="Failed to add hash mapping")
+        return {"status": "success", "message": "Hash mapping added successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/hash/latest/{user_id}/{table_name}")
+async def get_latest_hash(user_id: str, table_name: str):
+    """Get the latest hash for a table"""
+    try:
+        latest_hash = hash_manager.get_latest_hash(user_id, table_name, DEFAULT_PARTITION)
+        if latest_hash is None:
+            raise HTTPException(status_code=404, detail="Hash mapping not found")
+        return {"hash": latest_hash}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/hash/history/{user_id}/{table_name}")
+async def get_hash_history(user_id: str, table_name: str):
+    """Get complete hash history for a table"""
+    try:
+        history = hash_manager.get_hash_history(user_id, table_name, DEFAULT_PARTITION)
+        return {"history": history}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/execute/with-hash")
+async def execute_with_hash_resolution(query_request: QueryRequest):
+    """Execute SQL query with automatic hash resolution and storage"""
+    try:
+        # Parse the query to get table name and operation
+        table_name, operation = SQLParser.parse_query(query_request.query)
+        
+        if not table_name:
+            raise HTTPException(
+                status_code=400, 
+                detail="Could not determine table name from query"
+            )
+
+        # If state_hash is not provided, get latest hash from Redis
+        if not query_request.state_hash:
+            state_hash = hash_manager.get_latest_hash(
+                query_request.user_id,
+                table_name,
+                DEFAULT_PARTITION
+            )
+        else:
+            state_hash = query_request.state_hash
+
+        # Execute query with resolved hash
+        result = sql_shell.execute_sql(query_request.query, state_hash)
+        if result is None:
+            raise HTTPException(status_code=400, detail="Query execution failed")
+
+        # Store the new hash in Redis
+        hash_manager.add_hash_mapping(
+            user_id=query_request.user_id,
+            table_name=table_name,
+            partition=DEFAULT_PARTITION,
+            hash_value=result["hash"],
+            prev_hash=state_hash if state_hash else "",
+            record_type=operation,
+            flag="latest",
+            row_count=len(result.get("data", [])) if result.get("data") else 0
+        )
+            
+        return SQLResult(
+            type=result["type"],
+            hash=result["hash"],
+            data=result.get("data")
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to execute query: {str(e)}")
+
 @app.get("/state/{hash}")
 async def get_state(hash: str):
-    """
-    Get state information for a specific hash
-    """
+    """Get state information for a specific hash"""
     try:
         state = sql_shell.ipfs_handler.load_state(hash)
         if not state:
@@ -70,9 +219,7 @@ async def get_state(hash: str):
 
 @app.post("/cleanup")
 async def cleanup():
-    """
-    Cleanup all temporary tables and state
-    """
+    """Cleanup all temporary tables and state"""
     try:
         sql_shell.cleanup()
         return {"status": "success"}

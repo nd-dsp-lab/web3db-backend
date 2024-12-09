@@ -179,6 +179,13 @@ async def execute_with_hash_resolution(query_request: QueryRequest):
         else:
             state_hash = query_request.state_hash
 
+        # Check if data exists for non-create operations
+        if operation != "create" and not state_hash:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No existing data found for user {query_request.user_id} and table {table_name}"
+            )
+
         # Execute query with resolved hash
         result = sql_shell.execute_sql(query_request.query, state_hash)
         if result is None:
@@ -205,6 +212,60 @@ async def execute_with_hash_resolution(query_request: QueryRequest):
         raise HTTPException(
             status_code=500,
             detail=f"Failed to execute query: {str(e)}")
+
+# Add this new model to your existing Pydantic models
+class ShareRequest(BaseModel):
+    from_user: str
+    to_user: str
+    table_name: str
+
+# Add this new endpoint to your FastAPI app
+@app.post("/share/table")
+async def share_table_data(share_request: ShareRequest):
+    """Share table data from one user to another"""
+    try:
+        # Get the latest hash from source user
+        source_hash = hash_manager.get_latest_hash(
+            share_request.from_user,
+            share_request.table_name,
+            DEFAULT_PARTITION
+        )
+        
+        if not source_hash:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No data found for table {share_request.table_name} from user {share_request.from_user}"
+            )
+
+        # Create new hash mapping for target user
+        success = hash_manager.add_hash_mapping(
+            user_id=share_request.to_user,
+            table_name=share_request.table_name,
+            partition=DEFAULT_PARTITION,
+            hash_value=source_hash,
+            prev_hash="",  # Empty as this is initial data for target user
+            record_type="share",  # New record type to indicate shared data
+            flag="latest",
+            row_count=0  # Will be updated when queried
+        )
+
+        if not success:
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to share table data"
+            )
+
+        return {
+            "status": "success",
+            "message": f"Table {share_request.table_name} shared successfully from {share_request.from_user} to {share_request.to_user}",
+            "shared_hash": source_hash
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to share table: {str(e)}"
+        )
 
 @app.get("/state/{hash}")
 async def get_state(hash: str):

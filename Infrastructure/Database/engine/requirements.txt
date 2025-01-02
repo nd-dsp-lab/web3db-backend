@@ -4,3 +4,4 @@ pydantic
 requests
 sqlparse
 pyspark
+web3

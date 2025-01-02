@@ -8,7 +8,14 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+
 class Web3HashManager:
+    """
+    Manages hash mappings in a smart contract on the Sepolia testnet.
+    Handles connecting to the Ethereum network, sending transactions,
+    and fetching hash data from the contract.
+    """
+
     contract_abi = [
         {
             "inputs": [
@@ -56,104 +63,123 @@ class Web3HashManager:
         }
     ]
 
+    SEPOLIA_CHAIN_ID = 11155111
+    MAX_ATTEMPTS = 3          # Max attempts for transaction submission
+    RETRY_BASE_WAIT = 3       # Base time in seconds to wait before retry
+    BASE_MULTIPLIER = 1.5     # Base multiplier for gas price calculations
+    MIN_GAS_PRICE = 10_000_000_000  # 10 Gwei as minimum gas price
+
     def __init__(self):
-        """Initialize Web3 and contract connection."""
+        """
+        Initialize Web3 and the contract connection.
+        Raises an exception if connection to the Ethereum network fails.
+        """
         try:
-            self.w3 = Web3(Web3.HTTPProvider('https://sepolia.infura.io/v3/eb1d43f1429e49fba50e18fbf5ebd4ab'))
-            
+            # Connect to Sepolia via Infura
+            self.w3 = Web3(Web3.HTTPProvider(
+                'https://sepolia.infura.io/v3/eb1d43f1429e49fba50e18fbf5ebd4ab'
+            ))
             if not self.w3.is_connected():
-                raise ConnectionError("Failed to connect to Ethereum network")
-                
-            self.contract_address = self.w3.to_checksum_address("0xfE04e7949311Cc6045AD6DA59eA22bce01b2C55e")
-            self.private_key = '34cf59aaa5ef0a24e65b4e4dbe6fb23c2bd23a4d9a6b584d7995a141de719d53'
-            
+                raise ConnectionError("Failed to connect to Ethereum network.")
+
+            # Prepare contract & wallet details
+            self.contract_address = self.w3.to_checksum_address(
+                "0xfE04e7949311Cc6045AD6DA59eA22bce01b2C55e"
+            )
+            self.private_key = (
+                '34cf59aaa5ef0a24e65b4e4dbe6fb23c2bd23a4d9a6b584d7995a141de719d53'
+            )
             self.contract = self.w3.eth.contract(
                 address=self.contract_address,
                 abi=self.contract_abi
             )
-            
             self.account = self.w3.eth.account.from_key(self.private_key)
-            self.last_nonce = self.w3.eth.get_transaction_count(self.account.address, 'latest')
-            logger.info(f"Successfully connected to Ethereum network and contract. Account: {self.account.address}")
-            
+
+            # For Sepolia, we'll determine nonce dynamically
+            self.last_nonce = self.w3.eth.get_transaction_count(
+                self.account.address, 'latest'
+            )
+
+            logger.info(
+                f"Successfully connected to Ethereum. Account: {self.account.address}"
+            )
+
         except Exception as e:
             logger.error(f"Failed to connect to Ethereum network: {str(e)}")
             raise
 
     def check_connection(self) -> bool:
-        """Check connection to Ethereum network."""
-        try:
-            if not self.w3.is_connected():
-                raise ConnectionError("Lost connection to Ethereum network")
-            return True
-        except Exception as e:
-            logger.error(f"Connection check failed: {str(e)}")
-            raise
+        """
+        Checks the connection to the Ethereum network.
+        Raises an exception if not connected.
+        """
+        if not self.w3.is_connected():
+            error_msg = "Lost connection to Ethereum network."
+            logger.error(error_msg)
+            raise ConnectionError(error_msg)
+        return True
 
     def _get_next_nonce(self) -> int:
-        """Get the next available nonce for Sepolia testnet."""
+        """
+        Get the next valid nonce for the current account on Sepolia.
+        Always fetches the latest nonce to handle concurrency or missed transactions.
+        """
         try:
-            # Always use 'latest' for more reliable nonce tracking on Sepolia
-            latest_nonce = self.w3.eth.get_transaction_count(self.account.address, 'latest')
-            
-            # Initialize last_nonce if not set
-            if not hasattr(self, 'last_nonce'):
-                self.last_nonce = latest_nonce - 1
-            
-            # Increment based on latest nonce
-            next_nonce = latest_nonce
-            self.last_nonce = next_nonce
-            
-            logger.info(f"Using nonce: {next_nonce} (latest: {latest_nonce})")
-            return next_nonce
+            latest_nonce = self.w3.eth.get_transaction_count(
+                self.account.address, 'latest'
+            )
+            # Update & return
+            self.last_nonce = latest_nonce
+            logger.info(f"Using nonce: {self.last_nonce}")
+            return self.last_nonce
         except Exception as e:
             logger.error(f"Error getting next nonce: {str(e)}")
             raise
 
-    def _calculate_gas_price(self, base_fee: int = None, attempt: int = 0) -> int:
-        """Calculate appropriate gas price for Sepolia testnet."""
+    def _calculate_gas_price(self, attempt: int = 0) -> int:
+        """
+        Calculate an appropriate gas price for the Sepolia testnet, 
+        factoring in attempts for incremental increases.
+        """
         try:
-            if base_fee is None:
-                base_fee = self.w3.eth.gas_price
-            
-            # Higher base multiplier for Sepolia
-            base_multiplier = 1.5
-            retry_multiplier = 1.5 ** attempt
-            
-            # Calculate total multiplier
-            total_multiplier = base_multiplier * retry_multiplier
-            
-            # Calculate final gas price
-            final_gas_price = int(base_fee * total_multiplier)
-            
-            # Set minimum gas price for Sepolia (10 Gwei)
-            min_gas_price = 10_000_000_000
-            final_gas_price = max(final_gas_price, min_gas_price)
-            
-            logger.info(f"Gas price calculation: base={base_fee}, multiplier={total_multiplier}, final={final_gas_price}")
+            base_fee = self.w3.eth.gas_price
+            # Increase multiplier with each retry
+            retry_multiplier = self.BASE_MULTIPLIER ** (attempt + 1)
+            final_gas_price = int(base_fee * retry_multiplier)
+            final_gas_price = max(final_gas_price, self.MIN_GAS_PRICE)
+
+            logger.info(
+                f"Gas price calculation: base={base_fee}, "
+                f"retry_multiplier={retry_multiplier:.2f}, "
+                f"final={final_gas_price}"
+            )
             return final_gas_price
         except Exception as e:
             logger.error(f"Error calculating gas price: {str(e)}")
             raise
 
-    def _prepare_transaction(self, function_call, attempt: int = 0) -> Dict:
-        """Prepare transaction with Sepolia-specific parameters."""
+    def _prepare_transaction(
+        self, function_call, attempt: int = 0
+    ) -> Dict[str, Union[int, str]]:
+        """
+        Prepare the transaction parameters including nonce, gas limit, 
+        and gas price. Returns a dictionary of parameters to build a transaction.
+        """
         try:
             nonce = self._get_next_nonce()
-            gas_price = self._calculate_gas_price(None, attempt)
-            
-            # Get gas estimate with buffer
-            gas_estimate = function_call.estimate_gas({'from': self.account.address})
-            gas_limit = int(gas_estimate * 1.5)  # 50% buffer should be sufficient
-            
+            gas_price = self._calculate_gas_price(attempt)
+
+            # Add a buffer to gas estimation to reduce out-of-gas errors
+            estimated_gas = function_call.estimate_gas({'from': self.account.address})
+            gas_limit = int(estimated_gas * 1.5)
+
             transaction_params = {
-                'chainId': 11155111,  # Sepolia chain ID
+                'chainId': self.SEPOLIA_CHAIN_ID,
                 'from': self.account.address,
                 'nonce': nonce,
                 'gas': gas_limit,
                 'gasPrice': gas_price
             }
-            
             logger.info(f"Prepared transaction: {transaction_params}")
             return transaction_params
         except Exception as e:
@@ -171,81 +197,96 @@ class Web3HashManager:
         flag: str = "initial",
         row_count: int = 0
     ) -> bool:
-        """Add a new hash mapping record with Sepolia-optimized handling."""
-        try:
-            self.check_connection()
+        """
+        Adds a new hash mapping record on-chain.
+        Includes retry logic for nonce or gas-related failures.
 
-            function_call = self.contract.functions.addHashMapping(
-                table_name,
-                partition,
-                hash_value,
-                prev_hash,
-                record_type,
-                flag,
-                row_count
-            )
+        :param user_id:     Ethereum address (as string) of the user
+        :param table_name:  Name of the table
+        :param partition:   Partition identifier
+        :param hash_value:  The new hash to store
+        :param prev_hash:   Previous hash (optional)
+        :param record_type: Type of record (e.g. create, update, share)
+        :param flag:        Arbitrary flag value
+        :param row_count:   Row count associated with this table state
+        :return:            True if transaction succeeds, False otherwise
+        """
+        self.check_connection()
+        function_call = self.contract.functions.addHashMapping(
+            table_name,
+            partition,
+            hash_value,
+            prev_hash,
+            record_type,
+            flag,
+            row_count
+        )
 
-            max_attempts = 3  # Reduced number of attempts for faster feedback
-            attempt = 0
-            retry_base_wait = 3  # Base wait time in seconds
-            
-            while attempt < max_attempts:
-                try:
-                    transaction_params = self._prepare_transaction(function_call, attempt)
-                    transaction = function_call.build_transaction(transaction_params)
-                    
-                    signed_txn = self.w3.eth.account.sign_transaction(
-                        transaction,
-                        self.private_key
-                    )
-                    
-                    tx_hash = self.w3.eth.send_raw_transaction(signed_txn.raw_transaction)
-                    logger.info(f"Transaction hash: {tx_hash.hex()}")
-                    
-                    # Wait for transaction confirmation
-                    receipt = self.w3.eth.wait_for_transaction_receipt(
-                        tx_hash,
-                        timeout=60,  # 1 minute timeout
-                        poll_latency=2  # Check every 2 seconds
-                    )
-                    
-                    if receipt['status'] == 1:
-                        logger.info(f"Transaction successful: {receipt}")
-                        return True
-                    else:
-                        logger.error(f"Transaction failed: {receipt}")
-                        return False
-                    
-                except Exception as e:
-                    if any(error in str(e).lower() for error in ['nonce too low', 'replacement transaction underpriced', 'transaction not found']):
-                        attempt += 1
-                        if attempt == max_attempts:
-                            raise
-                        wait_time = retry_base_wait * (attempt + 1)
-                        logger.warning(f"Transaction attempt {attempt} failed, retrying in {wait_time} seconds...")
+        for attempt in range(self.MAX_ATTEMPTS):
+            try:
+                tx_params = self._prepare_transaction(function_call, attempt)
+                transaction = function_call.build_transaction(tx_params)
+                signed_txn = self.w3.eth.account.sign_transaction(
+                    transaction, self.private_key
+                )
+
+                tx_hash = self.w3.eth.send_raw_transaction(signed_txn.raw_transaction)
+                logger.info(f"Sent transaction. Hash: {tx_hash.hex()}")
+
+                # Wait for on-chain confirmation
+                receipt = self.w3.eth.wait_for_transaction_receipt(
+                    tx_hash, timeout=60, poll_latency=2
+                )
+                if receipt.status == 1:
+                    logger.info(f"Transaction successful. Receipt: {receipt}")
+                    return True
+                else:
+                    logger.error(f"Transaction failed. Receipt: {receipt}")
+                    return False
+
+            except Exception as e:
+                error_msg = str(e).lower()
+                # Retry if nonce or gas-related issues
+                if any(term in error_msg for term in [
+                    'nonce too low',
+                    'replacement transaction underpriced',
+                    'transaction not found'
+                ]):
+                    if attempt < self.MAX_ATTEMPTS - 1:
+                        wait_time = self.RETRY_BASE_WAIT * (attempt + 1)
+                        logger.warning(
+                            f"Transaction attempt {attempt+1} failed with {e}. "
+                            f"Retrying in {wait_time} seconds..."
+                        )
                         time.sleep(wait_time)
                     else:
-                        raise
-                    
-        except Exception as e:
-            logger.error(f"Error adding hash mapping: {str(e)}")
-            logger.exception("Full exception trace:")
-            raise
+                        logger.error("Max retry attempts reached. Giving up.")
+                        return False
+                else:
+                    logger.error(f"Failed to send transaction: {str(e)}")
+                    raise
 
-    def get_latest_hash(self, user_id: str, table_name: str, partition: str) -> Optional[str]:
-        """Get the most recent hash for a given partition."""
+        return False
+
+    def get_latest_hash(
+        self, user_id: str, table_name: str, partition: str
+    ) -> Optional[str]:
+        """
+        Retrieve the most recent hash for a given table partition and user.
+
+        :param user_id:    Ethereum address (as string) of the user
+        :param table_name: Name of the table
+        :param partition:  Partition identifier
+        :return:           Latest IPFS hash if found, otherwise None
+        """
+        self.check_connection()
         try:
-            self.check_connection()
-
             user_address = self.w3.to_checksum_address(user_id)
             latest_hash = self.contract.functions.getLatestHash(
-                user_address,
-                table_name,
-                partition
+                user_address, table_name, partition
             ).call()
-            print("latest hash from blockchain: ", latest_hash)
-            return latest_hash if latest_hash else None
-            
+            logger.info(f"Retrieved latest hash: {latest_hash} for user {user_id}")
+            return latest_hash or None
         except ValueError as e:
             logger.error(f"Invalid address format: {str(e)}")
             raise
@@ -254,38 +295,50 @@ class Web3HashManager:
             raise
 
     def get_hash_history(
-        self,
-        user_id: str,
-        table_name: str,
-        partition: str
+        self, user_id: str, table_name: str, partition: str
     ) -> List[Dict[str, Union[str, int]]]:
-        """Get complete hash history for a partition."""
-        try:
-            self.check_connection()
+        """
+        Get the complete hash history for a given table partition and user.
 
+        :param user_id:    Ethereum address (as string) of the user
+        :param table_name: Name of the table
+        :param partition:  Partition identifier
+        :return:           List of records with 'hash', 'prevHash', 'type',
+                           'timestamp', 'flag', 'rowCount'
+        """
+        self.check_connection()
+        try:
             user_address = self.w3.to_checksum_address(user_id)
-            
-            hashes, prev_hashes, types, timestamps, flags, row_counts = \
-                self.contract.functions.getHashHistory(
-                    user_address,
-                    table_name,
-                    partition
-                ).call()
-            
+            (
+                hashes,
+                prev_hashes,
+                types,
+                timestamps,
+                flags,
+                row_counts
+            ) = self.contract.functions.getHashHistory(
+                user_address, table_name, partition
+            ).call()
+
             history = []
             for i in range(len(hashes)):
                 record = {
                     "hash": hashes[i],
                     "prevHash": prev_hashes[i],
                     "type": types[i],
-                    "timestamp": datetime.fromtimestamp(timestamps[i]).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                    "timestamp": datetime.fromtimestamp(timestamps[i]).strftime(
+                        "%Y-%m-%dT%H:%M:%SZ"
+                    ),
                     "flag": flags[i],
                     "rowCount": row_counts[i]
                 }
                 history.append(record)
-                
+
+            logger.info(
+                f"Retrieved hash history for user {user_id}, table {table_name}, partition {partition}"
+            )
             return history
-            
+
         except Exception as e:
             logger.error(f"Error getting hash history: {str(e)}")
             return []

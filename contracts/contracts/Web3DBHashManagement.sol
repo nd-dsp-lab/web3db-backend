@@ -12,6 +12,13 @@ contract Web3DBHashManagement {
         uint256 rowCount; // Number of rows
     }
 
+    // Struct to store CID sharing information
+    struct SharedCID {
+        string cid;
+        address owner;
+        bool isValid;
+    }
+
     // Main storage mapping: user => table => partition => records[]
     mapping(address => mapping(string => mapping(string => HashRecord[])))
         private hashMappings;
@@ -19,9 +26,8 @@ contract Web3DBHashManagement {
     // Track tables owned by users
     mapping(address => string[]) private userTables;
 
-    // Track shared access: owner => table => authorized users
-    mapping(address => mapping(string => mapping(address => bool)))
-        private sharedAccess;
+    // Track shared CIDs: user => table => SharedCID[]
+    mapping(address => mapping(string => SharedCID[])) private sharedCIDs;
 
     // Events
     event HashMappingAdded(
@@ -32,11 +38,34 @@ contract Web3DBHashManagement {
         string recordType
     );
 
-    event TableShared(
-        address indexed fromUser,
-        address indexed toUser,
-        string table
+    event CIDShared(
+        address indexed owner,
+        address indexed sharedWith,
+        string table,
+        string cid
     );
+
+    // Helper function to check if msg.sender owns the CID in any table/partition
+    function isCIDOwner(string memory cid) private view returns (bool) {
+        // Check through user's tables
+        string[] memory tables = userTables[msg.sender];
+
+        for (uint256 i = 0; i < tables.length; i++) {
+            HashRecord[] storage records = hashMappings[msg.sender][tables[i]][
+                "0"
+            ];
+
+            for (uint256 j = 0; j < records.length; j++) {
+                if (
+                    keccak256(bytes(records[j].hash)) == keccak256(bytes(cid))
+                ) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
 
     // Add new hash mapping
     function addHashMapping(
@@ -72,6 +101,80 @@ contract Web3DBHashManagement {
         );
 
         return true;
+    }
+
+    // Share CID with a specific user
+    function shareCID(
+        address user,
+        string memory tableName,
+        string memory cid
+    ) public returns (bool) {
+        require(user != address(0), "Invalid user address");
+        require(bytes(cid).length > 0, "Invalid CID");
+        require(isCIDOwner(cid), "Only CID owner can share it");
+
+        SharedCID memory sharedCID = SharedCID({
+            cid: cid,
+            owner: msg.sender,
+            isValid: true
+        });
+
+        sharedCIDs[user][tableName].push(sharedCID);
+
+        emit CIDShared(msg.sender, user, tableName, cid);
+        return true;
+    }
+
+    // Get shared CIDs for a specific table
+    function getSharedCIDs(
+        string memory tableName
+    ) public view returns (string[] memory cids, address[] memory owners) {
+        SharedCID[] storage cidRecords = sharedCIDs[msg.sender][tableName];
+        uint256 validCount = 0;
+
+        // First count valid records
+        for (uint256 i = 0; i < cidRecords.length; i++) {
+            if (cidRecords[i].isValid) {
+                validCount++;
+            }
+        }
+
+        // Initialize arrays with the count of valid records
+        cids = new string[](validCount);
+        owners = new address[](validCount);
+
+        // Fill arrays with valid records
+        uint256 currentIndex = 0;
+        for (uint256 i = 0; i < cidRecords.length; i++) {
+            if (cidRecords[i].isValid) {
+                cids[currentIndex] = cidRecords[i].cid;
+                owners[currentIndex] = cidRecords[i].owner;
+                currentIndex++;
+            }
+        }
+
+        return (cids, owners);
+    }
+
+    // Revoke shared CID
+    function revokeCIDAccess(
+        address user,
+        string memory tableName,
+        string memory cid
+    ) public returns (bool) {
+        SharedCID[] storage cidRecords = sharedCIDs[user][tableName];
+
+        for (uint256 i = 0; i < cidRecords.length; i++) {
+            if (
+                keccak256(bytes(cidRecords[i].cid)) == keccak256(bytes(cid)) &&
+                cidRecords[i].owner == msg.sender
+            ) {
+                cidRecords[i].isValid = false;
+                return true;
+            }
+        }
+
+        return false;
     }
 
     // Get latest hash
@@ -124,31 +227,6 @@ contract Web3DBHashManagement {
         }
 
         return (hashes, prevHashes, types, timestamps, flags, rowCounts);
-    }
-
-    // Share table with another user
-    function shareTable(
-        string memory tableName,
-        address toUser
-    ) public returns (bool) {
-        require(
-            hashMappings[msg.sender][tableName]["0"].length > 0,
-            "Table does not exist"
-        );
-
-        sharedAccess[msg.sender][tableName][toUser] = true;
-
-        emit TableShared(msg.sender, toUser, tableName);
-        return true;
-    }
-
-    // Revoke shared access
-    function revokeAccess(
-        string memory tableName,
-        address fromUser
-    ) public returns (bool) {
-        sharedAccess[msg.sender][tableName][fromUser] = false;
-        return true;
     }
 
     // Get user's tables

@@ -89,6 +89,10 @@ class Web3HashManager:
             self.private_key = (
                 '34cf59aaa5ef0a24e65b4e4dbe6fb23c2bd23a4d9a6b584d7995a141de719d53'
             )
+
+            # self.private_key = (
+            #     '0a13259d86ea6ffefda50f074c0aa4c72db594433585e572b27ffd9b6f60fd12'
+            # )
             self.contract = self.w3.eth.contract(
                 address=self.contract_address,
                 abi=self.contract_abi

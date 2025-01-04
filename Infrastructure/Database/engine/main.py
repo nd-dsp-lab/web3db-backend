@@ -18,6 +18,7 @@ from web3_hash_manager import Web3HashManager
 # -----------------------------------------------------
 DEFAULT_PARTITION = "0"
 DEFAULT_USER_ID = "0x68ef100cC9dAdE0bb67a0aE99A02CDd1eaE54A2f"
+# DEFAULT_USER_ID = "0x1f6Da6843Bad2a6F7a3fC7824289f197556f99b0"
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

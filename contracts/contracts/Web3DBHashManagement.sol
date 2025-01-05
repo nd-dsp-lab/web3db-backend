@@ -45,7 +45,9 @@ contract Web3DBHashManagement {
         string cid
     );
 
-    // Helper function to check if msg.sender owns the CID in any table/partition
+    // -------------------------------------------------------------------------
+    // Private helper to check if msg.sender owns the CID in any table/partition
+    // -------------------------------------------------------------------------
     function isCIDOwner(string memory cid) private view returns (bool) {
         // Check through user's tables
         string[] memory tables = userTables[msg.sender];
@@ -63,11 +65,12 @@ contract Web3DBHashManagement {
                 }
             }
         }
-
         return false;
     }
 
+    // -------------------------------------------------------------------------
     // Add new hash mapping
+    // -------------------------------------------------------------------------
     function addHashMapping(
         string memory tableName,
         string memory partition,
@@ -99,11 +102,12 @@ contract Web3DBHashManagement {
             hash,
             recordType
         );
-
         return true;
     }
 
+    // -------------------------------------------------------------------------
     // Share CID with a specific user
+    // -------------------------------------------------------------------------
     function shareCID(
         address user,
         string memory tableName,
@@ -125,11 +129,15 @@ contract Web3DBHashManagement {
         return true;
     }
 
-    // Get shared CIDs for a specific table
+    // -------------------------------------------------------------------------
+    // (Modified!) Get shared CIDs for any user
+    // -------------------------------------------------------------------------
     function getSharedCIDs(
+        address user,
         string memory tableName
     ) public view returns (string[] memory cids, address[] memory owners) {
-        SharedCID[] storage cidRecords = sharedCIDs[msg.sender][tableName];
+        // Retrieve the shared records stored under `user`
+        SharedCID[] storage cidRecords = sharedCIDs[user][tableName];
         uint256 validCount = 0;
 
         // First count valid records
@@ -156,14 +164,15 @@ contract Web3DBHashManagement {
         return (cids, owners);
     }
 
+    // -------------------------------------------------------------------------
     // Revoke shared CID
+    // -------------------------------------------------------------------------
     function revokeCIDAccess(
         address user,
         string memory tableName,
         string memory cid
     ) public returns (bool) {
         SharedCID[] storage cidRecords = sharedCIDs[user][tableName];
-
         for (uint256 i = 0; i < cidRecords.length; i++) {
             if (
                 keccak256(bytes(cidRecords[i].cid)) == keccak256(bytes(cid)) &&
@@ -173,11 +182,12 @@ contract Web3DBHashManagement {
                 return true;
             }
         }
-
         return false;
     }
 
+    // -------------------------------------------------------------------------
     // Get latest hash
+    // -------------------------------------------------------------------------
     function getLatestHash(
         address user,
         string memory tableName,
@@ -190,7 +200,9 @@ contract Web3DBHashManagement {
         return "";
     }
 
+    // -------------------------------------------------------------------------
     // Get hash history
+    // -------------------------------------------------------------------------
     function getHashHistory(
         address user,
         string memory tableName,
@@ -229,7 +241,9 @@ contract Web3DBHashManagement {
         return (hashes, prevHashes, types, timestamps, flags, rowCounts);
     }
 
+    // -------------------------------------------------------------------------
     // Get user's tables
+    // -------------------------------------------------------------------------
     function getUserTables(address user) public view returns (string[] memory) {
         return userTables[user];
     }

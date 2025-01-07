@@ -9,122 +9,125 @@ describe("Web3DBHashManagement", function () {
 
     beforeEach(async function () {
         [owner, user1, user2] = await ethers.getSigners();
-
         const Contract = await ethers.getContractFactory("Web3DBHashManagement");
         contract = await Contract.deploy();
+        await contract.waitForDeployment();
     });
 
-    describe("Hash Management", function () {
-        it("should add a new hash mapping", async function () {
-            const tx = await contract.addHashMapping(
-                "users",                    // tableName
-                "partition1",               // partition
-                "QmHash1",                 // hash
-                "",                        // prevHash (empty for first record)
-                "create",                  // recordType
-                "initial",                 // flag
-                100                        // rowCount
-            );
+    describe("Hash Mapping", function () {
+        it("Should add hash mapping correctly", async function () {
+            const tableName = "users";
+            const partition = "0";
+            const hash = "QmTest123";
+            const prevHash = "";
+            const recordType = "create";
+            const flag = "initial";
+            const rowCount = 1;
 
-            await tx.wait();
+            await expect(
+                contract.addHashMapping(tableName, partition, hash, prevHash, recordType, flag, rowCount)
+            ).to.emit(contract, "HashMappingAdded")
+                .withArgs(owner.address, tableName, partition, hash, recordType);
 
-            const latestHash = await contract.getLatestHash(owner.address, "users", "partition1");
-            expect(latestHash).to.equal("QmHash1");
+            const latestHash = await contract.getLatestHash(owner.address, tableName, partition);
+            expect(latestHash).to.equal(hash);
         });
 
-        it("should maintain hash history", async function () {
-            // Add first hash
-            await contract.addHashMapping(
-                "users",
-                "partition1",
-                "QmHash1",
-                "",
-                "create",
-                "initial",
-                100
-            );
+        it("Should track user tables correctly", async function () {
+            const tableName = "users";
+            const partition = "0";
 
-            // Add second hash
-            await contract.addHashMapping(
-                "users",
-                "partition1",
-                "QmHash2",
-                "QmHash1",
-                "update",
-                "latest",
-                150
-            );
+            await contract.addHashMapping(tableName, partition, "QmTest123", "", "create", "initial", 1);
+
+            const userTables = await contract.getUserTables(owner.address);
+            expect(userTables).to.have.lengthOf(1);
+            expect(userTables[0]).to.equal(tableName);
+        });
+
+        it("Should maintain correct hash history", async function () {
+            const tableName = "users";
+            const partition = "0";
+
+            // Add multiple hash mappings
+            await contract.addHashMapping(tableName, partition, "Hash1", "", "create", "initial", 1);
+            await contract.addHashMapping(tableName, partition, "Hash2", "Hash1", "update", "latest", 2);
 
             const [hashes, prevHashes, types, timestamps, flags, rowCounts] =
-                await contract.getHashHistory(owner.address, "users", "partition1");
+                await contract.getHashHistory(owner.address, tableName, partition);
 
-            expect(hashes.length).to.equal(2);
-            expect(hashes[0]).to.equal("QmHash1");
-            expect(hashes[1]).to.equal("QmHash2");
-            expect(prevHashes[1]).to.equal("QmHash1");
+            expect(hashes).to.have.lengthOf(2);
+            expect(hashes[0]).to.equal("Hash1");
+            expect(hashes[1]).to.equal("Hash2");
+            expect(prevHashes[1]).to.equal("Hash1");
+            expect(types[0]).to.equal("create");
             expect(types[1]).to.equal("update");
             expect(flags[0]).to.equal("initial");
-            expect(rowCounts[1]).to.equal(150);
+            expect(flags[1]).to.equal("latest");
+            expect(rowCounts[0]).to.equal(1);
+            expect(rowCounts[1]).to.equal(2);
         });
     });
 
-    describe("Table Sharing", function () {
+    describe("CID Sharing", function () {
         beforeEach(async function () {
-            // Create a table first
-            await contract.addHashMapping(
-                "users",
-                "0",
-                "QmHash1",
-                "",
-                "create",
-                "initial",
-                100
-            );
+            // Setup: Add a hash mapping first
+            await contract.addHashMapping("users", "0", "QmTest123", "", "create", "initial", 1);
         });
 
-        it("should share table with another user", async function () {
-            const tx = await contract.shareTable("users", user1.address);
-            await tx.wait();
+        it("Should share CID correctly", async function () {
+            await expect(
+                contract.shareCID(user1.address, "users", "QmTest123")
+            ).to.emit(contract, "CIDShared")
+                .withArgs(owner.address, user1.address, "users", "QmTest123");
 
-            // User1 should be able to read the hash
-            const latestHash = await contract.getLatestHash(owner.address, "users", "0");
-            expect(latestHash).to.equal("QmHash1");
+            const [cids, owners] = await contract.getSharedCIDs(user1.address, "users");
+            expect(cids).to.have.lengthOf(1);
+            expect(cids[0]).to.equal("QmTest123");
+            expect(owners[0]).to.equal(owner.address);
         });
 
-        it("should revoke access", async function () {
-            // Share and then revoke
-            await contract.shareTable("users", user1.address);
-            const tx = await contract.revokeAccess("users", user1.address);
-            await tx.wait();
+        it("Should prevent sharing of unowned CID", async function () {
+            await expect(
+                contract.connect(user1).shareCID(user2.address, "users", "QmTest123")
+            ).to.be.revertedWith("Only CID owner can share it");
+        });
+
+        it("Should revoke CID access correctly", async function () {
+            await contract.shareCID(user1.address, "users", "QmTest123");
+            await contract.revokeCIDAccess(user1.address, "users", "QmTest123");
+
+            const [cids, owners] = await contract.getSharedCIDs(user1.address, "users");
+            expect(cids).to.have.lengthOf(0);
+        });
+
+        it("Should prevent invalid address in sharing", async function () {
+            await expect(
+                contract.shareCID(ethers.ZeroAddress, "users", "QmTest123")
+            ).to.be.revertedWith("Invalid user address");
+        });
+
+        it("Should prevent sharing empty CID", async function () {
+            await expect(
+                contract.shareCID(user1.address, "users", "")
+            ).to.be.revertedWith("Invalid CID");
         });
     });
 
-    describe("User Tables", function () {
-        it("should track user tables", async function () {
-            await contract.addHashMapping(
-                "users",
-                "0",
-                "QmHash1",
-                "",
-                "create",
-                "initial",
-                100
-            );
+    describe("Edge Cases", function () {
+        it("Should handle empty history correctly", async function () {
+            const [hashes, , , , ,] = await contract.getHashHistory(owner.address, "nonexistent", "0");
+            expect(hashes).to.have.lengthOf(0);
+        });
 
-            await contract.addHashMapping(
-                "products",
-                "0",
-                "QmHash2",
-                "",
-                "create",
-                "initial",
-                50
-            );
+        it("Should handle multiple partitions", async function () {
+            await contract.addHashMapping("users", "0", "Hash1", "", "create", "initial", 1);
+            await contract.addHashMapping("users", "1", "Hash2", "", "create", "initial", 1);
 
-            const tables = await contract.getUserTables(owner.address);
-            expect(tables.length).to.equal(2);
-            expect(tables).to.include("users");
-            expect(tables).to.include("products");
+            const hash0 = await contract.getLatestHash(owner.address, "users", "0");
+            const hash1 = await contract.getLatestHash(owner.address, "users", "1");
+
+            expect(hash0).to.equal("Hash1");
+            expect(hash1).to.equal("Hash2");
         });
     });
 });

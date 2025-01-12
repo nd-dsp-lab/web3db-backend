@@ -5,3 +5,4 @@ requests
 sqlparse
 pyspark
 web3
+cryptography

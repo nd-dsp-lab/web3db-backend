@@ -1,15 +1,26 @@
 import requests
-import json
 import datetime
 from typing import Dict, Optional, Any
 import os
+from cryptography.fernet import Fernet
 
 class IPFSHandler:
+    # Default encryption key (base64 encoded 32-byte key)
+    DEFAULT_KEY = b'YWJjZGVmZ2hpamtsbW5vcHFyc3R1dnd4eXoxMjM0NTY='
+    
     def __init__(self):
         host = os.getenv('IPFS_HOST', 'localhost')
         port = os.getenv('IPFS_PORT', '5001')
         self.api_url = f'http://{host}:{port}/api/v0'
         self.connected = self._test_connection()
+        
+        # Initialize encryption
+        encryption_key = os.getenv('AES_ENCRYPTION_KEY')
+        if not encryption_key:
+            encryption_key = self.DEFAULT_KEY
+            print("Using default encryption key")
+            
+        self.cipher_suite = Fernet(encryption_key)
         
         if self.connected:
             print("Connected to IPFS node")
@@ -23,6 +34,14 @@ class IPFSHandler:
         except Exception as e:
             print(f"IPFS connection error: {str(e)}")
             return False
+            
+    def _encrypt(self, data: str) -> bytes:
+        """Encrypt string data"""
+        return self.cipher_suite.encrypt(data.encode())
+        
+    def _decrypt(self, encrypted_data: bytes) -> str:
+        """Decrypt bytes to string"""
+        return self.cipher_suite.decrypt(encrypted_data).decode()
 
     def save_state(self, sql_dump: str, metadata: Dict[str, Any] = None) -> Optional[Dict[str, Any]]:
         """
@@ -40,7 +59,9 @@ class IPFSHandler:
             return None
 
         try:
-            files = {'file': ('filename', sql_dump)}
+            # Encrypt the SQL dump before saving
+            encrypted_data = self._encrypt(sql_dump)
+            files = {'file': ('filename', encrypted_data)}
             response = requests.post(f'{self.api_url}/add', files=files)
             print(f"IPFS response: {response.status_code}")
             
@@ -71,7 +92,7 @@ class IPFSHandler:
             return None
 
         try:
-            # Get SQL content
+            # Get encrypted SQL content
             response = requests.post(
                 f'{self.api_url}/cat',
                 params={'arg': hash}
@@ -80,6 +101,9 @@ class IPFSHandler:
             if response.status_code != 200:
                 print(f"Failed to load from IPFS: {response.status_code}")
                 return None
+
+            # Decrypt the content
+            decrypted_content = self._decrypt(response.content)
 
             # Get metadata if exists
             try:
@@ -92,7 +116,7 @@ class IPFSHandler:
                 metadata = {}
 
             return {
-                'content': response.text,
+                'content': decrypted_content,
                 'hash': hash,
                 'table_mappings': metadata.get('table_mappings', {}),
                 'previous_hash': metadata.get('previous_hash')

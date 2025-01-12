@@ -1,7 +1,7 @@
 import logging
 from typing import Optional, Dict, Any, List, Tuple
 import sqlparse
-from sqlparse.sql import Token, Identifier
+from sqlparse.sql import Identifier
 from sqlparse.tokens import Keyword
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware

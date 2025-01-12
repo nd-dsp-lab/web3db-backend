@@ -10,17 +10,26 @@ from ipfs_handler import IPFSHandler
 
 class SparkSQLShell:
     def __init__(self):
-        self.spark = SparkSession.builder \
-            .appName("PostgreSQL-Compatible Spark SQL Shell") \
-            .master("spark://spark-master:7077") \
-            .config("spark.sql.parser.quotedRegexColumnNames", "true") \
-            .config("spark.sql.ansi.enabled", "true") \
-            .config("spark.driver.memory", "1g") \
-            .config("spark.executor.memory", "1g") \
-            .config("spark.cores.max", "2") \
-            .config("spark.executor.cores", "2") \
-            .config("spark.jars.packages", "org.apache.spark:spark-sql_2.12:4.0.0-preview2") \
+        # Set environment variables for local mode
+        os.environ['SPARK_LOCAL_IP'] = 'localhost'
+        os.environ['SPARK_WORKER_CORES'] = '2'  # Adjust based on your machine
+        os.environ['SPARK_WORKER_MEMORY'] = '2g'  # Adjust based on your machine
+        
+        # Create Spark session with proper local configuration
+        self.spark = (SparkSession.builder
+            .appName("Web3DB")
+            .master("local[*]")  # Use all available cores
+            .config("spark.driver.memory", "2g")
+            .config("spark.executor.memory", "2g")
+            .config("spark.sql.shuffle.partitions", "2")  # Reduce for small datasets
+            .config("spark.default.parallelism", "2")
+            .config("spark.driver.bindAddress", "localhost")
+            .config("spark.driver.host", "localhost")
+            .config("spark.sql.adaptive.enabled", "true")
+            .config("spark.memory.offHeap.enabled", "true")
+            .config("spark.memory.offHeap.size", "1g")
             .getOrCreate()
+        )
 
         # Set log level after SparkSession creation
         self.spark.sparkContext.setLogLevel("WARN")

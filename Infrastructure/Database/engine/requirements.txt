@@ -1,7 +1,0 @@
-fastapi
-uvicorn
-pydantic
-requests
-sqlparse
-pyspark
-web3

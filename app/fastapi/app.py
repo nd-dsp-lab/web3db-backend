@@ -97,45 +97,45 @@ async def upload_patient_data(file: UploadFile = File(...)):
         gc.collect()
         return {"error": f"Failed to process and upload data: {str(e)}"}
 
-@app.get("/cid/{cid}")
-def get_cid_content(cid: str, download: bool = False):
-    """
-    Fetch content directly from IPFS by CID
-    - Set download=True to download the file instead of viewing it
-    """
-    logger.info(f"GET /cid/{cid} - Retrieving content from IPFS")
+# @app.get("/cid/{cid}")
+# def get_cid_content(cid: str, download: bool = False):
+#     """
+#     Fetch content directly from IPFS by CID
+#     - Set download=True to download the file instead of viewing it
+#     """
+#     logger.info(f"GET /cid/{cid} - Retrieving content from IPFS")
     
-    try:
-        # Fetch from IPFS gateway
-        ipfs_url = f"http://ipfs:8080/ipfs/{cid}"
-        logger.info(f"Requesting content from IPFS at URL: {ipfs_url}")
+#     try:
+#         # Fetch from IPFS gateway
+#         ipfs_url = f"http://ipfs:8080/ipfs/{cid}"
+#         logger.info(f"Requesting content from IPFS at URL: {ipfs_url}")
         
-        response = requests.get(ipfs_url, timeout=10)
-        response.raise_for_status()  # Raise exception for HTTP errors
+#         response = requests.get(ipfs_url, timeout=10)
+#         response.raise_for_status()  # Raise exception for HTTP errors
         
-        content = response.content
+#         content = response.content
         
-        # Get content type if possible
-        content_type = response.headers.get('Content-Type', 'application/octet-stream')
+#         # Get content type if possible
+#         content_type = response.headers.get('Content-Type', 'application/octet-stream')
         
-        # Set filename based on CID if download requested
-        if download:
-            headers = {
-                'Content-Disposition': f'attachment; filename=patient-data-{cid}.parquet'
-            }
-        else:
-            headers = {}
+#         # Set filename based on CID if download requested
+#         if download:
+#             headers = {
+#                 'Content-Disposition': f'attachment; filename=patient-data-{cid}.parquet'
+#             }
+#         else:
+#             headers = {}
             
-        logger.info(f"Successfully fetched content for CID: {cid}")
-        return Response(
-            content=content,
-            media_type=content_type,
-            headers=headers
-        )
+#         logger.info(f"Successfully fetched content for CID: {cid}")
+#         return Response(
+#             content=content,
+#             media_type=content_type,
+#             headers=headers
+#         )
         
-    except requests.exceptions.RequestException as e:
-        logger.error(f"Error fetching content for CID {cid}: {str(e)}")
-        return {"error": f"Failed to retrieve content: {str(e)}"}
+#     except requests.exceptions.RequestException as e:
+#         logger.error(f"Error fetching content for CID {cid}: {str(e)}")
+#         return {"error": f"Failed to retrieve content: {str(e)}"}
     
 from typing import Optional
 import re

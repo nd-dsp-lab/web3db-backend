@@ -136,3 +136,119 @@ def get_cid_content(cid: str, download: bool = False):
     except requests.exceptions.RequestException as e:
         logger.error(f"Error fetching content for CID {cid}: {str(e)}")
         return {"error": f"Failed to retrieve content: {str(e)}"}
+    
+    from typing import Optional
+from fastapi import Request
+
+@app.get("/query/{cid}")
+async def query_data(
+    request: Request,
+    cid: str
+):
+    """
+    Query patient data from IPFS by CID with filtering
+    - cid: Content Identifier for the Parquet file on IPFS
+    - Any column name can be used as a query parameter for exact matching
+    - For advanced filtering, append operators to column names:
+      - _gt: greater than
+      - _lt: less than
+      - _gte: greater than or equal
+      - _lte: less than or equal
+      - _ne: not equal
+      - _contains: string contains (case insensitive)
+    
+    Examples:
+    - /query/QmHash123?Age=30&Gender=Male
+    - /query/QmHash123?Age_gt=30&Age_lt=50
+    - /query/QmHash123?Name_contains=Smith
+    """
+    logger.info(f"GET /query/{cid} - Querying data with filters")
+    
+    try:
+        # Get all query parameters
+        query_params = dict(request.query_params)
+        logger.info(f"Query parameters: {query_params}")
+        
+        # Fetch from IPFS gateway
+        ipfs_url = f"http://ipfs:8080/ipfs/{cid}"
+        logger.info(f"Requesting content from IPFS at URL: {ipfs_url}")
+        
+        response = requests.get(ipfs_url, timeout=10)
+        response.raise_for_status()
+        
+        # Read Parquet data into buffer
+        parquet_buffer = io.BytesIO(response.content)
+        
+        # Load Parquet into DataFrame
+        logger.info("Loading Parquet data into DataFrame")
+        table = pq.read_table(parquet_buffer)
+        df = table.to_pandas()
+        
+        # Clean up
+        del table
+        parquet_buffer.close()
+        del parquet_buffer
+        
+        # Apply filters
+        for param, value in query_params.items():
+            # Skip empty values
+            if not value:
+                continue
+                
+            # Parse operators
+            if "_" in param:
+                column, operator = param.split("_", 1)
+            else:
+                column, operator = param, "eq"
+            
+            # Skip if column doesn't exist
+            if column not in df.columns:
+                logger.warning(f"Column {column} not found in DataFrame, skipping filter")
+                continue
+            
+            logger.info(f"Filtering {column} {operator} {value}")
+            
+            # Convert value type based on column type if possible
+            try:
+                if df[column].dtype.kind in 'ifu':  # integer, float, unsigned
+                    value = float(value) if '.' in value else int(value)
+            except (ValueError, TypeError):
+                # Keep as string if conversion fails
+                pass
+            
+            # Apply filter based on operator
+            if operator == "eq":
+                df = df[df[column] == value]
+            elif operator == "gt":
+                df = df[df[column] > value]
+            elif operator == "lt":
+                df = df[df[column] < value]
+            elif operator == "gte":
+                df = df[df[column] >= value]
+            elif operator == "lte":
+                df = df[df[column] <= value]
+            elif operator == "ne":
+                df = df[df[column] != value]
+            elif operator == "contains":
+                df = df[df[column].astype(str).str.contains(value, case=False, na=False)]
+            else:
+                logger.warning(f"Unknown operator {operator}, using equality")
+                df = df[df[column] == value]
+        
+        # Convert DataFrame to JSON
+        logger.info(f"Returning {len(df)} records after filtering")
+        result = df.to_dict(orient="records")
+        
+        # Clean up
+        del df
+        gc.collect()
+        
+        return {"results": result, "count": len(result)}
+        
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Error fetching content for CID {cid}: {str(e)}")
+        return {"error": f"Failed to retrieve content: {str(e)}"}
+    except Exception as e:
+        logger.error(f"Error processing query: {str(e)}")
+        gc.collect()
+        return {"error": f"Failed to process query: {str(e)}"}

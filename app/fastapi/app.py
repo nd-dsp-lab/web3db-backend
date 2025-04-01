@@ -152,7 +152,7 @@ async def query_data(request: QueryRequest):
     Request body:
     {
         "cid": "QmVCgGM4XRyp42DUVJxgjG3LmtsWgrt125BWUGeqaBFTRn",
-        "query": "select Age, Gender, Condition from table where HospitalId = 'HOSP-006'"
+        "query": "select Age, Gender, Condition, DiagnosisReport from table where HospitalID = 'HOSP-006'"
     }
     """
     logger.info(f"POST /query - Processing SQL query for CID: {request.cid}")

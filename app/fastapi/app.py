@@ -7,7 +7,6 @@ import requests
 import io
 import logging
 import gc  # For garbage collection
-from fastapi.responses import Response
 
 # Configure logging
 logging.basicConfig(
@@ -137,9 +136,7 @@ async def upload_patient_data(file: UploadFile = File(...)):
 #         logger.error(f"Error fetching content for CID {cid}: {str(e)}")
 #         return {"error": f"Failed to retrieve content: {str(e)}"}
     
-from typing import Optional
 import re
-from typing import Dict, Any
 from fastapi import HTTPException
 from pydantic import BaseModel
 
@@ -154,8 +151,8 @@ async def query_data(request: QueryRequest):
     
     Request body:
     {
-        "cid": "QmHash123",
-        "query": "select Age, Gender, Condition from table where DoctorId = 'Sara Jones'"
+        "cid": "QmVCgGM4XRyp42DUVJxgjG3LmtsWgrt125BWUGeqaBFTRn",
+        "query": "select Age, Gender, Condition from table where HospitalId = 'HOSP-006'"
     }
     """
     logger.info(f"POST /query - Processing SQL query for CID: {request.cid}")

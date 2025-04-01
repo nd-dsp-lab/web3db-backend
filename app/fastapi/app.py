@@ -4,8 +4,9 @@ import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
 import requests
-import os
+import io
 import logging
+import gc  # For garbage collection
 from fastapi.responses import Response
 
 # Configure logging
@@ -38,52 +39,63 @@ async def upload_patient_data(file: UploadFile = File(...)):
     """
     logger.info("POST /upload/patient-data - Processing patient data upload")
     
-    # Create temp directory if it doesn't exist
-    temp_dir = "/data/patient_data"
-    os.makedirs(temp_dir, exist_ok=True)
-    logger.info(f"Created directory at {temp_dir}")
-    
-    # Save uploaded file temporarily
-    csv_path = f"{temp_dir}/patient_data.csv"
-    parquet_path = f"{temp_dir}/patient_data.parquet"
-    
-    # Save the uploaded file
     try:
-        logger.info(f"Saving uploaded file to {csv_path}")
-        with open(csv_path, "wb") as f:
-            content = await file.read()
-            f.write(content)
-    except Exception as e:
-        logger.error(f"Error saving uploaded file: {str(e)}")
-        return {"error": f"Failed to save file: {str(e)}"}
-    
-    # Convert CSV to Parquet
-    try:
-        logger.info("Converting CSV to Parquet format")
-        df = pd.read_csv(csv_path)
-        table = pa.Table.from_pandas(df)
-        pq.write_table(table, parquet_path)
-        logger.info(f"Successfully converted and saved Parquet file at {parquet_path}")
-    except Exception as e:
-        logger.error(f"Error converting CSV to Parquet: {str(e)}")
-        return {"error": f"Failed to convert to Parquet: {str(e)}"}
-    
-    # Upload to IPFS
-    try:
-        ipfs_api_url = "http://ipfs:5001/api/v0/add"
-        logger.info(f"Uploading Parquet file to IPFS node at {ipfs_api_url}")
+        # Read CSV file content into memory
+        logger.info("Reading uploaded CSV file into memory")
+        content = await file.read()
         
-        with open(parquet_path, "rb") as f:
-            response = requests.post(ipfs_api_url, files={"file": f})
-            response.raise_for_status()
-            cid = response.json()["Hash"]
-            logger.info(f"Patient data uploaded to IPFS with CID: {cid}")
-            
-            # Return the CID
-            return {"message": "Patient data uploaded successfully", "cid": cid}
+        # Process CSV in memory
+        logger.info("Converting CSV to DataFrame")
+        csv_buffer = io.BytesIO(content)
+        df = pd.read_csv(csv_buffer)
+        
+        # Clear initial content and CSV buffer
+        del content
+        csv_buffer.close()
+        del csv_buffer
+        
+        # Convert DataFrame to Parquet in memory
+        logger.info("Converting DataFrame to Parquet format in memory")
+        parquet_buffer = io.BytesIO()
+        table = pa.Table.from_pandas(df)
+        
+        # Clear DataFrame and table after conversion
+        del df
+        
+        pq.write_table(table, parquet_buffer)
+        del table
+        
+        # Reset buffer position to beginning
+        parquet_buffer.seek(0)
+        
+        # Upload to IPFS
+        ipfs_api_url = "http://ipfs:5001/api/v0/add"
+        logger.info(f"Uploading Parquet data to IPFS node at {ipfs_api_url}")
+        
+        response = requests.post(
+            ipfs_api_url, 
+            files={"file": ("patient_data.parquet", parquet_buffer, "application/octet-stream")}
+        )
+        response.raise_for_status()
+        cid = response.json()["Hash"]
+        logger.info(f"Patient data uploaded to IPFS with CID: {cid}")
+        
+        # Clear the parquet buffer
+        parquet_buffer.close()
+        del parquet_buffer
+        
+        # Explicitly trigger garbage collection
+        gc.collect()
+        
+        logger.info("Memory buffers cleared")
+        
+        # Return the CID
+        return {"message": "Patient data uploaded successfully", "cid": cid}
     except Exception as e:
-        logger.error(f"Error uploading to IPFS: {str(e)}")
-        return {"error": f"Failed to upload to IPFS: {str(e)}"}
+        # Make sure to clean up memory even if an error occurs
+        logger.error(f"Error processing patient data: {str(e)}")
+        gc.collect()
+        return {"error": f"Failed to process and upload data: {str(e)}"}
 
 @app.get("/cid/{cid}")
 def get_cid_content(cid: str, download: bool = False):

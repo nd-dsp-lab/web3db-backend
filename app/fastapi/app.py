@@ -137,40 +137,56 @@ def get_cid_content(cid: str, download: bool = False):
         logger.error(f"Error fetching content for CID {cid}: {str(e)}")
         return {"error": f"Failed to retrieve content: {str(e)}"}
     
-    from typing import Optional
-from fastapi import Request
+from typing import Optional
+import re
+from typing import Dict, Any
+from fastapi import HTTPException
+from pydantic import BaseModel
 
-@app.get("/query/{cid}")
-async def query_data(
-    request: Request,
+class QueryRequest(BaseModel):
     cid: str
-):
+    query: str
+
+@app.post("/query")
+async def query_data(request: QueryRequest):
     """
-    Query patient data from IPFS by CID with filtering
-    - cid: Content Identifier for the Parquet file on IPFS
-    - Any column name can be used as a query parameter for exact matching
-    - For advanced filtering, append operators to column names:
-      - _gt: greater than
-      - _lt: less than
-      - _gte: greater than or equal
-      - _lte: less than or equal
-      - _ne: not equal
-      - _contains: string contains (case insensitive)
+    Query patient data from IPFS using a SQL-like query
     
-    Examples:
-    - /query/QmHash123?Age=30&Gender=Male
-    - /query/QmHash123?Age_gt=30&Age_lt=50
-    - /query/QmHash123?Name_contains=Smith
+    Request body:
+    {
+        "cid": "QmHash123",
+        "query": "select Age, Gender, Condition from table where DoctorId = 'Sara Jones'"
+    }
     """
-    logger.info(f"GET /query/{cid} - Querying data with filters")
+    logger.info(f"POST /query - Processing SQL query for CID: {request.cid}")
     
     try:
-        # Get all query parameters
-        query_params = dict(request.query_params)
-        logger.info(f"Query parameters: {query_params}")
+        # Parse the SQL query
+        query = request.query.strip()
+        logger.info(f"Processing query: {query}")
+        
+        # Extract the SELECT part to get columns
+        select_pattern = re.compile(r"select\s+(.*?)\s+from", re.IGNORECASE)
+        select_match = select_pattern.search(query)
+        if not select_match:
+            raise HTTPException(status_code=400, detail="Invalid SQL query: SELECT statement not found")
+        
+        # Get the columns to return
+        columns_str = select_match.group(1).strip()
+        if columns_str == "*":
+            columns = None  # All columns
+        else:
+            columns = [col.strip() for col in columns_str.split(",")]
+            logger.info(f"Columns to return: {columns}")
+        
+        # Extract the WHERE clause
+        where_pattern = re.compile(r"where\s+(.*?)$", re.IGNORECASE)
+        where_match = where_pattern.search(query)
+        where_clause = where_match.group(1).strip() if where_match else None
+        logger.info(f"Where clause: {where_clause}")
         
         # Fetch from IPFS gateway
-        ipfs_url = f"http://ipfs:8080/ipfs/{cid}"
+        ipfs_url = f"http://ipfs:8080/ipfs/{request.cid}"
         logger.info(f"Requesting content from IPFS at URL: {ipfs_url}")
         
         response = requests.get(ipfs_url, timeout=10)
@@ -189,51 +205,106 @@ async def query_data(
         parquet_buffer.close()
         del parquet_buffer
         
-        # Apply filters
-        for param, value in query_params.items():
-            # Skip empty values
-            if not value:
-                continue
+        # Apply WHERE clause if present
+        if where_clause:
+            # Handle simple equality conditions (won't handle complex SQL conditions)
+            conditions = []
+            current_condition = ""
+            in_quotes = False
+            quote_char = None
+            
+            # Parse the where clause character by character to handle quotes correctly
+            for char in where_clause:
+                if char in ["'", '"'] and (not quote_char or char == quote_char):
+                    in_quotes = not in_quotes
+                    if in_quotes:
+                        quote_char = char
+                    else:
+                        quote_char = None
+                    current_condition += char
+                elif char == " " and not in_quotes and "and" in current_condition.lower():
+                    # End of "and" condition
+                    parts = current_condition.lower().split("and")
+                    conditions.append(parts[0].strip())
+                    current_condition = parts[1].strip()
+                else:
+                    current_condition += char
+            
+            # Add the last condition
+            if current_condition:
+                conditions.append(current_condition.strip())
+            
+            # Process each condition
+            for condition in conditions:
+                logger.info(f"Processing condition: {condition}")
                 
-            # Parse operators
-            if "_" in param:
-                column, operator = param.split("_", 1)
+                # Extract operator and values
+                if "=" in condition:
+                    operator = "=="
+                    left, right = [s.strip() for s in condition.split("=", 1)]
+                elif "!=" in condition:
+                    operator = "!="
+                    left, right = [s.strip() for s in condition.split("!=", 1)]
+                elif ">=" in condition:
+                    operator = ">="
+                    left, right = [s.strip() for s in condition.split(">=", 1)]
+                elif "<=" in condition:
+                    operator = "<="
+                    left, right = [s.strip() for s in condition.split("<=", 1)]
+                elif ">" in condition:
+                    operator = ">"
+                    left, right = [s.strip() for s in condition.split(">", 1)]
+                elif "<" in condition:
+                    operator = "<"
+                    left, right = [s.strip() for s in condition.split("<", 1)]
+                else:
+                    logger.warning(f"Unsupported condition format: {condition}")
+                    continue
+                
+                # Handle quoted strings
+                if right.startswith("'") and right.endswith("'"):
+                    right = right[1:-1]  # Remove quotes
+                elif right.startswith('"') and right.endswith('"'):
+                    right = right[1:-1]  # Remove quotes
+                else:
+                    # Try to convert to number if possible
+                    try:
+                        right = float(right) if '.' in right else int(right)
+                    except (ValueError, TypeError):
+                        # Keep as is if not a number
+                        pass
+                
+                # Apply the filter
+                if left not in df.columns:
+                    logger.warning(f"Column {left} not found in DataFrame, skipping filter")
+                    continue
+                
+                if operator == "==":
+                    df = df[df[left] == right]
+                elif operator == "!=":
+                    df = df[df[left] != right]
+                elif operator == ">":
+                    df = df[df[left] > right]
+                elif operator == ">=":
+                    df = df[df[left] >= right]
+                elif operator == "<":
+                    df = df[df[left] < right]
+                elif operator == "<=":
+                    df = df[df[left] <= right]
+        
+        # Select only requested columns if specified
+        if columns:
+            # Check if all requested columns exist
+            missing_columns = [col for col in columns if col not in df.columns]
+            if missing_columns:
+                logger.warning(f"Columns not found: {missing_columns}")
+                # Keep only columns that exist
+                columns = [col for col in columns if col in df.columns]
+            
+            if columns:  # If we still have columns to return
+                df = df[columns]
             else:
-                column, operator = param, "eq"
-            
-            # Skip if column doesn't exist
-            if column not in df.columns:
-                logger.warning(f"Column {column} not found in DataFrame, skipping filter")
-                continue
-            
-            logger.info(f"Filtering {column} {operator} {value}")
-            
-            # Convert value type based on column type if possible
-            try:
-                if df[column].dtype.kind in 'ifu':  # integer, float, unsigned
-                    value = float(value) if '.' in value else int(value)
-            except (ValueError, TypeError):
-                # Keep as string if conversion fails
-                pass
-            
-            # Apply filter based on operator
-            if operator == "eq":
-                df = df[df[column] == value]
-            elif operator == "gt":
-                df = df[df[column] > value]
-            elif operator == "lt":
-                df = df[df[column] < value]
-            elif operator == "gte":
-                df = df[df[column] >= value]
-            elif operator == "lte":
-                df = df[df[column] <= value]
-            elif operator == "ne":
-                df = df[df[column] != value]
-            elif operator == "contains":
-                df = df[df[column].astype(str).str.contains(value, case=False, na=False)]
-            else:
-                logger.warning(f"Unknown operator {operator}, using equality")
-                df = df[df[column] == value]
+                logger.warning("No valid columns to return, returning all columns")
         
         # Convert DataFrame to JSON
         logger.info(f"Returning {len(df)} records after filtering")
@@ -246,7 +317,7 @@ async def query_data(
         return {"results": result, "count": len(result)}
         
     except requests.exceptions.RequestException as e:
-        logger.error(f"Error fetching content for CID {cid}: {str(e)}")
+        logger.error(f"Error fetching content for CID {request.cid}: {str(e)}")
         return {"error": f"Failed to retrieve content: {str(e)}"}
     except Exception as e:
         logger.error(f"Error processing query: {str(e)}")

@@ -127,12 +127,15 @@ async def query_distributed(request: QueryRequest):
         # Create an RDD from the CIDs list
         cids_rdd = spark.sparkContext.parallelize(cids)
         
-        # Process each CID in parallel to fetch data
-        def fetch_data(cid):
+        # Process each CID in parallel to fetch and transform data
+        def fetch_and_process_data(cid):
             import requests
             import base64
             import socket
             import os
+            import io
+            import pandas as pd
+            import pyarrow.parquet as pq
             
             # Get worker information
             hostname = socket.gethostname()
@@ -149,83 +152,52 @@ async def query_distributed(request: QueryRequest):
                 
                 if response.status_code != 200:
                     print(f"Worker {worker_id} failed to fetch CID: {cid} with status code: {response.status_code}")
-                    return (cid, None, f"HTTP error: {response.status_code}", worker_id)
+                    return []  # Return empty list for concat
                 
-                # Return the binary data encoded as base64
-                print(f"Worker {worker_id} successfully fetched CID: {cid}")
-                encoded_data = base64.b64encode(response.content).decode('utf-8')
-                return (cid, encoded_data, None, worker_id)
+                # Process the Parquet data
+                binary_data = response.content
+                parquet_buffer = io.BytesIO(binary_data)
+                table = pq.read_table(parquet_buffer)
+                df = table.to_pandas()
+                
+                # Add source CID and worker info
+                df['source_cid'] = cid
+                df['worker_id'] = worker_id
+                
+                print(f"Worker {worker_id} successfully processed CID: {cid}")
+                
+                # Return as list of dictionaries (records)
+                return df.to_dict(orient='records')
                 
             except Exception as e:
                 print(f"Worker {worker_id} encountered error with CID {cid}: {str(e)}")
-                return (cid, None, str(e), worker_id)
+                return []  # Return empty list for failed CIDs
         
-        # Execute data fetching in parallel
-        results = cids_rdd.map(fetch_data).collect()
+        # Map each CID to its processed records and flatten the results
+        all_records = cids_rdd.flatMap(fetch_and_process_data).collect()
         
-        # Process the fetched data on the driver
-        dfs = []
-        processed_cids = []
-        worker_assignments = {}
-        
-        for cid, encoded_data, error, worker_id in results:
-            # Record which worker processed which CID
-            worker_assignments[cid] = worker_id
-            
-            if encoded_data:
-                try:
-                    # Decode the data
-                    import base64
-                    import io
-                    import pandas as pd
-                    import pyarrow.parquet as pq
-                    
-                    binary_data = base64.b64decode(encoded_data)
-                    parquet_buffer = io.BytesIO(binary_data)
-                    
-                    # Parse the Parquet data
-                    table = pq.read_table(parquet_buffer)
-                    df = table.to_pandas()
-                    
-                    # Add source CID
-                    df['source_cid'] = cid
-                    dfs.append(df)
-                    processed_cids.append(cid)
-                    
-                    logger.info(f"Successfully processed data from CID: {cid} (Worker: {worker_id})")
-                except Exception as e:
-                    logger.error(f"Error processing data from CID {cid} (Worker: {worker_id}): {str(e)}")
-            else:
-                logger.error(f"Error fetching CID {cid} (Worker: {worker_id}): {error}")
-        
-        if not dfs:
+        # If no data was processed, return error
+        if not all_records:
             return {"error": "Failed to process any data from IPFS"}
+            
+        # Create a Spark DataFrame directly from all records
+        spark_df = spark.createDataFrame(all_records)
         
-        # Combine all DataFrames
-        import pandas as pd
-        combined_df = pd.concat(dfs, ignore_index=True)
-        
-        # Convert to Spark DataFrame using records to avoid iteritems error
-        records = combined_df.to_dict(orient='records')
-        spark_df = spark.createDataFrame(records)
+        # Extract worker assignments for reporting
+        worker_data = spark_df.select("source_cid", "worker_id").distinct().collect()
+        worker_assignments = {row["source_cid"]: row["worker_id"] for row in worker_data}
+        processed_cids = list(worker_assignments.keys())
         
         # Register as temporary view
         spark_df.createOrReplaceTempView("patient_data")
         
-        # Execute the SQL query (this will run in parallel using Spark's distributed execution)
+        # Execute the SQL query
         logger.info(f"Executing query: {query}")
         result_df = spark.sql(query)
         
         # Convert results to JSON
-        result_pandas = result_df.toPandas()
-        result_json = result_pandas.to_dict(orient="records")
-        
-        # Clean up
-        del result_df
-        del result_pandas
-        del dfs  
-        del combined_df
-        gc.collect()
+        result_json = result_df.toJSON().collect()
+        result_json = [eval(record.replace('null', 'None')) for record in result_json]
         
         logger.info(f"Query completed successfully, returning {len(result_json)} records")
         

@@ -131,21 +131,34 @@ async def query_distributed(request: QueryRequest):
         def fetch_data(cid):
             import requests
             import base64
+            import socket
+            import os
+            
+            # Get worker information
+            hostname = socket.gethostname()
+            worker_pid = os.getpid()
+            worker_id = f"{hostname}-{worker_pid}"
             
             try:
+                # Log at the beginning of processing
+                print(f"Worker {worker_id} starting to fetch CID: {cid}")
+                
                 # Fetch data from IPFS
                 ipfs_api_url = f"http://ipfs:5001/api/v0/cat"
                 response = requests.post(ipfs_api_url, params={"arg": cid}, timeout=10)
                 
                 if response.status_code != 200:
-                    return (cid, None, f"HTTP error: {response.status_code}")
+                    print(f"Worker {worker_id} failed to fetch CID: {cid} with status code: {response.status_code}")
+                    return (cid, None, f"HTTP error: {response.status_code}", worker_id)
                 
                 # Return the binary data encoded as base64
+                print(f"Worker {worker_id} successfully fetched CID: {cid}")
                 encoded_data = base64.b64encode(response.content).decode('utf-8')
-                return (cid, encoded_data, None)
+                return (cid, encoded_data, None, worker_id)
                 
             except Exception as e:
-                return (cid, None, str(e))
+                print(f"Worker {worker_id} encountered error with CID {cid}: {str(e)}")
+                return (cid, None, str(e), worker_id)
         
         # Execute data fetching in parallel
         results = cids_rdd.map(fetch_data).collect()
@@ -153,8 +166,12 @@ async def query_distributed(request: QueryRequest):
         # Process the fetched data on the driver
         dfs = []
         processed_cids = []
+        worker_assignments = {}
         
-        for cid, encoded_data, error in results:
+        for cid, encoded_data, error, worker_id in results:
+            # Record which worker processed which CID
+            worker_assignments[cid] = worker_id
+            
             if encoded_data:
                 try:
                     # Decode the data
@@ -175,11 +192,11 @@ async def query_distributed(request: QueryRequest):
                     dfs.append(df)
                     processed_cids.append(cid)
                     
-                    logger.info(f"Successfully processed data from CID: {cid}")
+                    logger.info(f"Successfully processed data from CID: {cid} (Worker: {worker_id})")
                 except Exception as e:
-                    logger.error(f"Error processing data from CID {cid}: {str(e)}")
+                    logger.error(f"Error processing data from CID {cid} (Worker: {worker_id}): {str(e)}")
             else:
-                logger.error(f"Error fetching CID {cid}: {error}")
+                logger.error(f"Error fetching CID {cid} (Worker: {worker_id}): {error}")
         
         if not dfs:
             return {"error": "Failed to process any data from IPFS"}
@@ -188,7 +205,7 @@ async def query_distributed(request: QueryRequest):
         import pandas as pd
         combined_df = pd.concat(dfs, ignore_index=True)
         
-        # Convert to Spark DataFrame - use the to_dict method differently
+        # Convert to Spark DataFrame using records to avoid iteritems error
         records = combined_df.to_dict(orient='records')
         spark_df = spark.createDataFrame(records)
         
@@ -206,7 +223,7 @@ async def query_distributed(request: QueryRequest):
         # Clean up
         del result_df
         del result_pandas
-        del dfs
+        del dfs  
         del combined_df
         gc.collect()
         
@@ -215,6 +232,7 @@ async def query_distributed(request: QueryRequest):
         return {
             "message": "Distributed query executed successfully",
             "cids_processed": len(processed_cids),
+            "worker_assignments": worker_assignments,
             "record_count": len(result_json),
             "results": result_json
         }

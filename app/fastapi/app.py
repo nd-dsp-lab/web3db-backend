@@ -1,12 +1,17 @@
 from fastapi import FastAPI, UploadFile, File
-from pyspark.sql import SparkSession
+from pydantic import BaseModel
+from typing import List
+import requests
 import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
-import requests
 import io
 import logging
-import gc  # For garbage collection
+import gc
+import os
+from pyspark.sql import SparkSession
+from pyspark.sql.functions import lit, col, udf
+from pyspark.sql.types import StructType, StructField, StringType, IntegerType, BinaryType
 
 # Configure logging
 logging.basicConfig(
@@ -96,227 +101,124 @@ async def upload_patient_data(file: UploadFile = File(...)):
         gc.collect()
         return {"error": f"Failed to process and upload data: {str(e)}"}
 
-# @app.get("/cid/{cid}")
-# def get_cid_content(cid: str, download: bool = False):
-#     """
-#     Fetch content directly from IPFS by CID
-#     - Set download=True to download the file instead of viewing it
-#     """
-#     logger.info(f"GET /cid/{cid} - Retrieving content from IPFS")
-    
-#     try:
-#         # Fetch from IPFS gateway
-#         ipfs_url = f"http://ipfs:8080/ipfs/{cid}"
-#         logger.info(f"Requesting content from IPFS at URL: {ipfs_url}")
-        
-#         response = requests.get(ipfs_url, timeout=10)
-#         response.raise_for_status()  # Raise exception for HTTP errors
-        
-#         content = response.content
-        
-#         # Get content type if possible
-#         content_type = response.headers.get('Content-Type', 'application/octet-stream')
-        
-#         # Set filename based on CID if download requested
-#         if download:
-#             headers = {
-#                 'Content-Disposition': f'attachment; filename=patient-data-{cid}.parquet'
-#             }
-#         else:
-#             headers = {}
-            
-#         logger.info(f"Successfully fetched content for CID: {cid}")
-#         return Response(
-#             content=content,
-#             media_type=content_type,
-#             headers=headers
-#         )
-        
-#     except requests.exceptions.RequestException as e:
-#         logger.error(f"Error fetching content for CID {cid}: {str(e)}")
-#         return {"error": f"Failed to retrieve content: {str(e)}"}
-    
-import re
-from fastapi import HTTPException
-from pydantic import BaseModel
 
+# Define request model
 class QueryRequest(BaseModel):
-    cid: str
+    cids: List[str]
     query: str
 
 @app.post("/query")
-async def query_data(request: QueryRequest):
+async def query_distributed(request: QueryRequest):
     """
-    Query patient data from IPFS using a SQL-like query
-    
-    Request body:
-    {
-        "cid": "QmVCgGM4XRyp42DUVJxgjG3LmtsWgrt125BWUGeqaBFTRn",
-        "query": "select Age, Gender, Condition, DiagnosisReport from table where HospitalID = 'HOSP-006'"
-    }
+    Distributed query across multiple IPFS CIDs with parallel data retrieval
+    and centralized query execution
     """
-    logger.info(f"POST /query - Processing SQL query for CID: {request.cid}")
+    logger.info("POST /query - Processing distributed query across CIDs")
     
     try:
-        # Parse the SQL query
-        query = request.query.strip()
-        logger.info(f"Processing query: {query}")
+        cids = request.cids
+        query = request.query
         
-        # Extract the SELECT part to get columns
-        select_pattern = re.compile(r"select\s+(.*?)\s+from", re.IGNORECASE)
-        select_match = select_pattern.search(query)
-        if not select_match:
-            raise HTTPException(status_code=400, detail="Invalid SQL query: SELECT statement not found")
-        
-        # Get the columns to return
-        columns_str = select_match.group(1).strip()
-        if columns_str == "*":
-            columns = None  # All columns
-        else:
-            columns = [col.strip() for col in columns_str.split(",")]
-            logger.info(f"Columns to return: {columns}")
-        
-        # Extract the WHERE clause
-        where_pattern = re.compile(r"where\s+(.*?)$", re.IGNORECASE)
-        where_match = where_pattern.search(query)
-        where_clause = where_match.group(1).strip() if where_match else None
-        logger.info(f"Where clause: {where_clause}")
-        
-        # Fetch from IPFS gateway
-        ipfs_url = f"http://ipfs:8080/ipfs/{request.cid}"
-        logger.info(f"Requesting content from IPFS at URL: {ipfs_url}")
-        
-        response = requests.get(ipfs_url, timeout=10)
-        response.raise_for_status()
-        
-        # Read Parquet data into buffer
-        parquet_buffer = io.BytesIO(response.content)
-        
-        # Load Parquet into DataFrame
-        logger.info("Loading Parquet data into DataFrame")
-        table = pq.read_table(parquet_buffer)
-        df = table.to_pandas()
-        
-        # Clean up
-        del table
-        parquet_buffer.close()
-        del parquet_buffer
-        
-        # Apply WHERE clause if present
-        if where_clause:
-            # Handle simple equality conditions (won't handle complex SQL conditions)
-            conditions = []
-            current_condition = ""
-            in_quotes = False
-            quote_char = None
+        if not cids or not query:
+            return {"error": "Both 'cids' and 'query' parameters are required"}
             
-            # Parse the where clause character by character to handle quotes correctly
-            for char in where_clause:
-                if char in ["'", '"'] and (not quote_char or char == quote_char):
-                    in_quotes = not in_quotes
-                    if in_quotes:
-                        quote_char = char
-                    else:
-                        quote_char = None
-                    current_condition += char
-                elif char == " " and not in_quotes and "and" in current_condition.lower():
-                    # End of "and" condition
-                    parts = current_condition.lower().split("and")
-                    conditions.append(parts[0].strip())
-                    current_condition = parts[1].strip()
-                else:
-                    current_condition += char
-            
-            # Add the last condition
-            if current_condition:
-                conditions.append(current_condition.strip())
-            
-            # Process each condition
-            for condition in conditions:
-                logger.info(f"Processing condition: {condition}")
-                
-                # Extract operator and values
-                if "=" in condition:
-                    operator = "=="
-                    left, right = [s.strip() for s in condition.split("=", 1)]
-                elif "!=" in condition:
-                    operator = "!="
-                    left, right = [s.strip() for s in condition.split("!=", 1)]
-                elif ">=" in condition:
-                    operator = ">="
-                    left, right = [s.strip() for s in condition.split(">=", 1)]
-                elif "<=" in condition:
-                    operator = "<="
-                    left, right = [s.strip() for s in condition.split("<=", 1)]
-                elif ">" in condition:
-                    operator = ">"
-                    left, right = [s.strip() for s in condition.split(">", 1)]
-                elif "<" in condition:
-                    operator = "<"
-                    left, right = [s.strip() for s in condition.split("<", 1)]
-                else:
-                    logger.warning(f"Unsupported condition format: {condition}")
-                    continue
-                
-                # Handle quoted strings
-                if right.startswith("'") and right.endswith("'"):
-                    right = right[1:-1]  # Remove quotes
-                elif right.startswith('"') and right.endswith('"'):
-                    right = right[1:-1]  # Remove quotes
-                else:
-                    # Try to convert to number if possible
-                    try:
-                        right = float(right) if '.' in right else int(right)
-                    except (ValueError, TypeError):
-                        # Keep as is if not a number
-                        pass
-                
-                # Apply the filter
-                if left not in df.columns:
-                    logger.warning(f"Column {left} not found in DataFrame, skipping filter")
-                    continue
-                
-                if operator == "==":
-                    df = df[df[left] == right]
-                elif operator == "!=":
-                    df = df[df[left] != right]
-                elif operator == ">":
-                    df = df[df[left] > right]
-                elif operator == ">=":
-                    df = df[df[left] >= right]
-                elif operator == "<":
-                    df = df[df[left] < right]
-                elif operator == "<=":
-                    df = df[df[left] <= right]
+        logger.info(f"Processing {len(cids)} CIDs with query: {query}")
         
-        # Select only requested columns if specified
-        if columns:
-            # Check if all requested columns exist
-            missing_columns = [col for col in columns if col not in df.columns]
-            if missing_columns:
-                logger.warning(f"Columns not found: {missing_columns}")
-                # Keep only columns that exist
-                columns = [col for col in columns if col in df.columns]
+        # Create an RDD from the CIDs list
+        cids_rdd = spark.sparkContext.parallelize(cids)
+        
+        # Process each CID in parallel to fetch data
+        def fetch_data(cid):
+            import requests
+            import base64
             
-            if columns:  # If we still have columns to return
-                df = df[columns]
+            try:
+                # Fetch data from IPFS
+                ipfs_api_url = f"http://ipfs:5001/api/v0/cat"
+                response = requests.post(ipfs_api_url, params={"arg": cid}, timeout=10)
+                
+                if response.status_code != 200:
+                    return (cid, None, f"HTTP error: {response.status_code}")
+                
+                # Return the binary data encoded as base64
+                encoded_data = base64.b64encode(response.content).decode('utf-8')
+                return (cid, encoded_data, None)
+                
+            except Exception as e:
+                return (cid, None, str(e))
+        
+        # Execute data fetching in parallel
+        results = cids_rdd.map(fetch_data).collect()
+        
+        # Process the fetched data on the driver
+        dfs = []
+        processed_cids = []
+        
+        for cid, encoded_data, error in results:
+            if encoded_data:
+                try:
+                    # Decode the data
+                    import base64
+                    import io
+                    import pandas as pd
+                    import pyarrow.parquet as pq
+                    
+                    binary_data = base64.b64decode(encoded_data)
+                    parquet_buffer = io.BytesIO(binary_data)
+                    
+                    # Parse the Parquet data
+                    table = pq.read_table(parquet_buffer)
+                    df = table.to_pandas()
+                    
+                    # Add source CID
+                    df['source_cid'] = cid
+                    dfs.append(df)
+                    processed_cids.append(cid)
+                    
+                    logger.info(f"Successfully processed data from CID: {cid}")
+                except Exception as e:
+                    logger.error(f"Error processing data from CID {cid}: {str(e)}")
             else:
-                logger.warning("No valid columns to return, returning all columns")
+                logger.error(f"Error fetching CID {cid}: {error}")
         
-        # Convert DataFrame to JSON
-        logger.info(f"Returning {len(df)} records after filtering")
-        result = df.to_dict(orient="records")
+        if not dfs:
+            return {"error": "Failed to process any data from IPFS"}
+        
+        # Combine all DataFrames
+        import pandas as pd
+        combined_df = pd.concat(dfs, ignore_index=True)
+        
+        # Convert to Spark DataFrame - use the to_dict method differently
+        records = combined_df.to_dict(orient='records')
+        spark_df = spark.createDataFrame(records)
+        
+        # Register as temporary view
+        spark_df.createOrReplaceTempView("patient_data")
+        
+        # Execute the SQL query (this will run in parallel using Spark's distributed execution)
+        logger.info(f"Executing query: {query}")
+        result_df = spark.sql(query)
+        
+        # Convert results to JSON
+        result_pandas = result_df.toPandas()
+        result_json = result_pandas.to_dict(orient="records")
         
         # Clean up
-        del df
+        del result_df
+        del result_pandas
+        del dfs
+        del combined_df
         gc.collect()
         
-        return {"results": result, "count": len(result)}
+        logger.info(f"Query completed successfully, returning {len(result_json)} records")
         
-    except requests.exceptions.RequestException as e:
-        logger.error(f"Error fetching content for CID {request.cid}: {str(e)}")
-        return {"error": f"Failed to retrieve content: {str(e)}"}
+        return {
+            "message": "Distributed query executed successfully",
+            "cids_processed": len(processed_cids),
+            "record_count": len(result_json),
+            "results": result_json
+        }
+        
     except Exception as e:
-        logger.error(f"Error processing query: {str(e)}")
-        gc.collect()
-        return {"error": f"Failed to process query: {str(e)}"}
+        logger.error(f"Error processing distributed query: {str(e)}")
+        return {"error": f"Failed to process distributed query: {str(e)}"}

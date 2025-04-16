@@ -30,9 +30,7 @@ services:
     ports:
       - "8081:8081"   # Web UI for worker 1
     volumes:
-      - data1:/data/chunk1   # Shared chunk1 volume
-      - data2:/data/chunk2   # Shared chunk2 volume
-      - data3:/data/chunk3   # Shared chunk3 volume
+      - shared_data:/data   # Single shared data volume
     networks:
       - app-net
 
@@ -51,9 +49,7 @@ services:
     ports:
       - "8082:8081"  
     volumes:
-      - data1:/data/chunk1
-      - data2:/data/chunk2
-      - data3:/data/chunk3
+      - shared_data:/data   # Single shared data volume
     networks:
       - app-net
 
@@ -72,9 +68,7 @@ services:
     ports:
       - "8083:8081"   # Web UI for worker 3 (mapped to host 8083)
     volumes:
-      - data1:/data/chunk1
-      - data2:/data/chunk2
-      - data3:/data/chunk3
+      - shared_data:/data   # Single shared data volume
     networks:
       - app-net
 
@@ -106,16 +100,12 @@ services:
     ports:
       - "8000:8000"   # FastAPI server port
     volumes:
-      - data1:/data/chunk1
-      - data2:/data/chunk2
-      - data3:/data/chunk3
+      - shared_data:/data   # Single shared data volume
 
 networks:
   app-net:
     driver: bridge
 
 volumes:
-  data1:
-  data2:
-  data3:
+  shared_data:   # Single shared data volume instead of partitioned chunks
   ipfs_data:

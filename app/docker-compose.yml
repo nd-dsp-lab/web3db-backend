@@ -87,9 +87,9 @@ services:
       default:
         aliases:
           - ipfs_node
-      app-net:  # Add this network connection
+      app-net:  # network connection
         aliases:
-          - ipfs  # Explicitly set the hostname for app-net
+          - ipfs 
 
   # FastAPI Driver Server (Spark Driver)
   fastapi:

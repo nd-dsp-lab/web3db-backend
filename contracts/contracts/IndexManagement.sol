@@ -23,7 +23,7 @@ contract IndexManagement {
     // Events
     event IndexUpdated(
         bytes32 indexed h_onchain,
-        bytes32 indexed h_prev,
+        bytes32 h_prev,
         uint256 indexed epoch_version,
         bytes32[] d_onchain,
         uint256 timestamp,
@@ -117,7 +117,7 @@ contract IndexManagement {
         // Check if the requested epoch exists in the buffer
         if (
             epoch_version > currentEpochVersion ||
-            currentEpochVersion - epoch_version >= RING_BUFFER_SIZE
+            updates[bufferIndex].epoch_version != epoch_version
         ) {
             return new bytes32[](0);
         }

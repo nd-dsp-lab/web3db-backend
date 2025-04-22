@@ -28,7 +28,7 @@ services:
     depends_on:
       - spark-master
     ports:
-      - "8081:8081"   # Web UI for worker 1
+      - "8091:8081"   # Web UI for worker 1
     volumes:
       - shared_data:/data   # Single shared data volume
     networks:
@@ -47,7 +47,7 @@ services:
     depends_on:
       - spark-master
     ports:
-      - "8082:8081"  
+      - "8092:8081"  
     volumes:
       - shared_data:/data   # Single shared data volume
     networks:
@@ -66,7 +66,7 @@ services:
     depends_on:
       - spark-master
     ports:
-      - "8083:8081"   # Web UI for worker 3 (mapped to host 8083)
+      - "8093:8081"   # Web UI for worker 3 (mapped to host 8083)
     volumes:
       - shared_data:/data   # Single shared data volume
     networks:
@@ -74,16 +74,22 @@ services:
 
   # Single IPFS Node
   ipfs:
-    build: ./ipfs    # Build custom Dockerfile for IPFS
-    container_name: ipfs
-    networks:
-      - app-net
-    ports:
-      - "5001:5001"   # IPFS API
-      - "8091:8080"   # IPFS Gateway
-      - "4001:4001"   # IPFS swarm port - add this for public network connectivity
+    image: ipfs/go-ipfs:latest
     volumes:
-      - ipfs_data:/data/ipfs   # Persist IPFS repository data
+      - ./data/ipfs:/data/ipfs
+    ports:
+      - "4001:4001"
+      - "5001:5001"
+      - "8888:8080"  # Or another available port
+    command: daemon --migrate --init
+    restart: unless-stopped
+    networks:
+      default:
+        aliases:
+          - ipfs_node
+      app-net:  # Add this network connection
+        aliases:
+          - ipfs  # Explicitly set the hostname for app-net
 
   # FastAPI Driver Server (Spark Driver)
   fastapi:

@@ -1,6 +1,6 @@
 FROM ipfs/go-ipfs:latest
 
-# Copy a startup script
+# Copy startup script
 COPY start-ipfs.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/start-ipfs.sh
 

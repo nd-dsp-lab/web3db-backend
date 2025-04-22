@@ -8,10 +8,7 @@ import pyarrow.parquet as pq
 import io
 import logging
 import gc
-import os
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import lit, col, udf
-from pyspark.sql.types import StructType, StructField, StringType, IntegerType, BinaryType
 
 # Configure logging
 logging.basicConfig(

@@ -1,0 +1,501 @@
+PatientID,Name,Age,Gender,BloodType,Condition,VisitDate,Doctor,HospitalID,Prescription,DiagnosisReport
+e3e70682-c209-4cac-a29f-6fbed82c07cd,David Dixon,50,Female,A+,Asthma,2024-02-08,Sandra Faulkner,HOSP-002,No prescription,MRI shows no issues
+e87a1613-e443-4f78-9558-867f5ba91faf,Charles Taylor,52,Female,O-,Asthma,2023-06-12,Danielle Browning,HOSP-002,Rest and hydration,Blood test normal
+9a164106-cf6a-459e-b486-2b21fb97d435,Emily Blair,65,Male,AB+,Diabetes,2025-02-26,Erin Castro,HOSP-002,Apply twice a day,X-ray indicates fracture
+9c6316b9-50f2-4455-af25-e2a25a921187,Christine Tran,33,Other,B+,Asthma,2024-03-08,Debbie Trujillo,HOSP-002,Apply twice a day,Blood test normal
+17e0aa3c-0398-4ca8-aa7e-9d498c778ea6,Jennifer Summers,88,Female,O-,Cancer,2024-08-30,Lisa Clayton,HOSP-002,No prescription,Blood test normal
+534097ca-baf3-497a-be70-f16a55485822,Amy Stark,56,Female,B-,Cancer,2023-09-19,Walter Pratt,HOSP-002,Rest and hydration,Normal check-up
+fe43c49e-1498-48d1-9759-edc372ae2244,Jordan Cantu,67,Female,A+,Cancer,2023-06-23,Eddie Martinez,HOSP-002,Inhale as needed,Blood test normal
+8a5006c1-ec18-4efb-9080-e66e552f233a,Robert Payne,93,Female,A+,Cancer,2023-11-09,Kyle Cruz,HOSP-002,Rest and hydration,High blood sugar detected
+2f120554-4a53-48cc-bdfa-bc08935ddd72,Cody Salazar,32,Other,AB-,Heart Disease,2024-08-22,Benjamin Shelton,HOSP-002,Apply twice a day,Blood test normal
+ec62b2c8-2648-4e38-a074-05eb215663ab,Bobby Lyons,73,Male,B-,Diabetes,2025-01-03,Jeanne Thornton,HOSP-002,Take 1 tablet daily,MRI shows no issues
+3c49d76f-cfc6-4625-8594-0927468ff53d,Stephanie Lawrence,12,Male,AB-,Cancer,2024-02-19,Joanne Keller,HOSP-002,No prescription,Normal check-up
+fb82860d-eabc-48d0-b341-facdff0ac0f1,Angela Salazar,39,Other,AB+,Heart Disease,2024-04-11,Gabriela Lee,HOSP-002,No prescription,X-ray indicates fracture
+1dfc8352-4562-4e7f-bb42-e0b20426465e,Jacqueline Jackson,43,Other,B-,Cancer,2024-02-24,Ashlee Thomas,HOSP-002,No prescription,MRI shows no issues
+d12ecbc4-0b94-45b1-b801-8b47b29a8b06,Susan Ferguson,37,Female,A-,Cancer,2024-09-09,Caleb Lopez,HOSP-002,No prescription,MRI shows no issues
+64264cd5-1ea4-4cd6-9371-a71fd480865f,Roy Wilson,74,Male,AB+,Diabetes,2024-07-13,Tyler Lopez,HOSP-002,Inhale as needed,High blood sugar detected
+ba26d851-35e8-479a-baaf-0e891fb797fa,Taylor Johnson,5,Other,AB+,None,2024-02-24,Sara Jones,HOSP-002,Take 1 tablet daily,MRI shows no issues
+59acdd98-4d12-4e7f-a59c-ec98126cbc8f,Antonio Mcdonald,87,Male,B+,Hypertension,2024-07-06,William Gonzalez,HOSP-002,Apply twice a day,High blood sugar detected
+78601602-bb4a-46cb-a786-ab375bca47be,Tamara Jackson,88,Female,AB+,Cancer,2024-09-03,Randall Kramer,HOSP-002,Rest and hydration,High blood sugar detected
+57a1cb71-2975-4279-986d-bf1128805c5d,Autumn Morse,87,Other,O+,Cancer,2024-08-28,John Ortiz,HOSP-002,Apply twice a day,High blood sugar detected
+eae2025e-8233-4e23-9ff3-334b91b15f5d,Howard Monroe,64,Other,AB-,Hypertension,2023-10-11,Michael Ellis,HOSP-002,Take 1 tablet daily,Blood test normal
+0bb2c3f0-bd30-491a-95fe-a08e143e2e04,Brandy Gill,15,Female,AB-,Diabetes,2024-04-08,Dwayne Howard,HOSP-002,No prescription,Blood test normal
+da90f534-a23d-4c9d-a456-697cf2686baa,Michelle Hughes,94,Female,A-,Heart Disease,2024-02-15,Angela Wheeler,HOSP-002,Apply twice a day,MRI shows no issues
+3d4a5d51-28fa-4d04-959b-5975b2d650af,Jerome Page,22,Female,O+,Hypertension,2024-09-04,Jennifer Morales,HOSP-002,Take 1 tablet daily,MRI shows no issues
+c5adf681-6b10-453a-9145-de05b3ab1b2c,Amber Griffin,90,Male,A+,Cancer,2023-10-18,Jill Dyer,HOSP-002,Rest and hydration,Blood test normal
+c167733f-9a9e-4310-8fb8-3babe8754cd3,Andrew Nguyen,88,Male,A+,Hypertension,2025-01-09,Robert Golden,HOSP-002,Rest and hydration,MRI shows no issues
+8c6e9037-3020-4a5c-aa46-721acffa6cdd,Miss Angela Swanson DVM,74,Male,O+,Hypertension,2024-02-06,Jennifer Smith,HOSP-002,No prescription,High blood sugar detected
+009a815b-c137-4be5-b7a2-8e0a03a89879,Miss Lisa Lee,5,Other,A+,Diabetes,2024-07-15,Shelly Ramirez,HOSP-002,Rest and hydration,Normal check-up
+79c147c7-19a5-411b-aea6-0b99fa7ff8bf,Jennifer Miller,62,Male,A+,Heart Disease,2023-10-30,Rebecca Wilson,HOSP-002,Inhale as needed,MRI shows no issues
+8557716a-a750-4a81-a227-d96d41a93f90,Maria Wilson,55,Other,A-,Asthma,2023-07-28,Albert Williams,HOSP-002,Apply twice a day,X-ray indicates fracture
+50910bdc-8ef0-46d4-8279-b14dae55cdff,Teresa Browning,10,Other,AB+,Asthma,2023-05-02,Tonya Lawson,HOSP-002,Take 1 tablet daily,MRI shows no issues
+e7180322-a4e6-45c9-b65d-12267e969cf3,Jeffrey Savage,8,Other,O-,Hypertension,2023-08-16,Kevin Smith,HOSP-002,No prescription,Normal check-up
+56672017-555a-4085-8578-bab326a97465,Michelle Morgan,90,Female,B-,Asthma,2024-07-24,Derrick Hernandez,HOSP-002,Take 1 tablet daily,Normal check-up
+65111656-5c64-4036-8a1e-b1b7955d0e77,Beverly Wilson PhD,73,Male,B-,Hypertension,2025-03-25,Christopher Mills,HOSP-002,Rest and hydration,MRI shows no issues
+d5e73e3f-6736-47d9-8d7b-d307122411e6,Jason Garcia,44,Other,AB+,Hypertension,2025-03-05,Mr. Robert Burnett,HOSP-002,No prescription,Blood test normal
+b318ad4c-1db2-4452-baa5-6a181fd3c017,Mr. George Mcdaniel Jr.,86,Male,A+,None,2023-08-07,Jaime Villegas,HOSP-002,Inhale as needed,X-ray indicates fracture
+ceca2ee3-10da-4a95-9640-8169a38d8afc,Paul Brown,66,Female,AB-,None,2023-04-06,Justin Roberts,HOSP-002,Take 1 tablet daily,High blood sugar detected
+95bb440d-c9cd-4af9-bd16-1f29eb8f2056,Claudia Miller,72,Other,A+,None,2023-09-17,Debbie Waters MD,HOSP-002,Apply twice a day,Blood test normal
+d26d5396-1058-4e8c-9d71-73e55bc7fdeb,Michaela Leach,95,Male,AB+,Diabetes,2024-03-15,Christina Crawford,HOSP-002,Rest and hydration,Normal check-up
+0ac728b4-a418-45bf-b50d-278d41a8a6e1,Rebecca Hanson MD,46,Other,AB+,Heart Disease,2024-03-21,Joshua Hernandez,HOSP-002,Inhale as needed,High blood sugar detected
+7ce71b48-fba5-4e59-98a3-3736fd1ac7ce,Jared Frazier,82,Other,B+,Heart Disease,2025-02-09,Meghan Barron,HOSP-002,No prescription,X-ray indicates fracture
+7fa74d8a-ff88-4c82-bf99-d273d5627386,Shelly Daniels,96,Female,A-,Hypertension,2025-03-23,Gerald Estes,HOSP-002,No prescription,X-ray indicates fracture
+52631db9-d170-44ce-9179-7350e6256403,Charles Scott,90,Female,B+,Diabetes,2024-11-29,James Phillips,HOSP-002,Rest and hydration,Blood test normal
+10fce97d-786e-40ef-8e9b-2e70b4d4dfcc,Kellie Sexton,49,Other,O+,Hypertension,2023-05-21,Andrew Smith,HOSP-002,Inhale as needed,High blood sugar detected
+dca5b353-54a1-4505-b2d6-bc20d80d6a1c,Charles Douglas,54,Other,A+,Diabetes,2024-01-13,Stephanie Shaw,HOSP-002,Take 1 tablet daily,X-ray indicates fracture
+cb4d18d6-adb6-4a35-9734-a26c92e94e89,Norma Mooney,34,Other,B+,None,2024-10-31,Paul Roberts,HOSP-002,Take 1 tablet daily,Blood test normal
+d360da69-6af7-4ad2-993e-c8c6e6b106e2,Sarah Compton,72,Other,A+,Hypertension,2024-07-14,Sarah Yates,HOSP-002,Take 1 tablet daily,Blood test normal
+bda17da2-000f-463d-a2a0-1335a83023ab,Jonathon Scott,40,Female,A+,None,2023-05-20,Dennis Bryan DDS,HOSP-002,Inhale as needed,MRI shows no issues
+0ff030b8-6238-40a0-8f5e-9ea362584ab3,Timothy Allen,82,Male,B+,Hypertension,2024-10-17,Amy Johnson,HOSP-002,No prescription,Blood test normal
+e3d48408-7de8-4234-a412-579d6af944e0,Michelle Nunez,41,Male,B-,Hypertension,2023-07-26,Heather Johnson,HOSP-002,No prescription,Normal check-up
+0c0a5967-7579-401a-a2fd-a854775e0ec3,Richard Smith,79,Male,B-,Hypertension,2024-07-07,Lorraine Garcia,HOSP-002,No prescription,X-ray indicates fracture
+31e9ca80-58bf-4b9e-a624-5b598c94af98,Ricardo Henry,39,Female,B+,Hypertension,2025-02-12,Michael Mendez,HOSP-002,Apply twice a day,High blood sugar detected
+1fd3af07-a685-4857-967e-5862ef151673,Michelle Phillips,81,Male,A+,Asthma,2025-01-18,Thomas Lloyd,HOSP-002,Inhale as needed,MRI shows no issues
+f521ca9f-df5e-4f78-beeb-b4eaeab9221b,Rhonda Stone,33,Male,AB-,Hypertension,2024-11-30,Amanda Myers MD,HOSP-002,No prescription,X-ray indicates fracture
+ca20854d-5b47-4c43-b499-b28c30c32323,Tina Winters,3,Male,A+,Diabetes,2023-05-01,Dr. Tony Estrada,HOSP-002,No prescription,Normal check-up
+3acaaf82-374a-4cc9-a039-7e67926146de,Robert Oneal,41,Female,A+,Heart Disease,2024-11-25,Kelly Hunter,HOSP-002,Rest and hydration,High blood sugar detected
+6d0c62c3-254b-47ae-9d0a-b994f20b575d,Jennifer Miller,92,Other,O-,Heart Disease,2023-06-20,Brett Ayala,HOSP-002,Take 1 tablet daily,X-ray indicates fracture
+ca9571e4-07dc-42b1-b45d-a406bbf9bb01,Michael Johnson,69,Male,B-,None,2025-03-14,Erika King,HOSP-002,No prescription,High blood sugar detected
+5bf80676-1f12-40e9-9201-1caa5a3da367,Haley Thompson,2,Male,B+,Asthma,2025-01-03,Sabrina Jones,HOSP-002,Inhale as needed,MRI shows no issues
+00d3d1af-353e-4c86-a4ae-ba79e4b82987,Michael Mays,48,Other,A-,Asthma,2023-07-04,Elaine Norris,HOSP-002,No prescription,Blood test normal
+dbf2eed1-3b9c-4a95-9ad7-558feecb325b,Jesse Woods,6,Female,B+,Diabetes,2024-09-30,Beverly Levy,HOSP-002,Apply twice a day,X-ray indicates fracture
+f5fe0213-792e-4d75-95c3-6c3d5cbbc080,Timothy Rubio,47,Female,B+,Asthma,2024-08-05,Kevin Miller,HOSP-002,No prescription,Blood test normal
+280a07ee-4ec9-45ff-94b2-8b9d88819f42,Charles Martinez,94,Male,A+,Asthma,2023-09-20,David Fischer,HOSP-002,No prescription,High blood sugar detected
+a9c72e7b-6b77-4df1-9f59-aa2c4a82e06a,Carlos Smith,94,Male,AB+,None,2023-05-30,Bonnie Evans,HOSP-002,No prescription,Blood test normal
+246cb09c-ed28-408d-bdaa-3bfa6ab01563,Elizabeth Gomez,54,Male,A-,Cancer,2023-10-09,Jacob Rush,HOSP-002,Rest and hydration,Blood test normal
+02284fd9-689b-4a65-a05d-d4d60ecfb95b,Nicholas Flores,44,Female,A-,None,2023-09-05,Tristan Davis,HOSP-002,Rest and hydration,MRI shows no issues
+46e785ad-1bce-45d8-8be8-8a3f2f7a304f,Larry Moore,55,Male,AB+,Asthma,2024-09-26,James Saunders,HOSP-002,Inhale as needed,Blood test normal
+f5a3e893-3f7a-4748-acbb-93c26e84f8ea,Timothy Thomas,81,Other,O+,Heart Disease,2024-03-24,Angelica Fischer,HOSP-002,No prescription,High blood sugar detected
+b2f11ef9-d486-4482-8078-cb124b7350d1,Joel Robinson,11,Male,B-,Hypertension,2023-06-27,Lori Gardner,HOSP-002,Rest and hydration,High blood sugar detected
+c058a332-b4cf-4fa8-ac98-f73d27fe1b4b,Michael Wolf,13,Female,AB+,None,2023-09-27,Jennifer Chen,HOSP-002,Inhale as needed,MRI shows no issues
+e23b580e-4523-4bbb-9eee-d2190588d91d,April Ross,92,Other,B-,None,2025-02-19,Jennifer Garcia,HOSP-002,Inhale as needed,X-ray indicates fracture
+df0d6301-488c-4c4e-9a94-14b840aaec7a,Susan Larson,29,Female,B+,None,2023-04-27,Dennis Ferguson,HOSP-002,No prescription,Blood test normal
+3fc18c00-dc05-40a4-87ba-3b901e415c4e,Pamela Jones,15,Male,A+,Cancer,2025-01-27,Joseph Berry,HOSP-002,Rest and hydration,MRI shows no issues
+1af55c26-8808-4ebc-b5d4-cd35a08c3a00,Mark Powell,16,Female,O+,Asthma,2024-11-24,Diana Ramos,HOSP-002,Apply twice a day,X-ray indicates fracture
+2835bcdb-2347-424f-a0f9-c0749177b6d4,Bryan Morales,28,Other,B+,Hypertension,2024-03-28,Michael Gomez,HOSP-002,Inhale as needed,Blood test normal
+37cf8025-6a44-4a90-be0a-5a5679009c61,Michael Flores,49,Female,B+,Hypertension,2024-08-18,Jill Thomas,HOSP-002,Take 1 tablet daily,Blood test normal
+9f032cdc-e328-46d3-8d6a-78b07eda9ab9,Henry Myers,19,Other,O+,Heart Disease,2023-04-07,Veronica Mcdaniel,HOSP-002,No prescription,Blood test normal
+bdf0b015-f305-4e95-afb1-20f414d4dad6,Jennifer Ward,64,Other,AB-,None,2023-06-29,Zoe Marks,HOSP-002,No prescription,Normal check-up
+e695f8ba-ba23-48fe-8ae3-02f3b31e9be8,Paul Roberts,70,Other,B-,Hypertension,2023-06-20,Mitchell Cruz,HOSP-002,No prescription,Normal check-up
+e5aef699-a5e3-4719-abf5-2dfd54a8762b,Brittany Fitzpatrick,42,Male,B+,Asthma,2023-07-23,Beverly Lozano,HOSP-002,Inhale as needed,X-ray indicates fracture
+fbc59e92-ca12-49ad-9963-05b371b221e4,Robert Price,49,Other,AB+,Heart Disease,2023-09-18,Jessica Harris,HOSP-002,Take 1 tablet daily,High blood sugar detected
+636abf8c-e7e3-452c-8cbf-404db5c25d42,Mark Pitts,11,Other,A+,Hypertension,2024-01-07,Mark Thompson,HOSP-002,Apply twice a day,X-ray indicates fracture
+162d5c72-9ccd-4e1f-8c2a-bdaa9c5c11eb,Kayla Mitchell,6,Female,A+,None,2025-02-09,Jennifer Brown,HOSP-002,Inhale as needed,Normal check-up
+f4db1c1e-aa66-4464-8420-b8d9b261d0d2,Kimberly Navarro,20,Other,O-,Asthma,2024-02-28,Katherine Padilla,HOSP-002,Apply twice a day,High blood sugar detected
+0acfeba4-4410-40ae-9652-5ce03725bd0c,Christopher Smith,68,Other,A+,Cancer,2024-08-20,Arthur Patterson,HOSP-002,No prescription,Normal check-up
+6581f934-9bcf-41c4-b87e-356038dfe76b,Connie Lee,98,Other,A-,Heart Disease,2024-07-15,Stephen Norton,HOSP-002,Take 1 tablet daily,X-ray indicates fracture
+e4bacd78-74ab-49fc-8930-d17952ab793f,Allen Williams,38,Other,O+,None,2024-01-11,Sergio Reed,HOSP-002,Rest and hydration,X-ray indicates fracture
+ac33f644-4053-4188-b39d-78f5d658b1b3,Elizabeth Black,76,Male,A+,Heart Disease,2024-01-23,Gregory Marquez,HOSP-002,Inhale as needed,MRI shows no issues
+8d4e2753-ef26-45b7-8e49-df560b648acd,Joel Hardy,39,Other,AB+,Asthma,2023-05-06,Jennifer Snyder,HOSP-002,Apply twice a day,Normal check-up
+14dbad22-15ea-49d2-9e3d-59d070aaf525,Ronald Moore,34,Female,O+,None,2025-02-14,Jessica Jones,HOSP-002,Apply twice a day,Normal check-up
+e2f88051-c13c-4688-8f1b-5be16d4ba69c,Amanda White,21,Other,B+,Diabetes,2024-04-14,Ryan Ramirez,HOSP-002,No prescription,Blood test normal
+6f51ea78-fea2-433a-91d1-1bcd5a23754b,Steven Bishop,8,Male,O-,None,2024-12-02,Edward Ramos,HOSP-002,Take 1 tablet daily,X-ray indicates fracture
+a2652c9e-8942-4c6d-b64a-b5109acba588,David Wilson,78,Other,A-,Heart Disease,2024-11-28,Carrie Perry,HOSP-002,Take 1 tablet daily,Blood test normal
+bc6ff6ac-e139-415d-88d8-b9ef37d316a4,Abigail Nichols MD,53,Male,O-,None,2023-05-08,Matthew Wilson,HOSP-002,Apply twice a day,Normal check-up
+3ac49efa-5be1-4d09-908e-0372bcbe9a42,Michele Guerrero,13,Female,B+,Hypertension,2023-09-19,Stephanie Brown,HOSP-002,Rest and hydration,Normal check-up
+3bcd6aec-53ca-4c05-acb5-959f4eb98768,John Perkins,80,Male,AB-,Hypertension,2023-07-15,Kristen Murphy,HOSP-002,Take 1 tablet daily,MRI shows no issues
+cfdef303-0679-4b47-a283-453695decd6e,James Daugherty,25,Female,O-,Hypertension,2024-04-30,Brandy Clark DVM,HOSP-002,Apply twice a day,X-ray indicates fracture
+b2194ff3-c46a-40d6-91ca-9f9e7f2a2e65,Cynthia Anderson,90,Female,AB-,Heart Disease,2023-09-28,Heather Garza,HOSP-002,Apply twice a day,High blood sugar detected
+eaf94919-e69b-4971-bf9b-76efa1057256,Roy Fox,38,Male,O+,Asthma,2024-01-03,Eric Benjamin MD,HOSP-002,Take 1 tablet daily,Blood test normal
+7ea496f5-e10b-4aad-a92d-6b0529bccee9,Nancy Payne,25,Male,O+,None,2024-09-27,Deanna Munoz,HOSP-002,Rest and hydration,MRI shows no issues
+5100f186-d25a-4049-b0e9-be17b4134208,Janet Brown,59,Female,A-,Hypertension,2023-04-29,Paul Wright,HOSP-002,No prescription,MRI shows no issues
+b9cde60c-ab1e-4794-b0f2-297adceb2013,Courtney Cooper,33,Male,B-,Diabetes,2023-08-04,Herbert Ryan,HOSP-002,No prescription,High blood sugar detected
+5a79b46a-26b6-4b06-a164-5f58bb78eb2d,Mark Johnson,90,Other,O+,Cancer,2023-05-04,Tony Murphy,HOSP-002,Apply twice a day,Normal check-up
+f8db1a4d-584d-4c02-8ff9-d318d22a3a62,Brandy Weeks,19,Female,O+,Hypertension,2024-03-13,Hunter Thompson,HOSP-002,Inhale as needed,Normal check-up
+c90853fd-fc9e-4692-ba62-6aee542d19c0,Janet Ortiz,9,Male,O+,Diabetes,2023-10-21,Regina Hooper,HOSP-002,No prescription,Normal check-up
+0abc847e-c253-4638-b670-3835b476998d,Barbara Finley,56,Other,O+,Hypertension,2023-08-11,Charles Melton,HOSP-002,No prescription,Normal check-up
+b3191702-bb80-498d-970d-a545839137a6,Gary Larsen,93,Female,A-,Asthma,2024-12-27,Tracy Frye,HOSP-002,Inhale as needed,Normal check-up
+c9a57cd1-be28-48c5-ab39-5c4ee575ae93,Kristina Robbins,46,Other,A+,Asthma,2024-02-25,Linda Oliver,HOSP-002,Rest and hydration,Normal check-up
+9d6c84af-266b-4d37-b5c9-9b49751f7e54,Dawn Shaffer,2,Male,AB-,Hypertension,2024-10-20,Mario Preston,HOSP-002,Take 1 tablet daily,High blood sugar detected
+4af0a6fe-5bbd-41f4-96f1-4aad7f107645,Judith Romero,27,Male,B-,Heart Disease,2023-08-04,Jennifer Nelson,HOSP-002,Apply twice a day,High blood sugar detected
+03c8e104-6480-4dc0-b1c5-8f447e083c1b,Steven Pierce,38,Female,A+,Cancer,2023-04-27,Laura Baker,HOSP-002,No prescription,X-ray indicates fracture
+6522ff46-74b7-461c-89ce-15a8afd4fc7b,Jennifer Crawford,24,Female,A-,None,2023-04-16,Zachary King,HOSP-002,Apply twice a day,Normal check-up
+c6a2894d-b3e4-4d3a-94fe-31a0ae2e45a4,Whitney Gill,17,Male,B-,Asthma,2024-11-12,Gina Good,HOSP-002,Take 1 tablet daily,X-ray indicates fracture
+1db1dfdc-357f-4a64-8029-88fdf8cc3f3b,Erin Schmitt,38,Female,AB-,Diabetes,2025-03-18,Michael Patel,HOSP-002,Take 1 tablet daily,Blood test normal
+ea96abe6-299c-416b-9a75-83c0e02a35e9,Brittany Mathis,14,Other,AB+,Diabetes,2024-12-26,Robert Cunningham,HOSP-002,No prescription,X-ray indicates fracture
+4a8b77da-5cfa-48b1-9836-78eef3ca5f64,Erica Patton,17,Male,AB-,Cancer,2024-07-09,Christopher Kramer,HOSP-002,Inhale as needed,High blood sugar detected
+20379089-711f-410a-8b29-75c6918ff358,Adam Griffith,97,Male,AB+,Asthma,2025-03-06,Sabrina Osborne,HOSP-002,Inhale as needed,Blood test normal
+11fba56e-300a-4187-9cb9-f9aabf4ddeaa,Jessica Dodson,17,Other,A+,None,2023-08-13,Amy Fowler,HOSP-002,Inhale as needed,Normal check-up
+81011c5b-f110-497a-9c2c-7a3494665d45,Kimberly Cruz,17,Female,AB+,Cancer,2024-03-02,Dustin Patterson,HOSP-002,No prescription,MRI shows no issues
+47caf779-b7c9-4da8-91db-32f8fda834ea,Kimberly Spencer,76,Female,AB+,Heart Disease,2023-12-21,Richard Moody,HOSP-002,Take 1 tablet daily,High blood sugar detected
+82e7448c-c003-4457-8184-7803d840fccb,Matthew Bradshaw,32,Female,AB-,Heart Disease,2024-06-10,John Johnson,HOSP-002,Rest and hydration,Blood test normal
+9d37da5c-a2fc-4fe3-a961-00ace994f3e6,Paige Yoder,49,Female,A+,None,2024-01-06,Teresa Frazier,HOSP-002,Inhale as needed,MRI shows no issues
+b3390a6e-a0b8-4e45-9abe-c113a1832fdb,Nicholas Wright PhD,27,Female,AB+,None,2023-10-30,Peter Fisher,HOSP-002,Inhale as needed,MRI shows no issues
+be792965-3c9a-4236-b2bb-e7b392b95731,Sharon Jacobson,14,Female,A-,Cancer,2024-12-19,Tina Martin,HOSP-002,No prescription,Normal check-up
+6d3f4b37-ed90-41c1-90b2-e6e5ec6e61bd,Teresa King,90,Female,O+,Diabetes,2025-02-12,Heather Murphy,HOSP-002,Take 1 tablet daily,MRI shows no issues
+02cee581-7e15-4a2c-87b6-e28f4e98ce25,Christina Sanders,23,Male,O-,Asthma,2024-03-03,Lori Price,HOSP-002,Take 1 tablet daily,Blood test normal
+952b1ee1-09d5-464f-9292-8f4be1514a0d,Ronald Martinez,46,Female,A-,None,2024-10-02,Rodney Sanders,HOSP-002,Inhale as needed,MRI shows no issues
+0aa56583-22a5-4421-858d-a7daebc16f69,Sean Ward,1,Other,O-,Cancer,2023-05-23,Brian Fernandez,HOSP-002,Apply twice a day,MRI shows no issues
+d763b159-ed9a-489a-9085-2f4f0b09ec41,Theresa Edwards,28,Female,A-,Heart Disease,2025-03-03,Willie Reid,HOSP-002,No prescription,X-ray indicates fracture
+987d616d-2462-4274-abbf-66c7680aee2a,Sean Dixon,78,Male,O+,Heart Disease,2023-08-04,Cesar Castillo,HOSP-002,Inhale as needed,X-ray indicates fracture
+b93c2989-c399-4d7f-b75d-b71ea4531fe9,Rodney Williams,87,Female,B-,Cancer,2024-06-04,Melissa Hughes,HOSP-002,Rest and hydration,Blood test normal
+95fc7389-ccd6-4756-983e-26a42e22fd39,Angela Thompson,81,Male,A-,Asthma,2023-10-23,Dean Graves,HOSP-002,Apply twice a day,MRI shows no issues
+8476af98-425d-495f-8846-bf9040fe6898,Yvette Moore,33,Female,O+,None,2025-02-27,Christian Chen,HOSP-002,No prescription,MRI shows no issues
+08a6d5b4-8321-4210-a43c-991d2d4da4ef,Emily Arroyo,46,Female,B-,Cancer,2023-08-27,Joyce Allen,HOSP-002,Take 1 tablet daily,Blood test normal
+b5a3cece-28cd-438a-85b3-03d3756b6c0d,Matthew Alvarez,10,Female,AB+,Cancer,2024-06-04,Bradley Holmes,HOSP-002,No prescription,Blood test normal
+147a08ac-c65d-4e4e-901e-488b00a1402e,Lawrence Hudson,68,Male,B+,Hypertension,2023-12-16,Kayla Archer,HOSP-002,Take 1 tablet daily,X-ray indicates fracture
+22d80170-1e6c-4d83-a2f6-2516dc88b09c,Alexander Gross,37,Other,B+,Cancer,2023-04-14,Lawrence Williams,HOSP-002,Take 1 tablet daily,High blood sugar detected
+4fae667b-b2e7-4e77-8fe1-cedfa5387901,Susan Burke,69,Male,O+,Heart Disease,2024-12-07,Heather Conley,HOSP-002,Take 1 tablet daily,Normal check-up
+70d22718-0dd3-4d11-a881-81a813d1ea49,Steven Avila,95,Female,AB+,None,2024-09-03,Samuel Chavez,HOSP-002,Inhale as needed,Normal check-up
+cd6a5e0c-7427-4656-87db-34e02e402534,Travis Brown,81,Male,B+,Hypertension,2023-06-13,Gregory Thompson,HOSP-002,Take 1 tablet daily,X-ray indicates fracture
+e5a1bdae-a747-495e-b0c9-52af9db31510,Jesus Spencer,52,Other,O-,Diabetes,2025-02-05,Karen Hodge,HOSP-002,Inhale as needed,High blood sugar detected
+ca6d3e06-66e5-4767-9cb3-2e4a891dfa7b,Tammy Johnson,46,Other,O-,Heart Disease,2024-05-04,Ronald Cook,HOSP-002,Inhale as needed,Blood test normal
+f7d870b6-78ac-4704-9936-5f61f484878d,Terry Garrett,62,Female,AB-,None,2023-11-08,April Morgan,HOSP-002,Take 1 tablet daily,High blood sugar detected
+259a2b28-b22b-4974-8c5c-192ff1c51dda,Richard Moore,39,Male,O-,Hypertension,2024-09-09,Shawn Weber,HOSP-002,Take 1 tablet daily,MRI shows no issues
+f5657d00-7ba0-4f58-861a-e8d1f212cc6f,Meghan Williams,4,Female,O-,None,2023-10-03,Erin Burch,HOSP-002,Take 1 tablet daily,Normal check-up
+e0db22d3-29e3-46ad-b9dd-c4775a220eb2,Jack Cunningham,9,Other,A-,Heart Disease,2024-01-25,Alexis Conrad,HOSP-002,Rest and hydration,Blood test normal
+b7ed75b4-63d0-4ccd-afdb-4e0b01716f1d,Zoe Smith,47,Male,A-,Cancer,2024-12-30,Aaron Williams,HOSP-002,Take 1 tablet daily,Normal check-up
+9c899296-92b0-45e0-9ca5-a2f5ecf150e6,Christian Buchanan,82,Other,AB+,Heart Disease,2024-12-01,Jeffrey Mcintyre,HOSP-002,Apply twice a day,MRI shows no issues
+ec2b5e21-3f7a-48e0-b611-8bd6553a773a,Jordan Ferguson,97,Other,AB+,Diabetes,2023-05-26,Keith Bell,HOSP-002,Rest and hydration,High blood sugar detected
+6fa00319-e54c-40de-ae79-7a9218b7f1a2,James Hendricks,59,Other,AB-,None,2023-10-03,Jennifer Perkins,HOSP-002,Apply twice a day,MRI shows no issues
+469fc269-ff7a-4d86-809b-3c5bd5e8b89c,Jacqueline Johnson,54,Other,O+,Diabetes,2024-07-18,Sherri Hill,HOSP-002,No prescription,High blood sugar detected
+cc4e66da-de09-49b9-9252-6d459c684df1,Mark Ferguson,68,Female,B+,Diabetes,2025-01-21,Micheal Johnson,HOSP-002,Take 1 tablet daily,Blood test normal
+f9fb4010-dec7-42b7-bb22-fa316bc9e970,Tim Reeves,45,Female,O+,None,2024-07-12,Christopher Wells,HOSP-002,Rest and hydration,Blood test normal
+fefc5b4a-eb1d-4061-9717-aa6e28b4d5b9,Pamela Rodriguez,26,Female,B-,Cancer,2024-01-11,Mark Miranda,HOSP-002,Apply twice a day,MRI shows no issues
+0dccbbed-c0e0-455b-84ca-a7c8a1595b4f,Tyler Thompson,5,Male,A-,Diabetes,2024-06-26,James Williams,HOSP-002,Take 1 tablet daily,Normal check-up
+aea62315-08ef-444a-ae63-ffa48d2ad974,James Clark,96,Other,B+,Diabetes,2023-07-13,Louis Martin,HOSP-002,Rest and hydration,Blood test normal
+76a933cf-65fd-4f69-93a2-5c9b6e3a52d7,Michael Becker,79,Male,AB+,Asthma,2024-11-24,Nicholas Taylor,HOSP-002,Apply twice a day,X-ray indicates fracture
+3a6e8f12-2a1a-4e85-b51c-5aac2728ec95,Chad Snyder,7,Other,O+,Cancer,2025-02-26,Nancy Moran,HOSP-002,Take 1 tablet daily,X-ray indicates fracture
+cd74afec-1e54-4a7c-af27-3f4055cdd72e,Sarah Ortiz,33,Other,O-,Diabetes,2025-01-29,Christopher Burton,HOSP-002,Take 1 tablet daily,X-ray indicates fracture
+b1f5d7d0-887b-4cca-94f0-2dc4f7f1bb27,James Singh,6,Male,A+,Diabetes,2024-06-04,Spencer Riddle,HOSP-002,Take 1 tablet daily,High blood sugar detected
+78a55d6b-f2de-400f-a3e8-695158b5f052,Traci Forbes,38,Other,A+,Diabetes,2024-12-21,William Hernandez,HOSP-002,Rest and hydration,X-ray indicates fracture
+b4577bf7-a251-40a8-9870-c707955fbc33,Dr. Ashley Maxwell,88,Male,O+,Cancer,2024-09-23,Matthew Holden,HOSP-002,Take 1 tablet daily,Normal check-up
+bb5f15c1-b044-4ebb-8445-17ef1c769e1f,Jamie Leon,25,Female,A-,Cancer,2023-04-08,Jack Sharp,HOSP-002,Apply twice a day,High blood sugar detected
+73df770a-ad0c-4bfc-9baf-01f1517fa07e,Michael Estrada,42,Other,O-,Asthma,2024-12-20,Tammy Hoffman,HOSP-002,Take 1 tablet daily,High blood sugar detected
+c7d02862-13f3-4e53-a509-8f9ad3c61e05,Tammie Jackson,67,Male,B-,Asthma,2025-01-01,Carol Chaney,HOSP-002,No prescription,X-ray indicates fracture
+3544f189-a920-4633-9bb6-8cd268adc28f,Michael Baker,68,Female,B-,Diabetes,2024-06-29,James Mcclure,HOSP-002,No prescription,X-ray indicates fracture
+60032713-ea8f-423d-8dbc-321b90a00ee1,Angie Chapman,40,Other,O+,Asthma,2023-12-15,Shane Williams,HOSP-002,Take 1 tablet daily,Normal check-up
+d549faad-44c8-4d00-9a0f-f2189eb88325,Krista Long,92,Male,A+,Asthma,2023-10-23,Joshua Moore,HOSP-002,Take 1 tablet daily,X-ray indicates fracture
+eab3c4d8-d4e4-404b-9bde-299dda286b7a,Benjamin Jones,2,Female,O-,Heart Disease,2024-01-30,Jennifer Davis,HOSP-002,No prescription,High blood sugar detected
+1c622f82-d081-4d92-baca-43f27b777bf2,Ian Davis,53,Female,O-,None,2024-08-23,Samantha Taylor,HOSP-002,No prescription,Normal check-up
+0876daaa-01ce-4fc6-b2d1-16fe8f08963c,Kristin Campos,11,Male,A-,Diabetes,2024-04-14,Ashley Kennedy,HOSP-002,Rest and hydration,X-ray indicates fracture
+57d1d37c-c7af-4e8f-9fec-b2ae58e760bf,Melissa Allen,57,Other,A-,None,2024-04-20,Emily Walker,HOSP-002,Apply twice a day,High blood sugar detected
+f474b1a4-f268-4ee1-9ad8-712d7ee1a2a3,Glenda Jones,6,Male,B-,None,2024-06-18,Patrick Stuart,HOSP-002,Rest and hydration,X-ray indicates fracture
+3b4c0730-253d-4737-8218-5e77dc58ea6a,Curtis Parsons,36,Female,AB-,None,2024-08-24,Heather Cruz,HOSP-002,Take 1 tablet daily,High blood sugar detected
+1e94eb4b-c74f-43ca-94c6-67bb211e55c3,Jonathan Ruiz,37,Other,B-,Heart Disease,2024-08-21,Lynn Howard,HOSP-002,Apply twice a day,X-ray indicates fracture
+669ff1b9-f902-46c0-9bf5-72794704768e,Michelle Campbell,66,Other,O-,Cancer,2023-06-20,Eddie Griffin,HOSP-002,Inhale as needed,MRI shows no issues
+be4a565e-3e58-4dd5-aed1-536858116722,Tyler Porter,30,Male,A-,Cancer,2023-06-24,Vanessa Marshall,HOSP-002,No prescription,Blood test normal
+fa04a706-ef8d-4f9b-bae3-fcee7636efd9,Dr. Connie Ross MD,94,Female,B-,Diabetes,2023-09-27,Michael Davis,HOSP-002,Rest and hydration,High blood sugar detected
+f325f875-e417-4ba3-a4ee-c62b51306e5c,Walter Joyce,95,Other,O+,Hypertension,2024-06-19,Jennifer Baker,HOSP-002,Apply twice a day,X-ray indicates fracture
+1cf4a8ed-2db6-4e21-93a9-ec5db9b5c70e,Michael Johnson,83,Female,A-,Heart Disease,2023-05-03,Joseph Anderson,HOSP-002,Take 1 tablet daily,High blood sugar detected
+ef58951f-9b1a-4019-9aca-0c4ad24e3104,Angela Owens,30,Other,AB+,Diabetes,2025-01-17,Steven Mathis,HOSP-002,Rest and hydration,High blood sugar detected
+ed0d0418-2d58-4ce9-8974-5cd7111868f8,Timothy Reyes,67,Female,AB-,Diabetes,2024-12-17,Daniel Cherry,HOSP-002,Take 1 tablet daily,Blood test normal
+44f20133-f45c-4840-9da2-83380a8bc856,Gregory Richardson,37,Other,B+,Diabetes,2023-12-18,Margaret Carlson,HOSP-002,Rest and hydration,Blood test normal
+1a6f0c9a-f1f7-490f-8070-9bd41790a6b7,Denise Schwartz,65,Female,AB-,Cancer,2024-07-25,Brandy Clark,HOSP-002,Apply twice a day,High blood sugar detected
+339fbb69-51cd-4c07-a8f7-8b61f9d2b2de,Jonathan Hansen,51,Male,B+,Cancer,2024-09-19,Belinda Barry,HOSP-002,Take 1 tablet daily,Blood test normal
+8c3af69e-7474-4f6f-adbd-b6e57844c2ac,Jason Bennett,98,Male,O-,Cancer,2024-06-11,Samantha Boyer,HOSP-002,No prescription,Blood test normal
+7b056d02-59de-4319-bf9b-bcfc742c5905,Jennifer Griffin,94,Male,B-,None,2025-02-17,Jared Duran,HOSP-002,Inhale as needed,Normal check-up
+3db612f4-6df2-4c82-b956-fba972323dc9,John Perez,76,Male,O-,Hypertension,2023-11-06,John Frederick,HOSP-002,Rest and hydration,Blood test normal
+85bab545-d4e2-4a5b-b807-cdd926184c80,Chelsea Cantu,68,Other,AB-,None,2024-08-02,Theresa Moore,HOSP-002,Inhale as needed,MRI shows no issues
+9f2d5db8-deba-489f-959d-e20409642b31,Pamela Mcdonald,2,Male,B+,Heart Disease,2024-09-07,Jon Jackson,HOSP-002,Rest and hydration,X-ray indicates fracture
+cd4668fe-f2b7-4bd2-897b-e2af0c10ef01,Gina Wolf,70,Female,A-,Asthma,2025-01-03,Misty White,HOSP-002,Rest and hydration,Normal check-up
+d9efbb41-b66b-4b0b-8af3-7d72ec4f4490,Jessica Schultz,52,Other,B-,Asthma,2024-07-22,Matthew Mcfarland MD,HOSP-002,Rest and hydration,Normal check-up
+e7aad070-7cdd-44cc-be33-2f35086c9768,Emily Simon,8,Male,A+,Asthma,2023-03-31,Chad Ramos,HOSP-002,No prescription,Blood test normal
+a92c3c3e-3957-4082-9c27-2c51ac98a368,Shannon Todd,57,Other,B-,Asthma,2024-02-24,Madison Mitchell,HOSP-002,Inhale as needed,Normal check-up
+af797546-7e51-48dc-9690-f74daedab7b5,Jaime Bridges,40,Male,AB-,Cancer,2024-10-08,Jeffrey Alvarado,HOSP-002,Apply twice a day,Blood test normal
+113c1836-77f4-431b-bde9-d47dd89331ac,Paul Walton,94,Other,B+,Asthma,2025-03-27,John Fernandez,HOSP-002,Rest and hydration,High blood sugar detected
+0bee2ebd-b447-48bd-9e2d-2454e46232e7,Daniel Nash,81,Male,A+,Diabetes,2024-06-27,Rachel Fernandez,HOSP-002,Take 1 tablet daily,MRI shows no issues
+fefd320b-f5ef-4a99-810f-5ddfa2251838,Kiara Knox,29,Other,AB-,Hypertension,2023-11-25,Joshua Miller,HOSP-002,Apply twice a day,High blood sugar detected
+c095e099-7e24-4205-bb00-d206f8542953,Jason Todd,85,Female,B+,Diabetes,2023-11-28,Alexander Stokes,HOSP-002,Rest and hydration,Blood test normal
+0723b796-dd95-49fc-b7cd-0b759d263e76,Tina Richardson,19,Female,AB+,Diabetes,2024-03-26,Kevin Ramirez,HOSP-002,No prescription,High blood sugar detected
+61f9c408-3833-4558-bb23-23e7d6a2c379,Jonathon Morgan,49,Male,O+,Asthma,2024-12-30,Taylor Williams,HOSP-002,Inhale as needed,Blood test normal
+9045a445-958c-460e-a07f-7f4750c6fa8c,Dr. Joseph Graham,95,Other,O-,Hypertension,2024-01-24,Allison Hamilton,HOSP-002,Inhale as needed,MRI shows no issues
+22324672-f64e-4f4a-af89-c2e7aa170666,Stacey Wilson,53,Female,B+,Hypertension,2024-02-27,Mark Baker,HOSP-002,Inhale as needed,MRI shows no issues
+5fad7a0d-4aa8-4cd6-9804-a8811d8cca3b,Mandy Mcgee,80,Other,B+,Hypertension,2024-05-24,Gina Tran,HOSP-002,Rest and hydration,Normal check-up
+d1cae193-7ed6-4f4e-a875-176629530a13,Scott Rivera,23,Male,A+,Diabetes,2023-12-23,Ariana Hoffman DVM,HOSP-002,Inhale as needed,MRI shows no issues
+920c904e-4063-4525-9152-797ec20166e3,Benjamin Duarte,92,Male,O+,Cancer,2023-07-08,Mr. Richard Reed,HOSP-002,Take 1 tablet daily,MRI shows no issues
+378b094c-b517-4761-961a-43f28ecb4971,Melissa Hayden MD,81,Female,B+,Cancer,2024-07-15,Jessica Moore,HOSP-002,Take 1 tablet daily,MRI shows no issues
+593985b5-e503-4055-b90b-9724b883a8ea,Kimberly Gonzalez,33,Female,O+,Hypertension,2024-03-26,Victoria Hill,HOSP-002,Take 1 tablet daily,Normal check-up
+001debf6-c503-4cb5-86b4-195caa19af26,Robert Parker,12,Female,AB+,Heart Disease,2024-09-29,Erica Miller,HOSP-002,Apply twice a day,Blood test normal
+1d5a474c-cda8-40fd-8adb-0798039d60ba,Donald Harris,31,Other,AB-,Diabetes,2024-06-03,Jerry Perry,HOSP-002,Inhale as needed,Blood test normal
+1f69cd43-68bf-4f7e-94dc-2301882ab925,William Barajas,35,Female,O+,Hypertension,2023-08-13,Mark Nunez,HOSP-002,Apply twice a day,Normal check-up
+d5e32aef-05dd-4ef0-8806-38c9496749fb,Ryan Jones,37,Other,O-,Hypertension,2024-08-25,William Valdez,HOSP-002,Apply twice a day,Blood test normal
+b55dc442-c884-4666-8c66-1a4949954cf1,Stephen Black,71,Female,A+,None,2023-10-18,Rachel Barnes,HOSP-002,Apply twice a day,X-ray indicates fracture
+f367dbe2-40e3-469f-b9b6-6d71951a0518,Robert Burns,52,Female,O-,Hypertension,2024-03-13,Jessica Jackson,HOSP-002,Take 1 tablet daily,X-ray indicates fracture
+ced4dd7c-b4ca-4142-bb23-9fd80d20f686,Andre Miller,95,Male,AB+,Heart Disease,2023-06-15,Sue Horne,HOSP-002,No prescription,MRI shows no issues
+5cb76bb9-c0ff-44b4-a4bd-7d5703e3c25b,Belinda Wright,88,Male,AB-,None,2023-11-04,Jeffrey Terry,HOSP-002,No prescription,MRI shows no issues
+b58c1e9f-2a0b-4040-8ef0-5b6fed4879e7,Kelly Harris,15,Other,AB-,Diabetes,2023-07-26,Eric Thomas,HOSP-002,Apply twice a day,High blood sugar detected
+8b4eb003-401a-4e8a-bba0-fd458d3ac4b9,David Hoover,88,Female,B+,Diabetes,2024-02-18,Michele Moore,HOSP-002,Inhale as needed,High blood sugar detected
+e18d99ce-20fa-4cd3-8f5a-5adec21d3ead,Melanie Mcgee,75,Male,B+,Asthma,2024-05-11,Elizabeth Dillon PhD,HOSP-002,Inhale as needed,Blood test normal
+75fc1b10-b8d1-4539-8562-8912bdf2b5a1,Sarah Brown,81,Female,AB-,None,2023-08-08,James Cruz,HOSP-002,Apply twice a day,X-ray indicates fracture
+207417e7-1a60-4f0d-be41-32ad86b0915a,Kim Nolan,56,Male,A+,Diabetes,2025-02-22,Tyrone Terrell,HOSP-002,Take 1 tablet daily,Normal check-up
+ac91c01e-734c-4192-a557-8e91bee5f64d,Jason Reed,57,Male,AB-,Hypertension,2024-02-01,Billy Gill,HOSP-002,Apply twice a day,Normal check-up
+35bbcdb0-bda3-4488-be1f-a8ac96062930,Pamela Brown,96,Other,B-,Hypertension,2024-12-18,Jeremy Hayes,HOSP-002,Inhale as needed,Blood test normal
+a9584453-c2ea-4172-a5a1-5243c7281f15,Mark Hicks,36,Male,B+,Hypertension,2023-04-10,Heather Howard,HOSP-002,Inhale as needed,Normal check-up
+8072b635-4c1f-49df-b6b4-160bd466c772,Dawn Johnson,15,Other,O+,None,2024-12-16,Sandra Gonzalez,HOSP-002,Apply twice a day,Blood test normal
+4d29d77a-7939-40e6-96e1-6c2b659badcb,John Phillips,37,Male,O+,Heart Disease,2024-12-18,Evelyn Castaneda,HOSP-002,Take 1 tablet daily,Normal check-up
+94291726-6557-438d-a175-f16a9a642c24,Steven Evans,69,Other,AB-,Asthma,2024-12-22,Sarah Lopez,HOSP-002,Rest and hydration,Normal check-up
+2adb6a67-83ad-4758-83e1-592e3765002d,Rhonda Holmes,19,Male,B+,Heart Disease,2025-02-27,Susan Huff,HOSP-002,No prescription,High blood sugar detected
+577aa515-eac5-43ff-b9d1-b233a5c07ecf,Eric Escobar,47,Female,A+,Cancer,2024-05-13,Nicholas Donaldson,HOSP-002,Apply twice a day,Normal check-up
+04ade7b7-119b-4fb4-b0fd-e8c97575117c,Brian Scott,98,Male,A+,Asthma,2024-12-06,Samantha Robinson,HOSP-002,Inhale as needed,X-ray indicates fracture
+2c702901-9e3f-4f15-af5c-5cbee55b88ff,Mary Lynch,88,Male,AB-,Heart Disease,2023-10-24,William Smith,HOSP-002,Inhale as needed,MRI shows no issues
+2adfd824-edae-4c39-aa9e-062a9b89bf0d,Emily Short,94,Other,B-,Cancer,2024-01-30,Nancy Garrison,HOSP-002,Apply twice a day,Blood test normal
+c8359b91-6e93-4faf-9502-e1d5167ad089,Alexander Jackson,24,Female,A-,Cancer,2024-07-04,Heather Clark,HOSP-002,Take 1 tablet daily,High blood sugar detected
+51bb91c1-3262-4328-a24a-adaeebbcf1f6,Christopher Barrett,96,Other,O-,Cancer,2024-07-18,Jennifer Burton,HOSP-002,Rest and hydration,MRI shows no issues
+e7eb533c-3a08-49fb-9c78-43b3e919b5aa,Jeffrey Munoz,22,Female,A-,None,2024-08-14,Tara Shaw,HOSP-002,Apply twice a day,Blood test normal
+a20847d8-54ed-4b3b-8f70-70e66b58996c,Tammy Harvey,33,Female,AB-,Cancer,2024-10-05,Wesley Stewart,HOSP-002,Inhale as needed,Blood test normal
+463e4336-bf3c-4e56-a832-99e9fae46529,Mr. Thomas Adams,40,Male,O-,Hypertension,2024-08-13,Robert Moore,HOSP-002,No prescription,Blood test normal
+8f15c995-424a-4898-832e-9e1e1b908d6d,Lisa Fisher,98,Female,O+,None,2023-08-01,Jennifer Martinez,HOSP-002,Take 1 tablet daily,X-ray indicates fracture
+c634effd-f02d-4043-901a-cef6a8294aab,Lauren Rodriguez,75,Female,AB-,Cancer,2023-08-22,Karen Parks,HOSP-002,Inhale as needed,X-ray indicates fracture
+6cff30a0-c3ac-432c-af40-5e52199a1949,Richard Reid,91,Female,AB-,Hypertension,2024-04-29,Rebecca Smith,HOSP-002,No prescription,X-ray indicates fracture
+c689f37b-f945-43fe-83cb-8f1e9b9a9bf5,Stacy Russell,67,Male,A+,Hypertension,2024-11-28,Stacey Edwards,HOSP-002,Rest and hydration,Blood test normal
+b3f175d0-15c7-4820-a3f3-e5aed1de4fa8,Kerry Andersen,47,Male,A-,Diabetes,2023-05-07,Thomas Orr,HOSP-002,Inhale as needed,High blood sugar detected
+663eab2b-c832-45cc-995d-767b0c1333ce,Nicholas Phillips,61,Male,AB-,Hypertension,2024-02-08,Tina Mercer,HOSP-002,Take 1 tablet daily,X-ray indicates fracture
+72189a39-d63a-4486-be21-64760e05f6b9,Brianna Pugh,17,Other,AB+,None,2023-07-07,Leah Jackson,HOSP-002,Inhale as needed,Normal check-up
+49adce95-7837-4506-9398-dbd616db36e4,Daniel Cohen,19,Female,AB+,Cancer,2025-01-30,Amber Ayala,HOSP-002,Apply twice a day,MRI shows no issues
+a3b4e529-02a0-47fc-a04e-e43c11f63e9b,Raymond Wall,17,Male,O-,Heart Disease,2024-04-28,Zachary Ashley,HOSP-002,No prescription,MRI shows no issues
+52c51809-d20e-4b0e-bd87-44d801a50ef1,Erin Potter,6,Other,O+,Diabetes,2023-06-05,David Rivera,HOSP-002,Take 1 tablet daily,High blood sugar detected
+86c52c1b-8923-4ba1-b874-166b7c34e6eb,Ethan Reyes,11,Male,B+,Asthma,2024-02-07,Kristen Stone,HOSP-002,No prescription,MRI shows no issues
+a4efedef-24cb-4b4e-b825-a7e1e80d2403,Shannon Edwards,42,Other,AB+,Asthma,2025-02-10,Christopher Cruz,HOSP-002,Rest and hydration,MRI shows no issues
+116febe7-aa0c-4327-9daa-42fc90b15e3d,Krystal Bell,20,Female,B+,Hypertension,2024-08-28,Karen Vargas,HOSP-002,Inhale as needed,Blood test normal
+e79d4d5f-ab6f-49e7-be72-544851b5ab77,Kayla Hall,83,Other,A+,Asthma,2024-04-24,James Rowland,HOSP-002,Apply twice a day,X-ray indicates fracture
+01c3df91-8327-4f64-8ae1-367a579e9b08,Billy Rodriguez,83,Female,B-,None,2024-03-03,Dana Johnson,HOSP-002,Inhale as needed,High blood sugar detected
+0a4e6eb7-f97b-4d62-9c95-27d081ffbbc1,Amanda Diaz,91,Female,B+,None,2023-12-20,John Rocha,HOSP-002,Take 1 tablet daily,Blood test normal
+cfa88592-0055-4e42-ab49-6a3bf26ce972,Cynthia Pena,70,Male,AB-,Hypertension,2024-10-27,Hailey Lang,HOSP-002,Inhale as needed,X-ray indicates fracture
+2924b159-b9c3-478f-88d3-aceed370c51f,Paige Castillo,55,Other,AB-,Cancer,2024-08-23,Mrs. Janice Roberts DVM,HOSP-002,Take 1 tablet daily,High blood sugar detected
+06fccff0-e9e4-406c-b689-0df97bd37c4b,Yvonne Greene,49,Other,AB-,Heart Disease,2024-09-02,Jeremy Lane,HOSP-002,Inhale as needed,Normal check-up
+c4fa9dd1-9160-4261-ae10-7e22fa7199d6,Lori Hunt,41,Male,B+,Heart Disease,2024-01-29,James Allen,HOSP-002,No prescription,MRI shows no issues
+895585be-3de6-44fe-b66b-72a94142452b,Tanya Watson,44,Other,B-,Hypertension,2024-03-18,George Schultz,HOSP-002,Take 1 tablet daily,X-ray indicates fracture
+d81580dc-24d8-48a1-be5a-ed8352722246,Krista Herrera,90,Female,O+,Hypertension,2024-10-02,Stephanie Griffin,HOSP-002,Inhale as needed,MRI shows no issues
+99aed9de-2e78-43c5-b11b-b2df346eba31,David Pham,46,Male,O+,Hypertension,2024-05-24,Daniel Price MD,HOSP-002,Apply twice a day,High blood sugar detected
+50b91e51-681e-4658-9813-a70f5a9c60b5,Amanda Frye,78,Other,AB+,Heart Disease,2024-07-12,Sarah Ellis,HOSP-002,Apply twice a day,Normal check-up
+b04a2620-49ab-45a8-8060-94aa4037fffa,Dr. Samuel Newton,59,Female,B+,Hypertension,2024-09-24,Janice Boyer,HOSP-002,Inhale as needed,High blood sugar detected
+55ab42c5-0f08-402e-a47e-3d101d72e0fe,Dr. Lisa Hansen,25,Female,A-,Asthma,2023-11-25,Jennifer Hendricks,HOSP-002,Inhale as needed,X-ray indicates fracture
+ad283c0d-f230-400a-b86b-01c05ffe6c11,Bobby Beltran,4,Female,A+,Diabetes,2024-07-30,William Bond,HOSP-002,Rest and hydration,Blood test normal
+f4a8bcd3-54b7-475b-8358-75c3952049e4,Linda Davis,89,Other,A+,Asthma,2024-06-10,Andrew Davis,HOSP-002,Take 1 tablet daily,High blood sugar detected
+176b2101-4fe5-443b-bae8-d99feee05fb7,Sheila Mckinney,96,Other,O-,None,2024-11-19,Terri Nielsen,HOSP-002,Apply twice a day,MRI shows no issues
+e195f855-dd4b-4f7e-b559-ddc787fde43c,Edward Kerr,69,Female,AB+,Hypertension,2024-07-01,Breanna Liu,HOSP-002,No prescription,X-ray indicates fracture
+4db1762e-c9d9-4b15-befa-4e9942045f8c,Luis Harris,11,Female,AB-,Hypertension,2023-07-14,Mary Dickson,HOSP-002,Apply twice a day,X-ray indicates fracture
+96bad500-ded1-4802-b2e9-77612e975c72,Joshua Castillo,20,Other,AB+,Hypertension,2023-07-07,Natalie Miller,HOSP-002,Rest and hydration,Blood test normal
+da344d17-9e31-41f9-b30c-c272b86137c3,Diana George,44,Male,B+,Diabetes,2023-09-18,Charles Clark,HOSP-002,Rest and hydration,MRI shows no issues
+6b0efd01-00dd-48b3-acea-35a393d5e33b,John Williams,82,Other,B-,Cancer,2023-12-03,Mckenzie Bryant,HOSP-002,Rest and hydration,Normal check-up
+3b3fd363-714d-45bd-a197-6c14aa069b5b,Mandy Hill,62,Other,O+,Hypertension,2024-09-30,Gregory Nelson,HOSP-002,Take 1 tablet daily,X-ray indicates fracture
+486095c2-f812-4022-96b0-9e2989e4b9df,Juan Jones,82,Female,AB-,Diabetes,2024-01-16,Kevin Pearson,HOSP-002,No prescription,High blood sugar detected
+b73888a4-2373-424b-9a3f-22d1845414a1,Suzanne Thomas,29,Male,O+,None,2023-10-20,Kimberly Juarez,HOSP-002,Inhale as needed,MRI shows no issues
+43db0235-1184-48fb-bd33-5a642d79f3f6,Gabriel Hunt,18,Female,A+,Diabetes,2023-12-23,Jean Bowen,HOSP-002,Take 1 tablet daily,Normal check-up
+b5b85fb3-c5b0-43c8-a038-c8f68cb12015,Laura Douglas,88,Female,B+,Diabetes,2023-11-23,Kelli Johnston,HOSP-002,Inhale as needed,Blood test normal
+341514cc-77fd-4fd1-b5cb-60f26a75e179,Brandon Nichols,42,Other,A+,Hypertension,2023-07-03,Julie Valdez,HOSP-002,Take 1 tablet daily,Blood test normal
+3d9f3e80-3ba6-4577-b396-454308439ba1,James Jones,74,Other,B+,Diabetes,2025-01-02,Kelly Robinson,HOSP-002,Take 1 tablet daily,Normal check-up
+dbf9a793-ecb9-4b39-b103-d90417426bd0,Carlos Lee,54,Female,AB-,Heart Disease,2024-06-21,Lisa Burke,HOSP-002,Rest and hydration,Normal check-up
+43189f26-e9b7-4954-a41a-5d31dd5eb2d1,Kaitlin Mccoy,47,Other,B-,Cancer,2024-12-02,Gregory Mack,HOSP-002,Apply twice a day,X-ray indicates fracture
+08dfc975-a4fd-4204-b3b9-e84e34b65cee,Jessica Holmes,17,Female,AB-,Hypertension,2023-09-11,Briana Chavez,HOSP-002,Inhale as needed,High blood sugar detected
+d5ff7894-46ac-4201-9ab1-874e17668e8a,Jenna Rojas,32,Female,O+,Diabetes,2025-03-27,Michelle Wiley,HOSP-002,Apply twice a day,MRI shows no issues
+d39dd7ca-1fde-46c1-9d41-a10b16b3d17d,Lonnie Valdez II,83,Female,O+,Cancer,2023-07-14,Shawn Vincent,HOSP-002,No prescription,High blood sugar detected
+846736ce-24db-4c94-886c-f4d67c23bbfc,Jacqueline Byrd,36,Other,AB-,Cancer,2023-06-28,Erica Hardy,HOSP-002,Apply twice a day,X-ray indicates fracture
+d7418ae8-cfa7-4765-a757-155d5c07d046,Zachary Boyd,79,Female,B-,Asthma,2024-02-23,Nancy Foster,HOSP-002,Rest and hydration,High blood sugar detected
+49ace049-13bd-41ae-b0dd-4704248988cf,Brittney Lopez,42,Female,A-,Cancer,2024-07-10,Christopher Hernandez MD,HOSP-002,Rest and hydration,X-ray indicates fracture
+1de4ead3-362b-4eea-bdb6-3f3243cec809,Brenda Moon,92,Female,A+,None,2024-05-20,Christopher Johnson,HOSP-002,Apply twice a day,MRI shows no issues
+15d51b49-92a9-4177-b85e-cebcc0038e5a,Maria Garcia,14,Other,O-,Cancer,2024-04-17,Andrew Valencia,HOSP-002,Take 1 tablet daily,High blood sugar detected
+16159755-96df-441f-8dd5-92a0aeff988b,David Willis,22,Female,O-,None,2024-09-26,Jamie Young,HOSP-002,Rest and hydration,MRI shows no issues
+94c7cd9a-d28d-45a1-adc7-86e71f3994bc,Penny Moore,37,Other,A-,Asthma,2024-04-19,Lori Smith,HOSP-002,Apply twice a day,High blood sugar detected
+acc08d98-99df-42f5-b4fb-f35024bf2792,Brianna Walsh,81,Female,O-,Heart Disease,2023-07-28,Rita Vargas,HOSP-002,No prescription,MRI shows no issues
+47894708-1b08-4dc1-9162-ce262d64584a,Marcus Ray,26,Female,B+,Heart Disease,2023-10-17,Wendy Erickson,HOSP-002,Rest and hydration,Blood test normal
+73961f8e-faa8-4536-93d7-79d524301b87,Gary Walsh,38,Female,A+,Asthma,2024-01-28,Victoria Delgado,HOSP-002,No prescription,X-ray indicates fracture
+97b19d4f-16d2-4a67-86b1-b41f3659333f,Danielle Mills,5,Other,O+,Asthma,2024-03-16,Shaun Hubbard,HOSP-002,Rest and hydration,X-ray indicates fracture
+8c372aad-84ee-4e22-9407-95d06bbb961d,Michelle Baldwin,45,Male,B+,Hypertension,2024-08-21,Jasmine Gonzalez,HOSP-002,Rest and hydration,X-ray indicates fracture
+a2bc5350-a627-431d-b1f5-df2e184dc518,Robert Green,22,Male,O+,Cancer,2024-11-21,Jacob Cole,HOSP-002,Inhale as needed,Normal check-up
+72824622-a4b0-473b-b74e-21a162e5b726,Ricardo Mitchell,10,Other,A-,None,2024-07-26,Julie Cameron,HOSP-002,Inhale as needed,Blood test normal
+290af021-31d4-47df-847e-abd3be5c1933,Debra Franco,18,Male,B+,Diabetes,2024-09-30,John Ruiz,HOSP-002,Inhale as needed,High blood sugar detected
+9bd23ec5-21f9-4354-a776-eb3783f07d7c,Trevor Jackson Jr.,4,Other,B+,None,2023-12-19,Michael Olsen,HOSP-002,Take 1 tablet daily,High blood sugar detected
+4f651f21-6fa2-4e13-87fc-e776a85536f3,Nathan Lee,95,Female,AB-,Heart Disease,2024-02-12,Bethany Davidson,HOSP-002,Take 1 tablet daily,MRI shows no issues
+b894cf22-c2dc-4456-9b84-7a843ffd9bf2,Jessica Mcdaniel,99,Female,B+,Asthma,2023-12-30,Jeffrey Diaz,HOSP-002,No prescription,Normal check-up
+8ec14f83-1679-4dcc-bc88-47d21b067b10,Bonnie Smith,69,Other,B+,None,2024-12-14,Mercedes Pena,HOSP-002,Inhale as needed,X-ray indicates fracture
+b887d3e9-a317-4056-a4af-bf493cc919a9,Anthony Randall,31,Female,AB-,None,2024-07-09,Donald Martinez,HOSP-002,Apply twice a day,Blood test normal
+0008cccf-565e-4ae7-ad82-e067ab359414,April Morgan,40,Female,O+,Hypertension,2023-12-18,Craig Brooks,HOSP-002,No prescription,High blood sugar detected
+42f378f2-7612-47e8-924d-bea9ab616040,Teresa Ross,1,Other,A-,Heart Disease,2023-06-19,Gary Clark,HOSP-002,Apply twice a day,MRI shows no issues
+c736e166-8042-402f-9d73-22518b763f63,Brandon Gardner,83,Other,A-,Asthma,2023-11-10,Danielle Copeland,HOSP-002,No prescription,X-ray indicates fracture
+2a630fd1-71cf-439d-aa1f-ff41af1b7013,David Gallegos,49,Male,A+,Hypertension,2023-08-08,Ronald Johnson,HOSP-002,Rest and hydration,Blood test normal
+1f695a01-f5f5-40d2-842e-4fec60e63d0e,Bradley Mack,93,Female,AB-,Hypertension,2023-09-09,James Ford,HOSP-002,Take 1 tablet daily,Normal check-up
+d641ba41-8f4b-4bf7-8132-a1c998369a99,Jeffery Drake,75,Other,AB+,Heart Disease,2024-06-30,Travis Hall,HOSP-002,Apply twice a day,Blood test normal
+79101825-5057-4f41-835b-8afb58c8ba85,Pamela Mcdonald,21,Other,A-,Cancer,2024-10-29,Dawn Nelson,HOSP-002,Rest and hydration,MRI shows no issues
+38e4c448-e108-45d9-afbe-d0dc29ef5907,Erica Johnson,83,Male,O+,Cancer,2024-04-02,Teresa Mitchell,HOSP-002,No prescription,High blood sugar detected
+1a172460-fb72-451a-8561-3af93f482bfc,Joseph Santana,91,Other,O+,Asthma,2023-08-31,Tiffany Guzman,HOSP-002,No prescription,Normal check-up
+7dd5d97e-086d-496c-a205-7b918d3d8867,John Ashley,18,Female,B+,None,2024-03-07,Craig Harris,HOSP-002,No prescription,High blood sugar detected
+a8e19b83-21ab-4e3d-bdf4-ff097d87d793,Joseph Powers,49,Male,O+,Asthma,2024-06-03,Douglas Miller,HOSP-002,Apply twice a day,Normal check-up
+b7aa3d91-7a28-4c8a-8b67-e0d305d79967,Nancy Smith,59,Male,O-,Cancer,2024-07-21,Phillip Clay,HOSP-002,Apply twice a day,Blood test normal
+b4369152-72e9-4ed1-ab3b-c4cdcd4a30f2,Diane Haas,65,Female,O+,None,2023-06-05,Mason James,HOSP-002,No prescription,High blood sugar detected
+a3efb3de-c2f2-4fc1-b210-5ccda51e0bde,Diane Bonilla,30,Other,AB-,Diabetes,2024-06-03,Jeffrey Roberts,HOSP-002,No prescription,X-ray indicates fracture
+acb14314-662a-4671-a76d-105c7c30634a,Tabitha Foster,19,Female,A-,Hypertension,2025-03-14,Wendy Flowers,HOSP-002,No prescription,Blood test normal
+4d4e4e29-99c5-464c-b8c6-773e9610c047,Jacob Barnes,73,Female,A-,Asthma,2025-03-09,Patricia Reed,HOSP-002,Apply twice a day,Normal check-up
+70dc9c84-f569-42c2-b06c-360e6ca99235,Michael Branch,15,Female,B+,Asthma,2023-09-26,Mario Moore,HOSP-002,Inhale as needed,X-ray indicates fracture
+e0934e38-7f42-4f90-a412-eb0bd260a30d,Brett Hahn,85,Male,B+,Cancer,2023-04-24,William Smith,HOSP-002,Take 1 tablet daily,Normal check-up
+eb0f6c21-e977-40d1-bcd2-f001852b29b5,Megan White,1,Male,O+,Cancer,2024-02-02,Tyler Johnson,HOSP-002,Apply twice a day,Blood test normal
+e56b3b1d-e54e-4a17-a868-c76b7a94f483,Bruce Briggs,92,Other,A-,None,2023-11-05,Elizabeth Myers,HOSP-002,Rest and hydration,MRI shows no issues
+54f22060-4467-4c65-91e0-a50e9602634b,Andrea Hubbard,100,Female,A-,Heart Disease,2024-10-03,Colleen Fitzpatrick,HOSP-002,Take 1 tablet daily,MRI shows no issues
+ed6fe79b-8c56-4b92-8f32-2470a2334974,Shawn Coleman,30,Female,AB+,Asthma,2023-05-03,Anna Smith,HOSP-002,Inhale as needed,Blood test normal
+0878f6db-004c-4af0-8ed9-1a324f0fa9db,Brittney Wheeler,64,Female,AB-,Hypertension,2023-08-09,Brad Taylor,HOSP-002,Apply twice a day,MRI shows no issues
+228c7715-8f8a-44cd-be16-9d6bf290d831,Angela Jones,74,Female,B-,Heart Disease,2024-11-23,Christina Garcia,HOSP-002,Take 1 tablet daily,Blood test normal
+1d793750-148e-4fb9-aece-04437cbb1bcc,Scott Benitez,98,Male,B-,Asthma,2024-10-15,Kimberly Taylor,HOSP-002,Apply twice a day,High blood sugar detected
+6c10f97f-d983-4a1f-bad8-ae6a5f5ce777,Angela Hunter,85,Female,AB+,None,2023-04-27,Kristen Davis,HOSP-002,Inhale as needed,Blood test normal
+e5782952-60cd-49db-bea0-eb70ca8b425c,Thomas Hoffman,100,Male,O+,Asthma,2024-06-17,Susan Allen,HOSP-002,Apply twice a day,MRI shows no issues
+9ade0a94-2709-483a-976f-9018b18646ce,Richard Diaz,30,Other,AB-,Heart Disease,2023-11-06,Kathy Smith,HOSP-002,No prescription,High blood sugar detected
+bd966783-41ff-4f63-a4a3-b63500513063,Christine Leach,36,Female,O+,Heart Disease,2023-08-22,John Webb,HOSP-002,Inhale as needed,X-ray indicates fracture
+42c07c7e-f740-4ba2-8688-4eed2034663b,Shelby Jackson,62,Female,A-,None,2024-08-21,Paul Gonzalez,HOSP-002,Rest and hydration,X-ray indicates fracture
+cb110ef8-806d-48c5-9856-d169a1fee9cf,Mark Flores DDS,32,Other,B+,Asthma,2024-07-22,Dana Lloyd,HOSP-002,No prescription,X-ray indicates fracture
+465bb8d7-f519-4484-9a67-b2f9c4fa5577,Wanda Grant,15,Other,O+,None,2023-04-24,Crystal Johnson,HOSP-002,Inhale as needed,Normal check-up
+4529f10d-897e-4d87-abcf-2a76c1d8f799,Caitlin Green,60,Other,B-,Heart Disease,2024-10-29,Dr. Whitney Wong,HOSP-002,Rest and hydration,X-ray indicates fracture
+44444f7d-ada6-4225-8607-fad901fe2e70,William Frederick,40,Female,B-,Asthma,2025-01-27,Cassidy Wood,HOSP-002,No prescription,High blood sugar detected
+a24921ff-8616-4a88-9296-e670f35fda3e,Jonathan Savage,12,Female,AB-,None,2024-07-16,Jennifer Li,HOSP-002,No prescription,Normal check-up
+01541c1e-420f-4db8-8ae9-e2e6adaa21ca,Lawrence Rivera,7,Other,A+,None,2025-02-19,Kevin Cardenas,HOSP-002,No prescription,MRI shows no issues
+a497af90-0815-4b1f-b77b-8c86ea3249e6,Shannon Lopez,26,Other,AB-,Diabetes,2025-02-08,Joanna Montgomery,HOSP-002,Take 1 tablet daily,X-ray indicates fracture
+58bdd490-d26c-44f8-b6b1-557e55b26dc6,Raymond Smith,90,Female,A+,Diabetes,2024-01-07,Sean Perez,HOSP-002,Inhale as needed,High blood sugar detected
+a2fb2221-dcb4-4e14-bbda-98aaae433b71,Nicole Oneal,49,Other,A+,Diabetes,2025-02-28,Pamela Smith,HOSP-002,Rest and hydration,High blood sugar detected
+9d592226-302d-4194-ae55-0e17de5dd6f9,Jennifer Long,78,Male,A-,Heart Disease,2023-07-28,Jane Wallace,HOSP-002,Inhale as needed,Blood test normal
+a4978b1d-b87f-4e55-bc9b-15edf5f2bba7,Dawn Haynes,1,Other,O+,Hypertension,2023-07-31,April Bartlett,HOSP-002,Inhale as needed,High blood sugar detected
+fefed218-1947-4fb1-af40-d4efbfb553c2,Christopher Scott,30,Male,O+,None,2025-03-01,Erica Chandler,HOSP-002,Inhale as needed,MRI shows no issues
+4034dca4-1eb6-4178-b6cf-14a27d90d1f8,Dawn Griffith,56,Male,O+,Hypertension,2024-01-16,Allison Pineda,HOSP-002,Inhale as needed,Normal check-up
+33f78404-808b-40f6-b281-e24c8384841d,Nicholas Juarez,4,Other,AB-,Heart Disease,2024-10-12,Alex Peters,HOSP-002,No prescription,Normal check-up
+b6649e79-473b-4bf6-8c5f-bfe7f3be0a6c,Alyssa Shelton,87,Female,B+,Cancer,2024-01-27,Hannah Ruiz,HOSP-002,Rest and hydration,High blood sugar detected
+bba9048a-be7c-4e1e-8e4e-707771e54207,Karen Lopez,33,Male,A-,Asthma,2024-06-29,Lisa Clark,HOSP-002,Rest and hydration,X-ray indicates fracture
+18eec8cc-381d-4e21-9112-44066e30d1ba,Larry Fuller,80,Other,B+,None,2025-03-25,Ryan Dalton DVM,HOSP-002,Take 1 tablet daily,Blood test normal
+d866e735-f4a6-4316-8851-c1df7d1e162d,Glenn Warren,85,Female,B-,None,2024-12-11,Patricia Ward DDS,HOSP-002,No prescription,Normal check-up
+a6701b66-88fc-4bb3-902a-862b64d2a318,Anne Shannon,16,Other,A-,Heart Disease,2024-04-25,Austin Morgan,HOSP-002,Rest and hydration,X-ray indicates fracture
+788afa15-7d58-4b02-86e8-00470b5560b6,Joseph Taylor,66,Female,O-,Diabetes,2024-03-27,Kristine Miller,HOSP-002,Rest and hydration,X-ray indicates fracture
+e1b9f50e-216d-4a63-ab83-13a85b53cd42,Jacob Rivera,44,Male,O+,Asthma,2025-02-12,Michael Torres,HOSP-002,Apply twice a day,Blood test normal
+5d83c657-9482-415d-bf09-ff3a4eeff333,Adam Webster,73,Other,AB-,Diabetes,2024-02-08,Daniel Butler,HOSP-002,No prescription,Blood test normal
+6e939338-7c7e-4bd2-b193-48ca444dd831,Stacie Thomas,45,Female,O+,Hypertension,2024-12-18,Jeff Wise,HOSP-002,Inhale as needed,X-ray indicates fracture
+2308b506-cf31-42c4-925b-65b14483cf58,Jack Marsh,71,Female,O-,Diabetes,2024-03-14,Christopher Daugherty,HOSP-002,No prescription,Blood test normal
+38168876-cda5-40a0-9700-fb19b473e514,Brent Willis MD,33,Female,O-,Diabetes,2023-12-03,Matthew Martin,HOSP-002,Take 1 tablet daily,MRI shows no issues
+b69d0fae-a995-4b27-9b33-ffa8ef619b13,Mrs. Erica Murphy MD,37,Female,O-,Cancer,2024-11-11,Chelsea Banks,HOSP-002,Take 1 tablet daily,X-ray indicates fracture
+d90f6bbc-2b75-43d8-afc1-ea7da3b0cc06,Karen Allen,88,Male,B-,Asthma,2024-10-04,Debbie Thornton,HOSP-002,No prescription,High blood sugar detected
+16d91fc5-be85-4394-a0fc-74e80d0d82f9,John Taylor,8,Male,AB-,Hypertension,2023-07-18,Brian Chen,HOSP-002,Rest and hydration,Blood test normal
+e45f2e18-9b85-42b4-a770-6befd5be1022,Brad Carpenter,21,Female,O+,Heart Disease,2023-09-15,Stephanie Bruce,HOSP-002,Take 1 tablet daily,X-ray indicates fracture
+87f3aa2b-2c0e-4235-a6ef-fcd167286f94,Derek Morgan,64,Male,B+,None,2023-08-13,Jennifer Orozco,HOSP-002,Inhale as needed,X-ray indicates fracture
+d3341b0a-296e-47d2-aa85-3efa2d5d2173,Christine Meyer,98,Other,B-,Heart Disease,2025-02-28,Megan Bryant,HOSP-002,Take 1 tablet daily,Normal check-up
+173e585c-d5b2-4d55-a89d-831de6ad2510,Jeff Kramer,67,Other,O+,Diabetes,2023-11-20,Anthony Bailey,HOSP-002,Take 1 tablet daily,Blood test normal
+3b2d1fc9-eded-44e3-b9e6-f58f7fdf2229,Thomas Gonzales,85,Other,B-,Cancer,2023-06-16,Danny Morris,HOSP-002,No prescription,High blood sugar detected
+8c17edfc-9def-4df6-bca3-18ca330760dc,Jonathan Cooper,32,Female,AB-,Cancer,2024-08-07,Stephanie Odom,HOSP-002,No prescription,MRI shows no issues
+4bc61ffd-c610-43ed-851b-1c8ce0c012d2,Michael Rangel,6,Male,B+,Diabetes,2023-10-27,Joshua Whitaker,HOSP-002,Rest and hydration,MRI shows no issues
+1c141ab5-2c8a-4e2d-b091-0cca4fd0fda2,Joseph Rice,29,Other,A-,Cancer,2024-07-18,Nancy Bennett,HOSP-002,Inhale as needed,Blood test normal
+cbc96874-9bb3-4a4c-9147-a3fa6b7a00d8,Zachary Braun,88,Female,O-,Heart Disease,2023-07-21,Nancy Johnson,HOSP-002,Rest and hydration,High blood sugar detected
+23ca4739-ce5e-461b-bb59-a1c0bd08b032,Justin Smith,48,Other,AB-,Heart Disease,2023-07-16,Ashley Morris,HOSP-002,No prescription,High blood sugar detected
+c413b8e8-319c-4b43-aae0-a7644fd43443,Anthony Hall,57,Other,AB-,None,2023-08-15,Heather Reyes,HOSP-002,Rest and hydration,MRI shows no issues
+9e9e44c5-87b8-477e-b397-1943a640ca97,Isabel Barnes,29,Male,B+,None,2024-01-29,Linda Walker,HOSP-002,No prescription,MRI shows no issues
+bce77742-7228-4d9a-a2cd-813001e1dd8c,Christian Harris,27,Female,A+,Hypertension,2024-06-22,Tara Snow,HOSP-002,Rest and hydration,Normal check-up
+e20e2224-47d3-4352-8019-fdfa510020c1,Stephen Peterson,12,Female,O+,Cancer,2024-02-15,Robert Black MD,HOSP-002,No prescription,Blood test normal
+66be149c-5503-413e-88c2-4eabca968927,Tara Braun,86,Male,O-,Asthma,2024-11-06,Michael Lewis,HOSP-002,Rest and hydration,Normal check-up
+c0b2ae8b-7788-4200-b6bd-58d6e8c2215d,Jeffrey Singh,69,Male,A-,Cancer,2025-01-24,Melanie Calhoun,HOSP-002,Apply twice a day,MRI shows no issues
+f37b9601-30bb-4394-ba31-daf12dcbb10e,Lori Schaefer MD,27,Female,AB-,Asthma,2025-03-23,Ryan Martin,HOSP-002,Rest and hydration,Blood test normal
+7c261cc8-a94f-40d6-af59-5bc0dad16c2b,Timothy Hamilton,99,Male,A+,Cancer,2023-08-20,Todd Black,HOSP-002,Take 1 tablet daily,X-ray indicates fracture
+1701cbcc-fe9e-4d82-bcbb-f1f9b3f855c8,Miranda Ware,20,Female,AB+,Hypertension,2024-07-02,Justin Lucas,HOSP-002,Rest and hydration,High blood sugar detected
+606d396e-1886-4eb5-9991-21865dbfc02b,George Macdonald II,36,Male,O+,None,2023-09-20,Laura Morrison,HOSP-002,Inhale as needed,Normal check-up
+d6fdf516-6b1a-47c6-a3ed-6d79186f4ef1,Nicole Lopez DDS,30,Other,AB+,Hypertension,2023-08-16,Deborah Sparks,HOSP-002,Apply twice a day,Normal check-up
+fcb0f07f-7212-4835-ab4d-0a93531d07a1,Kimberly Webster,41,Other,O-,Hypertension,2024-02-01,Colin Graham,HOSP-002,Inhale as needed,MRI shows no issues
+ed1a4748-54b5-4fb5-8d65-6a213f8beccd,Caleb Jones,56,Female,O+,Heart Disease,2024-07-15,David Savage Jr.,HOSP-002,No prescription,Blood test normal
+16fca750-fa67-4a04-ab44-d7a254e1b6c1,Terri Smith,56,Other,B+,Diabetes,2024-12-20,Caitlin Thomas,HOSP-002,Take 1 tablet daily,Blood test normal
+56768476-913e-4095-bff7-06948ecc8c9d,Jordan Berg,91,Female,B-,Hypertension,2023-05-22,Sabrina Nelson,HOSP-002,Apply twice a day,Normal check-up
+dbd15194-678b-4924-8775-d63a4881f400,Taylor Shepherd,50,Male,AB-,Asthma,2023-07-11,Elizabeth Evans,HOSP-002,Take 1 tablet daily,Normal check-up
+71d6ec10-ccee-4a87-bd3c-106227d20e84,Frederick Moore,82,Male,A+,Asthma,2024-12-17,Samuel Crane,HOSP-002,Apply twice a day,Normal check-up
+140895d0-281b-4255-8fc7-6634cea323b4,Peter Boyer,2,Male,O-,Hypertension,2025-02-03,Kimberly Osborne,HOSP-002,Rest and hydration,MRI shows no issues
+f5a182c5-d246-4d22-ab8f-76fae8471a9a,Michael Hoffman,18,Female,A-,Cancer,2024-07-01,Bradley Allen,HOSP-002,No prescription,High blood sugar detected
+e781c71b-fd62-4116-ba76-4f1333c4eb7a,Sarah Bender,98,Male,AB+,Cancer,2023-04-21,Jamie Baker,HOSP-002,Apply twice a day,X-ray indicates fracture
+e89a006d-7163-4db0-80af-906697046d7c,Tracy Johnson,10,Other,B+,None,2025-02-06,Thomas Walker,HOSP-002,No prescription,Blood test normal
+794824ae-beb6-433a-bca2-81f1c1c7f10b,Robert Blair,29,Female,A-,Cancer,2024-10-05,Robin Lewis,HOSP-002,Inhale as needed,Normal check-up
+4b2bac3c-5950-42bd-900e-7701f888932e,Cassandra Moran,89,Other,B-,None,2023-09-02,Theresa Gomez,HOSP-002,No prescription,MRI shows no issues
+cfc30c95-4d42-4150-a783-643360c3746c,Zachary Carey,90,Other,O-,Asthma,2025-01-30,Michael Escobar,HOSP-002,Apply twice a day,High blood sugar detected
+ed3696ce-2f91-4af5-92c1-d26b13e14526,Blake Rhodes,93,Female,B-,Diabetes,2023-10-11,Cindy Newton,HOSP-002,No prescription,MRI shows no issues
+9b97e907-b75d-480a-8ed2-0f4cfc34ed28,Patricia Cochran,17,Female,A+,Hypertension,2023-08-01,Leah Williams,HOSP-002,Inhale as needed,MRI shows no issues
+429a8f86-c6b2-4bac-b01a-484ef57b6006,Antonio Jones,91,Female,A+,Hypertension,2024-08-15,Cole Vasquez,HOSP-002,No prescription,MRI shows no issues
+4a789a0e-855f-47d4-b303-cc12a8964ce0,Wendy Miller,38,Male,B+,Heart Disease,2024-01-14,Rhonda Smith,HOSP-002,Inhale as needed,Normal check-up
+a7d364c3-559b-40b7-9ec8-0afbfcb9d139,Joshua Perez,66,Other,AB-,None,2023-11-21,Jason Jones,HOSP-002,Rest and hydration,Blood test normal
+c43b5096-d39e-4b11-87ab-46abf685b1f3,Brian Elliott,65,Other,O+,Hypertension,2023-12-29,Adrian May,HOSP-002,Apply twice a day,Blood test normal
+022b6290-6685-454e-917d-4cc0e8bb1f29,Robert Hudson,60,Female,B+,Asthma,2023-11-14,Casey Berry,HOSP-002,Take 1 tablet daily,High blood sugar detected
+c6c6c6de-a5dc-41c9-914a-cf8e89b58d29,Andrew Davis,87,Other,AB+,Hypertension,2024-01-30,Christopher Robinson,HOSP-002,Inhale as needed,Blood test normal
+dda6d272-07a1-4fb2-9b85-e81d8c498cea,Jared Campbell,82,Female,A-,Heart Disease,2025-01-13,Michael Mccoy,HOSP-002,Rest and hydration,Normal check-up
+838e0b04-ec52-4ef1-b374-263e84cf7446,Linda Byrd,71,Other,AB+,Hypertension,2024-02-16,William Williams PhD,HOSP-002,Inhale as needed,X-ray indicates fracture
+2f1d4b70-ba5a-49ff-b52d-67f6569a6d1f,Christy Gonzalez,18,Female,A+,None,2023-11-14,Erin Torres,HOSP-002,No prescription,Normal check-up
+b8772d29-938d-41b9-ae35-240924d592f6,Anthony Reyes,75,Male,AB+,Asthma,2024-12-17,Keith Sparks,HOSP-002,Rest and hydration,Normal check-up
+cad928d4-298c-453d-bf68-a5b3eaf9de49,Daniel Gill,58,Other,A-,None,2023-07-08,Jessica Dean,HOSP-002,Rest and hydration,MRI shows no issues
+0bc711a9-eb41-44a0-9cd6-5445d05366cc,Kelly Lewis,67,Male,B-,Heart Disease,2024-02-04,Mr. Blake Rodriguez,HOSP-002,Take 1 tablet daily,Blood test normal
+07366561-4da7-4eb9-aa4b-e525e134e7a5,Carlos Richmond,4,Male,A-,Asthma,2024-05-14,Catherine Butler,HOSP-002,Inhale as needed,X-ray indicates fracture
+5dce8477-c9e1-493e-83fb-37430361194e,Jose Espinoza,17,Female,A+,Asthma,2024-08-30,Penny Hensley,HOSP-002,Apply twice a day,Normal check-up
+3fc9f149-c05f-4874-8f5a-3f57c637c71a,Cheryl Wade,16,Other,B-,None,2024-09-20,Katherine Guerra,HOSP-002,Rest and hydration,MRI shows no issues
+b2764173-43ce-4b81-bee2-f56b0ee1ce2b,Dustin Rangel,52,Female,O-,Heart Disease,2023-09-27,Ronald Lopez,HOSP-002,Apply twice a day,Normal check-up
+fbe30bf9-88f1-459e-9f26-5d0160e248c1,Christopher Ali,91,Other,AB-,Diabetes,2025-03-01,Shawn Caldwell,HOSP-002,Apply twice a day,X-ray indicates fracture
+1c0989b1-af56-47ba-af08-6f6588df0307,Michael Dixon,29,Female,B+,Diabetes,2024-10-23,Walter Porter,HOSP-002,Take 1 tablet daily,X-ray indicates fracture
+5a5915c2-8d87-47e8-ac91-b72f6c14b828,Robert Mitchell,70,Male,B+,Diabetes,2025-01-16,Olivia Thompson,HOSP-002,Inhale as needed,Normal check-up
+f0b0bed8-3f41-45b5-8b62-50dae645eef2,Tammy Carpenter,32,Other,B+,Cancer,2023-10-03,Robert Howard,HOSP-002,Apply twice a day,Blood test normal
+edabf3d2-53e4-4dd3-ae51-bca044c0a5ed,Ashley Downs,68,Female,A+,Heart Disease,2024-03-25,Heather Anderson,HOSP-002,Take 1 tablet daily,Normal check-up
+66ab247a-75fe-400c-8407-32b4ef1772f4,Emma Lynch,8,Female,B+,None,2024-04-10,Angel Vaughn,HOSP-002,Take 1 tablet daily,X-ray indicates fracture
+2d716023-97ec-4a40-b6ad-98ba10fb5581,Brian Long,28,Female,O-,Hypertension,2023-11-12,Jessica Sims,HOSP-002,No prescription,MRI shows no issues
+fafd02b8-4b99-4ee7-b671-4d76955e988d,Amanda Williams,69,Male,A-,Hypertension,2024-10-27,Jacob Eaton,HOSP-002,No prescription,Normal check-up
+a6db74d1-a748-4875-a9bd-f6043ed27848,Bruce Jacobs,58,Other,AB+,None,2023-11-15,Jorge Reynolds,HOSP-002,Take 1 tablet daily,High blood sugar detected
+994d799a-9922-4957-ae70-5259262ae4c4,Valerie White,34,Other,A-,Diabetes,2024-08-23,Frances Garcia,HOSP-002,Rest and hydration,X-ray indicates fracture
+3f74df9a-e43b-4530-9b3e-660550835669,Patrick Hoffman,95,Male,A+,Hypertension,2025-03-17,Michael Mills,HOSP-002,Rest and hydration,MRI shows no issues
+7e54ed03-eef4-4592-ac1c-6fe4b2b5591a,Stanley Davis,89,Female,B-,None,2023-05-02,Jennifer Hunt,HOSP-002,Take 1 tablet daily,X-ray indicates fracture
+969a2550-fdb9-4ef3-b842-8c7a570e3fe6,Debbie Patton,81,Other,AB+,Hypertension,2024-09-25,Regina Cole,HOSP-002,Apply twice a day,X-ray indicates fracture
+18cb4e11-abe0-4a61-89ca-574d20979829,Michael Mcneil,45,Other,AB-,Asthma,2023-12-16,Albert Oconnor,HOSP-002,No prescription,X-ray indicates fracture
+5a55805d-d0cd-4cc6-be14-9e5fa35c56b3,Vanessa Browning,83,Other,AB+,Diabetes,2024-10-08,Alan Hanna,HOSP-002,Rest and hydration,MRI shows no issues
+66871fab-4ee6-436f-89d7-8ab394be4e35,Alison Bond,94,Male,O+,Asthma,2023-07-01,Jeffrey Davis,HOSP-002,Apply twice a day,X-ray indicates fracture
+e9edc59c-a80a-4200-8cfc-be4620025f82,Tracey Molina,57,Male,O-,Asthma,2024-01-05,Keith Gallagher,HOSP-002,Rest and hydration,Normal check-up
+a4edeefd-5140-494b-aed4-e645aaed8b53,Lori Smith,82,Other,O+,None,2024-03-22,Todd Lewis,HOSP-002,Inhale as needed,Blood test normal
+02c81d11-73f1-4747-a9a2-8f3cb9abe19f,Aaron Armstrong,90,Other,AB+,Heart Disease,2024-09-08,Anna Saunders,HOSP-002,Take 1 tablet daily,X-ray indicates fracture
+39e65a53-dd59-495f-b974-5c90aaf5cc09,Erik Gibbs DDS,25,Female,B-,Asthma,2024-05-20,Matthew Hale,HOSP-002,Inhale as needed,MRI shows no issues
+817d6729-9de1-4139-ad01-d648fcc59763,Patricia Sanchez,66,Male,O-,Asthma,2024-10-26,David Taylor,HOSP-002,Inhale as needed,MRI shows no issues
+176f1bd9-8f43-492b-99b8-7f5c0aa1ee6f,Molly Mendez,39,Female,A+,Heart Disease,2024-03-16,Jennifer Fitzgerald,HOSP-002,Apply twice a day,Normal check-up
+a0302c1d-8629-4f4d-a2cb-0fefc330ad4f,Emma Boyd,59,Other,A-,Hypertension,2023-07-07,Kristen Chambers,HOSP-002,No prescription,High blood sugar detected
+0cdff20e-c1e7-4ade-858e-8dfb98468947,Keith Frost,14,Female,A+,Diabetes,2023-10-21,Elizabeth Martinez,HOSP-002,Inhale as needed,MRI shows no issues
+f9646b27-b465-4600-92c4-7c9950625b3b,Michael Adams,23,Other,AB-,Cancer,2024-03-11,Kevin Collins,HOSP-002,Take 1 tablet daily,High blood sugar detected
+6f8b6cbe-b759-43ec-9384-3901b020b8d4,Natalie Pacheco,87,Other,A+,Hypertension,2025-01-12,Michelle Wall,HOSP-002,Inhale as needed,Blood test normal
+9224e274-3247-4a22-8ea7-0cf11aff2f25,Abigail Arias,40,Male,O+,None,2023-04-14,Joel Black,HOSP-002,Take 1 tablet daily,High blood sugar detected
+bda2d21f-7fe8-4e46-851c-d1e8e8294364,Scott Robertson,12,Other,O+,Hypertension,2024-11-29,Christina Garner,HOSP-002,Take 1 tablet daily,Normal check-up
+7a0cd3b5-e85c-4c1b-b265-00149a7945cf,Adrian Trevino,2,Other,AB+,Asthma,2024-11-22,Lindsay Phillips,HOSP-002,Rest and hydration,High blood sugar detected
+27503d1e-1756-40d4-b187-594d577b1f95,Dennis Bailey,26,Female,B+,Diabetes,2024-07-28,Theresa Miranda,HOSP-002,Take 1 tablet daily,X-ray indicates fracture
+f7d9dde9-8d19-4e5e-aedd-4d37b5a99074,David Davis,79,Other,O+,Cancer,2025-03-21,Carrie Williams,HOSP-002,Inhale as needed,MRI shows no issues
+dcade3bf-f755-4463-9c34-0e9440400fe8,Anthony Santiago,7,Female,A+,Heart Disease,2023-08-13,Sophia Williams,HOSP-002,Inhale as needed,Blood test normal
+ecbdaec9-51b8-44b5-8d86-eddb81190840,Manuel Flores,11,Female,AB+,Asthma,2024-12-25,Alejandro Cole,HOSP-002,Rest and hydration,Normal check-up
+e6219ba4-5be0-4ab7-ac7d-b93f9f51a24a,Melissa Henry,92,Male,AB-,Diabetes,2024-03-11,Gregory Hall,HOSP-002,Inhale as needed,High blood sugar detected
+6149ef27-0c33-4eda-a40c-0ab3dfc753aa,James Hancock,63,Female,AB-,Asthma,2025-01-07,Alexander Smith,HOSP-002,Apply twice a day,Normal check-up
+b253a635-3652-4007-8002-f669f7a2b187,Brian Tate,97,Male,A-,Cancer,2024-02-04,Deborah Taylor,HOSP-002,Take 1 tablet daily,MRI shows no issues
+8649a760-6c50-4cc2-81f3-ca1d02af87f5,Samantha Mitchell,92,Female,O-,None,2023-05-23,Kevin Baker,HOSP-002,No prescription,MRI shows no issues
+851a3e66-bd62-4605-8c1a-a8dd3b3ec678,Joseph Smith,54,Male,A-,Cancer,2024-12-25,Andrew Mata,HOSP-002,No prescription,MRI shows no issues
+1d3b7cfb-bd31-4f2f-b72d-9bb433f4d3e9,Amanda Quinn,96,Female,AB+,Heart Disease,2023-11-29,Mike Armstrong,HOSP-002,No prescription,MRI shows no issues
+2e001a75-6efa-4a18-be6f-85818a6993de,Christopher Ward,34,Female,A-,Heart Disease,2024-09-05,Ryan Peterson,HOSP-002,Apply twice a day,Blood test normal
+0166a72f-641c-40b7-baa0-86f4462e8578,Stephen Frazier,69,Male,A+,Hypertension,2023-06-16,William Rivera,HOSP-002,Take 1 tablet daily,High blood sugar detected
+0aa4e727-04f5-4749-aa3e-e0dd9054a516,Taylor Shah,100,Male,A-,None,2023-07-29,Chris Lopez,HOSP-002,No prescription,High blood sugar detected
+49c85564-5e86-46aa-84cb-5e626391a567,Justin Smith,4,Female,B+,Hypertension,2024-06-29,Holly Hammond,HOSP-002,Inhale as needed,Normal check-up
+931e0d80-fc7e-4ebb-9616-7a2f57a47b99,Jacqueline Brown,96,Male,A+,Diabetes,2023-08-23,Tyler King,HOSP-002,No prescription,Blood test normal
+863d18c9-d60b-46f7-b67a-120c267aeae2,Chad Carson,7,Other,O+,Diabetes,2024-11-28,Emma Aguilar,HOSP-002,No prescription,Blood test normal
+9dd0630e-1897-4812-9ee3-efdba012368c,David Baker,53,Female,A+,Heart Disease,2023-08-21,Isaac Stewart,HOSP-002,No prescription,Normal check-up
+2de85756-ca82-407f-9b0b-921f426afb9c,Randy Brooks,19,Other,B+,Heart Disease,2024-01-15,Matthew Weiss,HOSP-002,No prescription,MRI shows no issues
+33213ea4-34f9-46f1-b780-e7d069fd6b99,Joe Wheeler,22,Male,O-,Asthma,2024-08-23,Michele Cannon,HOSP-002,Apply twice a day,MRI shows no issues
+70eb1aee-07e5-4dfc-a2f0-62975d96425e,Thomas Stokes,28,Female,A+,Heart Disease,2023-06-12,Whitney Roberts,HOSP-002,No prescription,MRI shows no issues
+00c99f27-6e4d-442f-b306-f416b09b8163,Lisa Powell,100,Male,A+,Heart Disease,2024-04-10,Katherine Coleman,HOSP-002,Apply twice a day,High blood sugar detected
+0fa0ab35-67b1-43de-adee-efbd673ce1e6,Christopher Greer,99,Male,B+,Hypertension,2023-07-03,Joann Johnston,HOSP-002,No prescription,High blood sugar detected
+20309b59-b7d3-489c-ba51-b13b63d45aa3,Troy Ellis,95,Female,B+,Asthma,2024-11-18,Sean Romero,HOSP-002,Apply twice a day,X-ray indicates fracture
+d561d047-914d-477e-8ff0-f84c38137f83,Michael Nelson,12,Female,B-,Asthma,2024-01-15,Dustin Reynolds,HOSP-002,Inhale as needed,Blood test normal
+01b62820-e90a-4364-ba03-873ebb9bdf46,Robert Hughes,88,Female,O-,Cancer,2025-01-27,Travis Ray,HOSP-002,Take 1 tablet daily,High blood sugar detected
+20168140-c557-42ec-b315-200d8dc118ed,Jeanette Summers,11,Female,O-,None,2025-02-03,Nancy Ward,HOSP-002,Apply twice a day,MRI shows no issues
+7838fd16-ac70-4e3d-92c4-9b21dfc8ed58,Rebecca Johnson,62,Other,O+,Cancer,2024-07-08,Ronald Cooper,HOSP-002,No prescription,X-ray indicates fracture
+f5052458-4a45-4825-a47b-34f7cc2c158b,Mr. Zachary Allen PhD,19,Other,O+,Cancer,2024-12-17,Christina White,HOSP-002,Inhale as needed,High blood sugar detected
+09aaae6d-74bc-4560-b114-0c77c330c7ed,Sandra Ortiz,10,Male,B+,Hypertension,2024-05-13,Scott Garcia,HOSP-002,Inhale as needed,Normal check-up
+c10b89c0-2692-4859-a9bf-ce744531ff00,Carlos Reed,15,Other,A-,Cancer,2025-02-06,Rebecca Brown,HOSP-002,Inhale as needed,Blood test normal
+409c3af1-ef42-4576-bf7b-e2552061f228,Diane Brown,39,Female,O-,None,2024-06-17,Jacqueline Gutierrez,HOSP-002,No prescription,Normal check-up
+8fa370da-9884-4640-b6a4-9911559708f5,Debbie Rodriguez,96,Other,O-,Cancer,2024-06-03,Rhonda Johnson,HOSP-002,Inhale as needed,X-ray indicates fracture
+7be14cbd-9b7f-4e1b-ac95-3dddba85eeec,Stacy Matthews,100,Other,A+,Heart Disease,2023-09-24,Javier Contreras,HOSP-002,Apply twice a day,Normal check-up
+40065fd2-df56-402c-bc76-b40997b43392,Kimberly Barron,44,Other,A+,Diabetes,2024-12-16,Amanda Martinez DVM,HOSP-002,Apply twice a day,Blood test normal
+cf77fa97-5f61-4d94-8737-0a76cf8af92d,Kevin Calhoun,61,Male,AB-,None,2025-01-14,Jennifer Harding,HOSP-002,No prescription,MRI shows no issues
+9e293bd9-1ae3-4638-9c72-3c20b6997df2,Christine Day,70,Male,A-,Hypertension,2024-02-06,Shawn Miller,HOSP-002,Apply twice a day,High blood sugar detected
+35331bc5-5abd-452e-a300-47d0085d7943,Laura Brewer,6,Female,B+,Asthma,2024-02-13,Brandon Villa,HOSP-002,Inhale as needed,High blood sugar detected
+45f8ba73-232e-4fab-8892-030ec1425631,Matthew Beltran,62,Female,A+,Heart Disease,2023-09-14,Janice Gonzalez,HOSP-002,Apply twice a day,Normal check-up
+85b535ed-f5d6-4879-82eb-8a14340ace11,Miguel Lewis,96,Other,AB-,Heart Disease,2024-04-29,Paul Cox,HOSP-002,No prescription,MRI shows no issues
+553da58a-dd28-42a1-a278-6875e1ae1007,Katrina Jimenez MD,98,Other,O-,Cancer,2023-05-09,Mary Baker,HOSP-002,Apply twice a day,Blood test normal
+0995e98c-c82d-4858-99f8-b828a40aaab8,Gary Howell,90,Female,O-,Diabetes,2023-06-14,Richard Mccormick,HOSP-002,Take 1 tablet daily,X-ray indicates fracture
+7aed04c4-643d-47ba-98c2-a569109d5b97,Frederick Anderson,80,Other,B+,Cancer,2023-07-16,Kelly Mcdonald,HOSP-002,Rest and hydration,High blood sugar detected
+6c9ff1ec-3c31-43e1-8d40-d5428c0f5372,Claudia Cabrera,75,Female,O+,Cancer,2023-12-14,Edward Cole,HOSP-002,Rest and hydration,Blood test normal
+79dac846-a63a-48d1-b116-ffa533adf6e2,John Ballard,55,Female,B-,Asthma,2024-08-31,Daniel Hudson,HOSP-002,Rest and hydration,Normal check-up
+63fdedb4-431c-427f-ae15-039a59cbdf86,Neil Weaver,31,Male,AB+,Diabetes,2023-06-24,Lisa Reed,HOSP-002,No prescription,Blood test normal
+01e50dde-46ca-4ca5-90da-4776dbf9c505,Sean Whitney,48,Female,B-,Cancer,2023-09-11,Dylan Edwards,HOSP-002,Inhale as needed,Blood test normal
+6d2b0123-08f2-4c96-90a7-76b05c3e5d9b,Nicole Armstrong,82,Male,AB-,Diabetes,2024-07-28,Alison Williams,HOSP-002,Apply twice a day,MRI shows no issues
+4cfec3f6-9f8a-45f5-b493-1c8c6831dac8,Mathew Mccullough,71,Male,A-,None,2024-01-21,Donald Doyle,HOSP-002,Take 1 tablet daily,Blood test normal
+0ffefecd-0b61-49ff-96ca-50c9ccd6126b,Robert Hubbard,89,Male,AB-,Cancer,2023-07-01,Nichole Smith,HOSP-002,Inhale as needed,MRI shows no issues
+1926da1b-a161-4600-8698-3739a1550300,Nicole Johnson,70,Female,B-,Asthma,2024-07-02,Samantha Garcia,HOSP-002,Apply twice a day,X-ray indicates fracture
+27ce5dba-dce4-408a-9f20-6b2e2e40d5cc,Crystal Hull,66,Male,AB-,None,2025-03-09,Damon Boyd,HOSP-002,Inhale as needed,X-ray indicates fracture
+df29a50e-133d-4e6f-99d7-b48a7cefa36f,James Villa,6,Male,B-,Cancer,2024-03-20,Darren Hubbard,HOSP-002,Inhale as needed,X-ray indicates fracture
+df539ccb-6f1a-4171-a7ca-44921e51f22a,Jennifer Franklin,59,Male,AB+,Cancer,2023-08-27,Kristen Terry,HOSP-002,Take 1 tablet daily,X-ray indicates fracture
+7e43c0b7-b356-4e54-a7b9-528c63f72b5f,Rhonda Williams,54,Female,O+,Hypertension,2023-11-24,John Bryant,HOSP-002,Take 1 tablet daily,Blood test normal
+5503ca91-6bbd-4a43-8d8d-f058be046bc7,Sheila Hall,43,Male,AB+,Cancer,2023-05-19,Joseph Young,HOSP-002,No prescription,Blood test normal
+b917a31e-f683-48ec-934f-0013ecba187c,Scott Hamilton,40,Other,O+,None,2023-11-12,Erica Flores,HOSP-002,Inhale as needed,Normal check-up
+d7d9cd2c-352a-4dc0-9492-a3f9d7413bcd,Edwin Garcia,87,Male,A-,Heart Disease,2024-02-11,Carla Lewis,HOSP-002,Inhale as needed,High blood sugar detected
+d91219b5-ddf6-4a9e-b6fe-aca0cb2d5097,Joseph Diaz,3,Other,AB-,Heart Disease,2025-01-29,Trevor Gonzales,HOSP-002,Inhale as needed,X-ray indicates fracture
+a38587a3-2aa8-4c45-bc22-453f18c407a8,Joseph Adams,73,Male,A+,Hypertension,2023-04-06,Cristian Munoz,HOSP-002,Inhale as needed,MRI shows no issues

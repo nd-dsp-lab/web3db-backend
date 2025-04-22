@@ -84,9 +84,6 @@ services:
     command: daemon --migrate --init
     restart: unless-stopped
     networks:
-      default:
-        aliases:
-          - ipfs_node
       app-net:  # network connection
         aliases:
           - ipfs 

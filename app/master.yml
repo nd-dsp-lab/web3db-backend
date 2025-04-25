@@ -1,0 +1,38 @@
+# should be run on machine with public ip
+
+services:
+  # FastAPI Driver Server (Spark Driver)
+  fastapi:
+    build: ./fastapi
+    container_name: fastapi-driver
+    network_mode: host
+    environment:
+      - SPARK_MASTER=spark://129.74.152.201:7077
+    # ports:
+    #   - "8000:8000" # FastAPI server port
+    #   - "10025:10025" # Spark Blockmanager Port
+    #   - "10026:10026" # Spark Driver-Blockmanager Port
+    #   - "10027:10027" # Spark Driver-Executor Port
+    volumes:
+      - fastapi-temp:/data/chunks
+    # networks:
+    #   - app-net
+
+  ipfs:
+    image: ipfs/kubo:latest
+    networks:
+      - app-net
+    container_name: ipfs-test
+    ports:
+      - "4001:4001"
+      - "5001:5001"
+      - "8082:8080" # Or another available port
+    volumes:
+      - ./data/ipfs:/data/ipfs
+
+networks:
+  app-net:
+    driver: bridge
+volumes:
+  fastapi-temp:
+  ipfs_data:

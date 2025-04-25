@@ -1,0 +1,34 @@
+services:
+  spark-worker:
+    image: bitnami/spark:3.3.2
+    container_name: spark-worker
+    environment:
+      - SPARK_MODE=worker
+      - SPARK_MASTER_URL=spark://129.74.152.201:7077
+      - SPARK_WORKER_CORES=1
+      - SPARK_WORKER_MEMORY=1G
+      - SPARK_RPC_AUTHENTICATION_ENABLED=no
+      - SPARK_RPC_ENCRYPTION_ENABLED=no
+    command: >
+      bash -c "pip install pandas requests pyarrow && 
+               bin/spark-class org.apache.spark.deploy.worker.Worker spark://129.74.152.201:7077"
+    network_mode: host
+
+  ipfs:
+    image: ipfs/kubo:latest
+    networks:
+      - app-net
+    container_name: ipfs-test
+    ports:
+      - "4001:4001"
+      - "5001:5001"
+      - "8082:8080" # Or another available port
+    volumes:
+      - ./data/ipfs:/data/ipfs
+
+networks:
+  app-net:
+    driver: bridge
+volumes:
+  fastapi-temp:
+  ipfs_data:

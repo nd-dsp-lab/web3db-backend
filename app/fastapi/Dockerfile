@@ -21,8 +21,8 @@ RUN echo "Setting up Java environment..." && \
 
 # ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
 # For local testing
-ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk-arm64
-ENV PATH="${JAVA_HOME}/bin:${PATH}"
+# ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk-arm64
+# ENV PATH="${JAVA_HOME}/bin:${PATH}"
 
 # Verify Java installation and show debug info
 RUN echo "Verifying Java installation..." && \

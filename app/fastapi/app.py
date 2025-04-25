@@ -164,7 +164,6 @@ async def upload_patient_data(file: UploadFile = File(...)):
         return {"error": f"Failed to process and upload data: {str(e)}"}
 # Define request model
 class QueryRequest(BaseModel):
-    cids: List[str]
     index_attribute: str = default_index_attribute
     query: str = "select * from patient_data where HospitalID = 'HOSP-003'"
 
@@ -179,13 +178,13 @@ async def query_distributed(request: QueryRequest):
     """
     logger.info("POST /query - Processing distributed query across CIDs")
     
-    index = retrieve_index(default_index_attribute)
+    index = retrieve_index(request.index_attribute)
     if not index:
-        logger.error(f"Index for {default_index_attribute} not found")
-        return {"error": f"Index for {default_index_attribute} not found"}
-    logger.info(f"Index for {default_index_attribute} retrieved successfully")
+        logger.error(f"Index for {request.index_attribute} not found")
+        return {"error": f"Index for {request.index_attribute} not found"}
+    logger.info(f"Index for {request.index_attribute} retrieved successfully")
     
-    cids = query_index(index, request.query, default_index_attribute)
+    cids = query_index(index, request.query, request.index_attribute)
     # check the cids
     logger.info(f"Query returned {len(cids)} CIDs")
     logger.info(f"Query CIDs: {cids}")
@@ -295,46 +294,46 @@ async def query_distributed(request: QueryRequest):
         return {"error": f"Failed to process distributed query: {str(e)}"}
     
     
-# put here for testing
 def retrieve_index(name):
-    """
-    Retrieve index from IPFS
-    Args:
-        name (str): Name of the index to retrieve
-    Returns:
-        CIDIndex: The retrieved index object
-    """
     logger.info(f"Retrieving index for {name}")
     if name not in app.state.index_cids:
         logger.error(f"Index for {name} not found in global state")
         return None
+    
     serialized_index = None
     index_cid = app.state.index_cids[name]
 
-    # try fetch from IPFS
+    # try fetch from IPFS using POST for the cat API
     try:
-        ipfs_url = f"http://ipfs:8080/ipfs/{index_cid}"
-        logger.info(f"Requesting index from IPFS at URL: {ipfs_url}")
+        ipfs_api_url = "http://localhost:5001/api/v0/cat"
+        logger.info(f"Requesting index from IPFS at URL: {ipfs_api_url}?arg={index_cid}")
         
-        response = requests.get(ipfs_url, timeout=10)
-        # Fetch chunk data from IPFS
-        logger.info(response)
+        # Use POST with the arg parameter for the CID
+        response = requests.post(ipfs_api_url, params={"arg": index_cid}, timeout=10)
+        
+        logger.info(f"Response status: {response.status_code}")
         if response.status_code == 200:
             serialized_index = response.content
         else:
+            logger.error(f"Failed to retrieve index: {response.status_code} - {response.text}")
             serialized_index = None
-    except:
-        logger.info(f"{name} index does not exist")
+    except Exception as e:
+        logger.error(f"Error retrieving {name} index: {str(e)}")
         serialized_index = None
 
-    index = CIDIndex()
-    logger.info(f"Deserializing {name} index")
     if not serialized_index:
         logger.info(f"Index for {name} not found in IPFS")
-    else:
+        return None  # Return None instead of an uninitialized index
+        
+    index = CIDIndex()
+    logger.info(f"Deserializing {name} index")
+    try:
         index.load(io.BytesIO(serialized_index))
         logger.info(f"Index for {name} loaded successfully")
-    return index
+        return index
+    except Exception as e:
+        logger.error(f"Failed to deserialize index: {str(e)}")
+        return None
 
 
 def query_index(index, query, index_attribute) -> list:

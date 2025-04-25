@@ -19,7 +19,9 @@ RUN echo "Setting up Java environment..." && \
     echo "export PATH=\$PATH:\$JAVA_HOME/bin" >> /etc/profile.d/java.sh && \
     echo "JAVA_HOME=$JAVA_HOME" >> /etc/environment
 
-ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+# ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+# For local testing
+ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk-arm64
 ENV PATH="${JAVA_HOME}/bin:${PATH}"
 
 # Verify Java installation and show debug info
@@ -29,10 +31,13 @@ RUN echo "Verifying Java installation..." && \
     ls -la $JAVA_HOME 2>/dev/null || echo "Warning: Cannot list JAVA_HOME directory"
 
 # Install Python dependencies
-RUN pip install --no-cache-dir fastapi uvicorn[standard] pyspark==3.3.2 pandas pyarrow requests python-multipart
+RUN pip install --no-cache-dir fastapi uvicorn[standard] pyspark==3.3.2 pandas pyarrow requests python-multipart pygtrie
 
 # Copy the FastAPI app
 COPY app.py /app.py
+COPY bplustree.py /bplustree.py
+COPY cidindex.py /cidindex.py
+COPY trie.py /trie.py
 
 # Set environment variable for PySpark to find Java
 ENV PYSPARK_SUBMIT_ARGS="--driver-java-options=-Dlog4j.logLevel=info pyspark-shell"

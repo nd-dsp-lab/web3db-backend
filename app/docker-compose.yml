@@ -85,7 +85,7 @@ services:
     restart: unless-stopped
     networks:
       app-net:  # docker network name
-        aliases:
+        aliases:  
           - ipfs 
 
   # FastAPI Driver Server (Spark Driver)
@@ -103,12 +103,12 @@ services:
     ports:
       - "8000:8000"   # FastAPI server port
     volumes:
-      - shared_data:/data   # Single shared data volume
+      - shared_data:/data   # Shared data volume
 
 networks:
   app-net:
     driver: bridge
 
 volumes:
-  shared_data:   # Single shared data volume instead of partitioned chunks
+  shared_data:   # Shared volume for Spark workers
   ipfs_data:

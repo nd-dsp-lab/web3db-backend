@@ -73,13 +73,14 @@ async def upload_patient_data(file: UploadFile = File(...)):
         # Process CSV in memory
         logger.info("Converting CSV to DataFrame")
         csv_buffer = io.BytesIO(content)
-        df = pd.read_csv(csv_buffer)
+        df = pd.read_csv(csv_buffer, dtype={"PatientID": str, "HospitalID": str, "Age": int})
         
         # Get values for the default index attribute
         indexed_values = {}
         for index_key in app.state.index_cids.keys():
             if index_key in df.columns:
                 indexed_values[index_key] = set(df[index_key].values)
+                # logger.info(f"Indexed values for {index_key}: {indexed_values[index_key]}")
             else:
                 logger.warning(f"Index attribute {index_key} not found in DataFrame columns")
         
@@ -131,12 +132,14 @@ async def upload_patient_data(file: UploadFile = File(...)):
             if index_key not in app.state.index_cids or app.state.index_cids[index_key] is None:
                 # Create new index
                 logger.info(f"Creating new index for {index_key}")
-                index = CIDIndex([(val, cid) for val in indexed_values])
+                index = CIDIndex([(val, cid) for val in indexed_values[index_key]])
+                # print the index type
+                logger.info(f"Index type: {index.index_type}")
             else:
                 index = retrieve_index(index_key)
                 # Update existing index
                 logger.info(f"Updating existing index for {index_key}")
-                index.update([(val, cid) for val in indexed_values])
+                index.update([(val, cid) for val in indexed_values[index_key]])
             # Serialize and upload index to IPFS
             logger.info(f"Serializing index for {index_key}")
             serialized_index = index.dump()
@@ -323,10 +326,11 @@ def retrieve_index(name):
 
     # try fetch from IPFS
     try:
-        ipfs_url = f"http://ipfs:8080/ipfs/{index_cid}"
-        logger.info(f"Requesting index from IPFS at URL: {ipfs_url}")
+        ipfs_api_url = f"http://localhost:5001/api/v0/cat"
+        logger.info(f"Requesting index from IPFS at URL: {ipfs_api_url} with CID: {index_cid}")
+        # Fetch index from IPFS
+        response = requests.post(ipfs_api_url, params={"arg": index_cid}, timeout=10)
         
-        response = requests.get(ipfs_url, timeout=10)
         # Fetch chunk data from IPFS
         logger.info(response)
         if response.status_code == 200:
@@ -378,6 +382,8 @@ def query_index(index, query, index_attribute) -> list:
             conditions.append(condition.strip())
 
     logger.info(f"Extracted conditions for index attribute '{index_attribute}': {conditions}")
+    # print the index type
+    logger.info(f"Index type: {index.index_type}")
     
     if not conditions:
         logger.error(f"No conditions found for index on '{index_attribute}', return all CIDs")

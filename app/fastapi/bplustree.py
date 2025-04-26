@@ -186,10 +186,12 @@ class BPlusTree:
             if not node:
                 break
 
-        res = [] 
+        # res = [] 
+        res = set()
         # iterate till past end
         while node and queryend >= node.keys[i]:
-            res += node.children[i]
+            # res += node.children[i]
+            res.update(node.children[i])
             i+=1
             if i == len(node.keys):
                 node = node.children[-1]

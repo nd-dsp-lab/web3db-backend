@@ -31,7 +31,7 @@ RUN echo "Verifying Java installation..." && \
     ls -la $JAVA_HOME 2>/dev/null || echo "Warning: Cannot list JAVA_HOME directory"
 
 # Install Python dependencies
-RUN pip install --no-cache-dir fastapi uvicorn[standard] pyspark==3.3.2 pandas pyarrow requests python-multipart pygtrie
+RUN pip install --no-cache-dir fastapi uvicorn[standard] pyspark==3.3.2 pandas pyarrow requests python-multipart pygtrie python-dotenv
 
 # Copy the FastAPI app
 COPY app.py /app.py

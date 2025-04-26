@@ -27,7 +27,7 @@ htmlcov/
 venv/
 env/
 ENV/
-.env
+# .env
 
 # IDEs and editors
 .idea/
@@ -50,7 +50,7 @@ spark-events/
 # Docker
 .docker/
 docker-compose.override.yml
-*.env
+# *.env
 
 # Database
 *.db

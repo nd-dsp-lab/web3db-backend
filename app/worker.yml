@@ -4,14 +4,14 @@ services:
     container_name: spark-worker
     environment:
       - SPARK_MODE=worker
-      - SPARK_MASTER_URL=spark://129.74.152.201:7077
+      - SPARK_MASTER_URL=spark://${SPARK_MASTER_HOST}:7077
       - SPARK_WORKER_CORES=1
       - SPARK_WORKER_MEMORY=1G
       - SPARK_RPC_AUTHENTICATION_ENABLED=no
       - SPARK_RPC_ENCRYPTION_ENABLED=no
     command: >
       bash -c "pip install pandas requests pyarrow && 
-               bin/spark-class org.apache.spark.deploy.worker.Worker spark://129.74.152.201:7077"
+               bin/spark-class org.apache.spark.deploy.worker.Worker spark://${SPARK_MASTER_HOST}:7077"
     network_mode: host
 
   ipfs:

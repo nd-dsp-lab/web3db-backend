@@ -30,11 +30,12 @@ app = FastAPI()
 
 app.state.index_cids = {
     'PatientID': None,
-    'HospitalID': None,    
+    'HospitalID': None,
+    'Age': None,   
 }
 
 # change the default index attribute to test the index
-default_index_attribute = 'HospitalID'
+# default_index_attribute = 'PatientID'
 
 
 logger.info("Starting FastAPI application")
@@ -72,11 +73,17 @@ async def upload_patient_data(file: UploadFile = File(...)):
         # Process CSV in memory
         logger.info("Converting CSV to DataFrame")
         csv_buffer = io.BytesIO(content)
-        df = pd.read_csv(csv_buffer)
+        df = pd.read_csv(csv_buffer, dtype={"PatientID": str, "HospitalID": str, "Age": int})
         
         # Get values for the default index attribute
-        indexed_values = set(df[default_index_attribute].values)
-
+        indexed_values = {}
+        for index_key in app.state.index_cids.keys():
+            if index_key in df.columns:
+                indexed_values[index_key] = set(df[index_key].values)
+                # logger.info(f"Indexed values for {index_key}: {indexed_values[index_key]}")
+            else:
+                logger.warning(f"Index attribute {index_key} not found in DataFrame columns")
+        
         # Clear initial content and CSV buffer
         del content
         csv_buffer.close()
@@ -118,37 +125,41 @@ async def upload_patient_data(file: UploadFile = File(...)):
         parquet_buffer.close()
         del parquet_buffer
         
-        # Create/update index for the default index attribute
-        logger.info(f"Creating/updating index for attribute: {default_index_attribute}")
-        if default_index_attribute not in app.state.index_cids or app.state.index_cids[default_index_attribute] is None:
-            # Create new index
-            logger.info(f"Creating new index for {default_index_attribute}")
-            index = CIDIndex([(val, cid) for val in indexed_values])
-        else:
-            index = retrieve_index(default_index_attribute)
-            # Update existing index
-            logger.info(f"Updating existing index for {default_index_attribute}")
-            index.update([(val, cid) for val in indexed_values])
-        # Serialize and upload index to IPFS
-        logger.info(f"Serializing index for {default_index_attribute}")
-        serialized_index = index.dump()
-        # Put index on IPFS
-        logger.info(f"Uploading index for {default_index_attribute} to IPFS")
-        response = requests.post(
-            ipfs_api_url, 
-            files={"file": (f"{default_index_attribute}_index", serialized_index, "application/octet-stream")}
-        )
-        response.raise_for_status()
-        index_cid = response.json()["Hash"]
-        logger.info(f"Index for {default_index_attribute} uploaded to IPFS with CID: {index_cid}")
-        # Update global state with new index CID
-        app.state.index_cids[default_index_attribute] = index_cid
-        logger.info(f"Updated index CID for {default_index_attribute} in global state")
-        # Clear the serialized index
-        serialized_index.close()
-        del serialized_index
-        # Clear the index object
-        del index
+        
+        for index_key in indexed_values.keys():
+            # Create/update index for the default index attribute
+            logger.info(f"Creating/updating index for attribute: {index_key}")
+            if index_key not in app.state.index_cids or app.state.index_cids[index_key] is None:
+                # Create new index
+                logger.info(f"Creating new index for {index_key}")
+                index = CIDIndex([(val, cid) for val in indexed_values[index_key]])
+                # print the index type
+                logger.info(f"Index type: {index.index_type}")
+            else:
+                index = retrieve_index(index_key)
+                # Update existing index
+                logger.info(f"Updating existing index for {index_key}")
+                index.update([(val, cid) for val in indexed_values[index_key]])
+            # Serialize and upload index to IPFS
+            logger.info(f"Serializing index for {index_key}")
+            serialized_index = index.dump()
+            # Put index on IPFS
+            logger.info(f"Uploading index for {index_key} to IPFS")
+            response = requests.post(
+                ipfs_api_url, 
+                files={"file": (f"{index_key}_index", serialized_index, "application/octet-stream")}
+            )
+            response.raise_for_status()
+            index_cid = response.json()["Hash"]
+            logger.info(f"Index for {index_key} uploaded to IPFS with CID: {index_cid}")
+            # Update global state with new index CID
+            app.state.index_cids[index_key] = index_cid
+            logger.info(f"Updated index CID for {index_key} in global state")
+            # Clear the serialized index
+            serialized_index.close()
+            del serialized_index
+            # Clear the index object
+            del index
 
         # Explicitly trigger garbage collection
         gc.collect()
@@ -156,7 +167,7 @@ async def upload_patient_data(file: UploadFile = File(...)):
         logger.info("Memory buffers cleared")
 
         # Return the CID
-        return {"data_message": "Patient data uploaded successfully at " + cid, "index_message": "Index uploaded successfully at " + index_cid}
+        return {"data_message": "Patient data uploaded successfully at " + cid, "index_message": "Successfully created index for " + str(app.state.index_cids)}
     except Exception as e:
         # Make sure to clean up memory even if an error occurs
         logger.error(f"Error processing patient data: {str(e)}")
@@ -164,7 +175,9 @@ async def upload_patient_data(file: UploadFile = File(...)):
         return {"error": f"Failed to process and upload data: {str(e)}"}
 # Define request model
 class QueryRequest(BaseModel):
-    index_attribute: str = default_index_attribute
+    cids: List[str]
+    default_index_attribute: str = str(app.state.index_cids.keys())  # Default to first index attribute
+    index_attribute: str = 'choose one from the above'
     query: str = "select * from patient_data where HospitalID = 'HOSP-003'"
 
 
@@ -178,13 +191,14 @@ async def query_distributed(request: QueryRequest):
     """
     logger.info("POST /query - Processing distributed query across CIDs")
     
-    index = retrieve_index(request.index_attribute)
+    index_attribute = request.index_attribute
+    index = retrieve_index(index_attribute)
     if not index:
-        logger.error(f"Index for {request.index_attribute} not found")
-        return {"error": f"Index for {request.index_attribute} not found"}
-    logger.info(f"Index for {request.index_attribute} retrieved successfully")
+        logger.error(f"Index for {index_attribute} not found")
+        return {"error": f"Index for {index_attribute} not found"}
+    logger.info(f"Index for {index_attribute} retrieved successfully")
     
-    cids = query_index(index, request.query, request.index_attribute)
+    cids = query_index(index, request.query, index_attribute)
     # check the cids
     logger.info(f"Query returned {len(cids)} CIDs")
     logger.info(f"Query CIDs: {cids}")
@@ -305,13 +319,13 @@ def retrieve_index(name):
 
     # try fetch from IPFS using POST for the cat API
     try:
-        ipfs_api_url = "http://localhost:5001/api/v0/cat"
-        logger.info(f"Requesting index from IPFS at URL: {ipfs_api_url}?arg={index_cid}")
-        
-        # Use POST with the arg parameter for the CID
+        ipfs_api_url = f"http://localhost:5001/api/v0/cat"
+        logger.info(f"Requesting index from IPFS at URL: {ipfs_api_url} with CID: {index_cid}")
+        # Fetch index from IPFS
         response = requests.post(ipfs_api_url, params={"arg": index_cid}, timeout=10)
         
-        logger.info(f"Response status: {response.status_code}")
+        # Fetch chunk data from IPFS
+        logger.info(response)
         if response.status_code == 200:
             serialized_index = response.content
         else:
@@ -354,7 +368,9 @@ def query_index(index, query, index_attribute) -> list:
     where_pattern = re.compile(r"where\s+(.*)", re.IGNORECASE)
     where_match = where_pattern.search(query)
     if not where_match:
-        raise ValueError("No WHERE clause found in the query.")
+        logger.info("No WHERE clause found in the query, retrieving all CIDs")
+        cids = index.query_range()  # Query all CIDs
+        return cids
     
     where_clause = where_match.group(1).strip()
 
@@ -365,9 +381,13 @@ def query_index(index, query, index_attribute) -> list:
             conditions.append(condition.strip())
 
     logger.info(f"Extracted conditions for index attribute '{index_attribute}': {conditions}")
+    # print the index type
+    logger.info(f"Index type: {index.index_type}")
     
     if not conditions:
-        raise ValueError(f"No conditions found for index attribute '{index_attribute}'.")
+        logger.error(f"No conditions found for index on '{index_attribute}', return all CIDs")
+        cids = index.query_range()
+        return cids
 
     # Process conditions and query the index
     cids = set()

@@ -20,12 +20,16 @@ def updateIndex(index: CharTrie, data) -> CharTrie:
 
 # point query -> list of all that match that query
 def query(index: CharTrie, key) -> list:
+    if key not in index:
+        return []
     return index[key]
 
 # range query -> Not sure if this should be like a prefix thing or smth. dunno rlly
-def queryRange(index: CharTrie, startKey, endKey) -> list:
-    # ignore the startKey and endKey and just return all values in the index
-    return index.values()
+def queryRange(index: CharTrie, startKey=None, endKey=None) -> list:
+    vals = set()
+    for key in index.keys():
+        vals.update(index[key])
+    return list(vals)
     
     # pass
 
@@ -40,4 +44,3 @@ def readIndex(stream: io.BytesIO) -> CharTrie:
     return pickle.load(stream)
 
 
-        

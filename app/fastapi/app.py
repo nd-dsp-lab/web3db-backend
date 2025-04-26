@@ -175,9 +175,8 @@ async def upload_patient_data(file: UploadFile = File(...)):
         return {"error": f"Failed to process and upload data: {str(e)}"}
 # Define request model
 class QueryRequest(BaseModel):
-    cids: List[str]
     default_index_attribute: str = str(app.state.index_cids.keys())  # Default to first index attribute
-    index_attribute: str = 'choose one from the above'
+    index_attribute: str = 'HospitalID'
     query: str = "select * from patient_data where HospitalID = 'HOSP-003'"
 
 

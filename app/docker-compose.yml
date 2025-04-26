@@ -1,3 +1,4 @@
+# Unused; this file is for reference only
 services:
   # Spark Master Node
   spark-master:

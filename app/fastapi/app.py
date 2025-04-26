@@ -308,23 +308,16 @@ async def query_distributed(request: QueryRequest):
         return {"error": f"Failed to process distributed query: {str(e)}"}
     
     
-# put here for testing
 def retrieve_index(name):
-    """
-    Retrieve index from IPFS
-    Args:
-        name (str): Name of the index to retrieve
-    Returns:
-        CIDIndex: The retrieved index object
-    """
     logger.info(f"Retrieving index for {name}")
     if name not in app.state.index_cids:
         logger.error(f"Index for {name} not found in global state")
         return None
+    
     serialized_index = None
     index_cid = app.state.index_cids[name]
 
-    # try fetch from IPFS
+    # try fetch from IPFS using POST for the cat API
     try:
         ipfs_api_url = f"http://localhost:5001/api/v0/cat"
         logger.info(f"Requesting index from IPFS at URL: {ipfs_api_url} with CID: {index_cid}")
@@ -336,19 +329,25 @@ def retrieve_index(name):
         if response.status_code == 200:
             serialized_index = response.content
         else:
+            logger.error(f"Failed to retrieve index: {response.status_code} - {response.text}")
             serialized_index = None
-    except:
-        logger.info(f"{name} index does not exist")
+    except Exception as e:
+        logger.error(f"Error retrieving {name} index: {str(e)}")
         serialized_index = None
 
-    index = CIDIndex()
-    logger.info(f"Deserializing {name} index")
     if not serialized_index:
         logger.info(f"Index for {name} not found in IPFS")
-    else:
+        return None  # Return None instead of an uninitialized index
+        
+    index = CIDIndex()
+    logger.info(f"Deserializing {name} index")
+    try:
         index.load(io.BytesIO(serialized_index))
         logger.info(f"Index for {name} loaded successfully")
-    return index
+        return index
+    except Exception as e:
+        logger.error(f"Failed to deserialize index: {str(e)}")
+        return None
 
 
 def query_index(index, query, index_attribute) -> list:

@@ -11,6 +11,7 @@ import io
 import logging
 import gc
 from cidindex import CIDIndex
+from index_state import IndexState
 from pyspark.sql import SparkSession
 import os
 
@@ -39,19 +40,30 @@ app.state.index_cids = {
 
 
 logger.info("Starting FastAPI application")
+logger.info("Loading environment variables")
+SPARK_MASTER = os.environ.get("SPARK_MASTER", "spark://spark-master:7077")
+print(f"Spark master: {SPARK_MASTER}")
+SPARK_DRIVER_HOST = os.environ.get("SPARK_DRIVER_HOST", "localhost")
+print(f"Spark driver host: {SPARK_DRIVER_HOST}")
+INFURA_API_KEY = os.environ.get("INFURA_API_KEY")
+print(f"Infura API key: {INFURA_API_KEY}")
+PRIVATE_KEY = os.environ.get("PRIVATE_KEY")
+print(f"Private key: {PRIVATE_KEY}")
+CONTRACT_ADDRESS = os.environ.get("CONTRACT_ADDRESS")
+print(f"Contract address: {CONTRACT_ADDRESS}")
+index_state = IndexState(
+    contract_address=CONTRACT_ADDRESS,
+    infura_api_key=INFURA_API_KEY,
+    private_key=PRIVATE_KEY
+)
 
 logger.info("Initializing Spark Session")
-spark_master = os.environ.get("SPARK_MASTER", "spark://spark-master:7077")
-print(f"Spark master: {spark_master}")
-spark_driver_host = os.environ.get("SPARK_DRIVER_HOST", "localhost")
-print(f"Spark driver host: {spark_driver_host}")
-
 spark = (
     SparkSession.builder.appName("FastAPISparkDriver")
-    .master(spark_master)
+    .master(SPARK_MASTER)
     .config("spark.blockManager.port", "10025")
     .config("spark.driver.blockManager.port", "10026")
-    .config("spark.driver.host", spark_driver_host)
+    .config("spark.driver.host", SPARK_DRIVER_HOST)
     .config("spark.driver.port", "10027")
     .config("spark.python.worker.reuse", "true")
     .config("spark.pyspark.python", "/usr/bin/python3")
@@ -133,7 +145,8 @@ async def upload_patient_data(file: UploadFile = File(...)):
         for index_key in indexed_values.keys():
             # Create/update index for the default index attribute
             logger.info(f"Creating/updating index for attribute: {index_key}")
-            if index_key not in app.state.index_cids or app.state.index_cids[index_key] is None:
+            success, cid = index_state.get_index(index_key)
+            if cid == "":
                 # Create new index
                 logger.info(f"Creating new index for {index_key}")
                 index = CIDIndex([(val, cid) for val in indexed_values[index_key]])
@@ -157,7 +170,7 @@ async def upload_patient_data(file: UploadFile = File(...)):
             index_cid = response.json()["Hash"]
             logger.info(f"Index for {index_key} uploaded to IPFS with CID: {index_cid}")
             # Update global state with new index CID
-            app.state.index_cids[index_key] = index_cid
+            index_state.update_index(index_key, index_cid)
             logger.info(f"Updated index CID for {index_key} in global state")
             # Clear the serialized index
             serialized_index.close()
@@ -177,6 +190,7 @@ async def upload_patient_data(file: UploadFile = File(...)):
         logger.error(f"Error processing patient data: {str(e)}")
         gc.collect()
         return {"error": f"Failed to process and upload data: {str(e)}"}
+
 # Define request model
 class QueryRequest(BaseModel):
     default_index_attribute: str = str(app.state.index_cids.keys())  # Default to first index attribute
@@ -313,12 +327,11 @@ async def query_distributed(request: QueryRequest):
     
 def retrieve_index(name):
     logger.info(f"Retrieving index for {name}")
-    if name not in app.state.index_cids:
-        logger.error(f"Index for {name} not found in global state")
-        return None
-    
     serialized_index = None
-    index_cid = app.state.index_cids[name]
+    success, index_cid = index_state.get_index(name)
+    if not success:
+        logger.error(f"Failed to retrieve index CID for {name} from blockchain")
+        return None
 
     # try fetch from IPFS using POST for the cat API
     try:

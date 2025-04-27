@@ -2,15 +2,13 @@ import os
 from web3 import Web3
 from dotenv import load_dotenv
 
-class IndexStorage:
+class IndexState:
     def __init__(self, contract_address=None, infura_api_key=None, private_key=None):
+    
         
-        # Load environment variables from .env in the same directory
-        load_dotenv(".env")
-        
-        self.infura_api_key = infura_api_key or os.getenv("INFURA_API_KEY")
-        self.private_key = private_key or os.getenv("PRIVATE_KEY")
-        self.contract_address = contract_address or os.getenv("CONTRACT_ADDRESS")
+        self.infura_api_key = infura_api_key
+        self.private_key = private_key
+        self.contract_address = contract_address
         print(f"INFURA_API_KEY: {'Present' if self.infura_api_key else 'Missing'}")
         print(f"PRIVATE_KEY: {'Present' if self.private_key else 'Missing'}")
         print(f"CONTRACT_ADDRESS: {'Present' if self.contract_address else 'Missing'}")
@@ -28,7 +26,7 @@ class IndexStorage:
         self.address = self.account.address
         print(f"Connected with address: {self.address}")
         
-        # Contract ABI (generated from your IndexStorage.sol contract)
+        # Updated Contract ABI (generated from your IndexState.sol contract)
         self.abi = [
             {
                 "anonymous": False,
@@ -36,7 +34,13 @@ class IndexStorage:
                     {
                         "indexed": False,
                         "internalType": "string",
-                        "name": "previousCID",
+                        "name": "attribute",
+                        "type": "string"
+                    },
+                    {
+                        "indexed": False,
+                        "internalType": "string",
+                        "name": "oldCID",
                         "type": "string"
                     },
                     {
@@ -50,8 +54,14 @@ class IndexStorage:
                 "type": "event"
             },
             {
-                "inputs": [],
-                "name": "getCurrentIndex",
+                "inputs": [
+                    {
+                        "internalType": "string",
+                        "name": "attribute",
+                        "type": "string"
+                    }
+                ],
+                "name": "getIndexCID",
                 "outputs": [
                     {
                         "internalType": "string",
@@ -66,11 +76,16 @@ class IndexStorage:
                 "inputs": [
                     {
                         "internalType": "string",
-                        "name": "_newCID",
+                        "name": "attribute",
+                        "type": "string"
+                    },
+                    {
+                        "internalType": "string",
+                        "name": "newCID",
                         "type": "string"
                     }
                 ],
-                "name": "updateCurrentIndex",
+                "name": "updateIndexCID",
                 "outputs": [],
                 "stateMutability": "nonpayable",
                 "type": "function"
@@ -80,12 +95,13 @@ class IndexStorage:
         # Create contract instance
         self.contract = self.w3.eth.contract(address=self.contract_address, abi=self.abi)
         
-    def update_current_index(self, new_cid):
+    def update_index(self, attribute, new_cid):
         try:
             # Build transaction
             nonce = self.w3.eth.get_transaction_count(self.address)
             
-            tx = self.contract.functions.updateCurrentIndex(
+            tx = self.contract.functions.updateIndexCID(
+                attribute,
                 new_cid
             ).build_transaction({
                 'from': self.address,
@@ -106,43 +122,47 @@ class IndexStorage:
             # Process events
             logs = self.contract.events.IndexUpdated().process_receipt(tx_receipt)
             if logs:
-                print(f"Index updated: {logs[0]['args']}")
+                print(f"Index updated: attribute={logs[0]['args']['attribute']}, "
+                      f"oldCID={logs[0]['args']['oldCID']}, "
+                      f"newCID={logs[0]['args']['newCID']}")
                 return True, "success"
             else:
-                return False, "failed"
+                return False, "Event not found in transaction receipt"
         
         except Exception as e:
             print(f"Failed to update index: {e}")
             return False, str(e)
     
-    def get_current_index(self):
+    def get_index(self, attribute):
         try:
             # Call the smart contract function
-            current_cid = self.contract.functions.getCurrentIndex().call()
+            current_cid = self.contract.functions.getIndexCID(attribute).call()
             return True, current_cid
         except Exception as e:
-            print(f"Error retrieving current index: {e}")
+            print(f"Error retrieving index for {attribute}: {e}")
             return False, str(e)
+    
 
 
-if __name__ == "__main__":
-    try:
-        index_storage = IndexStorage()
-        
-        # Get current index
-        success, current_cid = index_storage.get_current_index()
-        if success:
-            print(f"Current Index CID: {current_cid}")
-        
+# if __name__ == "__main__":
+#     try:
+#         index_storage = IndexState(
+#     contract_address="0xb4f39C949FFC18ca9AD4449fc0f7c328f646d87C",
+#     infura_api_key="eb1d43f1429e49fba50e18fbf5ebd4ab",
+#     private_key="34cf59aaa5ef0a24e65b4e4dbe6fb23c2bd23a4d9a6b584d7995a141de719d53"
+# )
+#         attribute = "PatientID"
+#         success, current_cid = index_storage.get_index(attribute)
+#         print(success, current_cid == "")
         # Update index
-        new_cid = "QmXg9Pp2ytZ14xgmQjYEiHjVjMFXzCVVEcRTWJBmLgR39V"
-        print(f"Updating index to: {new_cid}")
-        index_storage.update_current_index(new_cid)
+        # new_cid = "QmXg9Pp2ytZ14xgmQjYEiHjVjMFXzCVVEcRTWJBmLgR39V"
+        # print(f"Updating {attribute} index to: {new_cid}")
+        # index_storage.update_index(attribute, new_cid)
         
         # Get updated index
-        success, updated_cid = index_storage.get_current_index()
-        if success:
-            print(f"Updated Index CID: {updated_cid}")
+        # success, updated_cid = index_storage.get_index(attribute)
+        # if success:
+        #     print(f"Updated {attribute} Index CID: {updated_cid}")
             
-    except Exception as e:
-        print(f"Error: {e}")
+    # except Exception as e:
+    #     print(f"Error: {e}")

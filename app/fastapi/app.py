@@ -26,19 +26,6 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
-# Initialize global variables for index
-# Add HospitalID for testing (because there is no repeated PatientID in the test data)
-
-app.state.index_cids = {
-    'PatientID': None,
-    'HospitalID': None,
-    'Age': None,   
-}
-
-# change the default index attribute to test the index
-# default_index_attribute = 'PatientID'
-
-
 logger.info("Starting FastAPI application")
 logger.info("Loading environment variables")
 SPARK_MASTER = os.environ.get("SPARK_MASTER", "spark://spark-master:7077")
@@ -51,11 +38,17 @@ PRIVATE_KEY = os.environ.get("PRIVATE_KEY")
 print(f"Private key: {PRIVATE_KEY}")
 CONTRACT_ADDRESS = os.environ.get("CONTRACT_ADDRESS")
 print(f"Contract address: {CONTRACT_ADDRESS}")
+
+# Initialize the index state with smart contract connection
+logger.info("Initializing IndexState with smart contract")
 index_state = IndexState(
     contract_address=CONTRACT_ADDRESS,
     infura_api_key=INFURA_API_KEY,
     private_key=PRIVATE_KEY
 )
+
+# Define supported index attributes
+SUPPORTED_INDEX_ATTRIBUTES = ['PatientID', 'HospitalID', 'Age']
 
 logger.info("Initializing Spark Session")
 spark = (
@@ -91,12 +84,12 @@ async def upload_patient_data(file: UploadFile = File(...)):
         csv_buffer = io.BytesIO(content)
         df = pd.read_csv(csv_buffer, dtype={"PatientID": str, "HospitalID": str, "Age": int})
         
-        # Get values for the default index attribute
+        # Get values for the index attributes
         indexed_values = {}
-        for index_key in app.state.index_cids.keys():
+        for index_key in SUPPORTED_INDEX_ATTRIBUTES:
             if index_key in df.columns:
                 indexed_values[index_key] = set(df[index_key].values)
-                # logger.info(f"Indexed values for {index_key}: {indexed_values[index_key]}")
+                logger.info(f"Found {len(indexed_values[index_key])} unique values for {index_key}")
             else:
                 logger.warning(f"Index attribute {index_key} not found in DataFrame columns")
         
@@ -141,25 +134,38 @@ async def upload_patient_data(file: UploadFile = File(...)):
         parquet_buffer.close()
         del parquet_buffer
         
+        # Keep track of updated indices
+        updated_indices = {}
         
         for index_key in indexed_values.keys():
-            # Create/update index for the default index attribute
+            # Create/update index for each index attribute
             logger.info(f"Creating/updating index for attribute: {index_key}")
-            success, cid = index_state.get_index(index_key)
-            if cid == "":
+            success, current_cid = index_state.get_index(index_key)
+            
+            if not success:
+                logger.error(f"Failed to retrieve index for {index_key} from smart contract")
+                continue
+                
+            if current_cid == "":
                 # Create new index
                 logger.info(f"Creating new index for {index_key}")
                 index = CIDIndex([(val, cid) for val in indexed_values[index_key]])
-                # print the index type
                 logger.info(f"Index type: {index.index_type}")
             else:
+                # Retrieve existing index
                 index = retrieve_index(index_key)
+                if not index:
+                    logger.error(f"Failed to retrieve existing index for {index_key}")
+                    continue
+                    
                 # Update existing index
                 logger.info(f"Updating existing index for {index_key}")
                 index.update([(val, cid) for val in indexed_values[index_key]])
+                
             # Serialize and upload index to IPFS
             logger.info(f"Serializing index for {index_key}")
             serialized_index = index.dump()
+            
             # Put index on IPFS
             logger.info(f"Uploading index for {index_key} to IPFS")
             response = requests.post(
@@ -169,9 +175,15 @@ async def upload_patient_data(file: UploadFile = File(...)):
             response.raise_for_status()
             index_cid = response.json()["Hash"]
             logger.info(f"Index for {index_key} uploaded to IPFS with CID: {index_cid}")
-            # Update global state with new index CID
-            index_state.update_index(index_key, index_cid)
-            logger.info(f"Updated index CID for {index_key} in global state")
+            
+            # Update smart contract with new index CID
+            success = index_state.update_index(index_key, index_cid)
+            if success:
+                logger.info(f"Updated index CID for {index_key} in smart contract")
+                updated_indices[index_key] = index_cid
+            else:
+                logger.error(f"Failed to update index CID for {index_key} in smart contract")
+            
             # Clear the serialized index
             serialized_index.close()
             del serialized_index
@@ -183,8 +195,12 @@ async def upload_patient_data(file: UploadFile = File(...)):
 
         logger.info("Memory buffers cleared")
 
-        # Return the CID
-        return {"data_message": "Patient data uploaded successfully at " + cid, "index_message": "Successfully created index for " + str(app.state.index_cids)}
+        # Return the CID and updated indices
+        return {
+            "data_message": f"Patient data uploaded successfully at {cid}", 
+            "index_message": f"Successfully updated indices: {updated_indices}"
+        }
+        
     except Exception as e:
         # Make sure to clean up memory even if an error occurs
         logger.error(f"Error processing patient data: {str(e)}")
@@ -193,7 +209,6 @@ async def upload_patient_data(file: UploadFile = File(...)):
 
 # Define request model
 class QueryRequest(BaseModel):
-    default_index_attribute: str = str(app.state.index_cids.keys())  # Default to first index attribute
     index_attribute: str = 'HospitalID'
     query: str = "select * from patient_data where HospitalID = 'HOSP-003'"
 
@@ -208,20 +223,24 @@ async def query_distributed(request: QueryRequest):
     """
     logger.info("POST /query - Processing distributed query across CIDs")
     
-    index_attribute = request.index_attribute
-    index = retrieve_index(index_attribute)
-    if not index:
-        logger.error(f"Index for {index_attribute} not found")
-        return {"error": f"Index for {index_attribute} not found"}
-    logger.info(f"Index for {index_attribute} retrieved successfully")
+    # Validate index attribute
+    if request.index_attribute not in SUPPORTED_INDEX_ATTRIBUTES:
+        return {"error": f"Unsupported index attribute: {request.index_attribute}. Supported attributes are: {SUPPORTED_INDEX_ATTRIBUTES}"}
     
-    cids = query_index(index, request.query, index_attribute)
-    # check the cids
+    # Get index from smart contract and IPFS
+    index = retrieve_index(request.index_attribute)
+    if not index:
+        logger.error(f"Index for {request.index_attribute} not found or could not be retrieved")
+        return {"error": f"Index for {request.index_attribute} not found or could not be retrieved"}
+    
+    logger.info(f"Index for {request.index_attribute} retrieved successfully")
+    
+    # Query the index to find relevant CIDs
+    cids = query_index(index, request.query, request.index_attribute)
     logger.info(f"Query returned {len(cids)} CIDs")
     logger.info(f"Query CIDs: {cids}")
 
     try:
-        # cids = request.cids
         query = request.query
 
         if not cids or not query:
@@ -326,35 +345,44 @@ async def query_distributed(request: QueryRequest):
     
     
 def retrieve_index(name):
+    """
+    Retrieve an index from IPFS using the CID stored in the smart contract.
+    
+    Args:
+        name (str): The name of the index to retrieve
+        
+    Returns:
+        CIDIndex: The retrieved index, or None if not found
+    """
     logger.info(f"Retrieving index for {name}")
-    serialized_index = None
+    
+    # Get index CID from smart contract
     success, index_cid = index_state.get_index(name)
     if not success:
         logger.error(f"Failed to retrieve index CID for {name} from blockchain")
         return None
+        
+    if not index_cid or index_cid == "":
+        logger.info(f"No index CID found for {name} in smart contract")
+        return None
 
-    # try fetch from IPFS using POST for the cat API
+    # Fetch from IPFS using POST for the cat API
     try:
         ipfs_api_url = f"http://localhost:5001/api/v0/cat"
         logger.info(f"Requesting index from IPFS at URL: {ipfs_api_url} with CID: {index_cid}")
-        # Fetch index from IPFS
+        
         response = requests.post(ipfs_api_url, params={"arg": index_cid}, timeout=10)
         
-        # Fetch chunk data from IPFS
-        logger.info(response)
         if response.status_code == 200:
             serialized_index = response.content
         else:
             logger.error(f"Failed to retrieve index: {response.status_code} - {response.text}")
-            serialized_index = None
+            return None
     except Exception as e:
-        logger.error(f"Error retrieving {name} index: {str(e)}")
-        serialized_index = None
+        logger.error(f"Error retrieving {name} index from IPFS: {str(e)}")
+        return None
 
-    if not serialized_index:
-        logger.info(f"Index for {name} not found in IPFS")
-        return None  # Return None instead of an uninitialized index
-        
+    # Deserialize the index
     index = CIDIndex()
     logger.info(f"Deserializing {name} index")
     try:
@@ -368,18 +396,18 @@ def retrieve_index(name):
 
 def query_index(index, query, index_attribute) -> list:
     """
-    Query the index for CIDs matching the given query, this function assumes the index_attribute condition is presented as an "and" condition in the query.
+    Query the index for CIDs matching the given query, this function assumes the index_attribute condition 
+    is presented as an "and" condition in the query.
+    
     Args:
         index (CIDIndex): The index to query
         query (str): The sql query string
         index_attribute (str): The attribute to use for querying
+        
     Returns:
         list: List of CIDs matching the query for the default index attribute
     """
 
-    # Parse the query to extract the attribute and value
-    # Simplified version, only handles integer and string comparisons
-    
     # Parse the WHERE clause from the query
     where_pattern = re.compile(r"where\s+(.*)", re.IGNORECASE)
     where_match = where_pattern.search(query)
@@ -397,7 +425,6 @@ def query_index(index, query, index_attribute) -> list:
             conditions.append(condition.strip())
 
     logger.info(f"Extracted conditions for index attribute '{index_attribute}': {conditions}")
-    # print the index type
     logger.info(f"Index type: {index.index_type}")
     
     if not conditions:
@@ -431,7 +458,7 @@ def query_index(index, query, index_attribute) -> list:
         elif "!=" in condition:
             key = condition.split("!=")[1].strip().strip("'\"")
             key = int(key) if index.index_type == "bplustree" else key
-            all_cids = set(index.query_range(None, None))  # Query all CIDs
+            all_cids = set(index.query_range())  # Query all CIDs
             excluded_cids = set(index.query(key))
             cids.update(all_cids - excluded_cids)
         else:

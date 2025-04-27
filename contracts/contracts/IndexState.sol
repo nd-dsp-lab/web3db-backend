@@ -8,6 +8,9 @@ contract IndexState {
     // Event to log index updates
     event IndexUpdated(string attribute, string oldCID, string newCID);
 
+    // Event to log batch updates
+    event BatchIndexUpdated(string[] attributes, string[] newCIDs);
+
     // Function to update the index CID for an attribute
     function updateIndexCID(
         string memory attribute,
@@ -18,11 +21,43 @@ contract IndexState {
         emit IndexUpdated(attribute, oldCID, newCID);
     }
 
+    // Function to update multiple index CIDs in one transaction
+    function batchUpdateIndexCIDs(
+        string[] memory attributes,
+        string[] memory newCIDs
+    ) public {
+        require(
+            attributes.length == newCIDs.length,
+            "Arrays must be same length"
+        );
+
+        for (uint i = 0; i < attributes.length; i++) {
+            string memory oldCID = indexCIDs[attributes[i]];
+            indexCIDs[attributes[i]] = newCIDs[i];
+            emit IndexUpdated(attributes[i], oldCID, newCIDs[i]);
+        }
+
+        emit BatchIndexUpdated(attributes, newCIDs);
+    }
+
     // Function to get the current index CID for an attribute
     function getIndexCID(
         string memory attribute
     ) public view returns (string memory) {
         return indexCIDs[attribute];
+    }
+
+    // Function to get multiple index CIDs in one call
+    function batchGetIndexCIDs(
+        string[] memory attributes
+    ) public view returns (string[] memory) {
+        string[] memory results = new string[](attributes.length);
+
+        for (uint i = 0; i < attributes.length; i++) {
+            results[i] = indexCIDs[attributes[i]];
+        }
+
+        return results;
     }
 
     // Function to remove an index CID

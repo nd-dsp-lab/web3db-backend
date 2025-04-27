@@ -9,6 +9,9 @@ services:
     environment:
       - SPARK_MASTER=spark://${SPARK_MASTER_HOST}:7077
       - SPARK_DRIVER_HOST=${SPARK_DRIVER_HOST}
+      - INFURA_API_KEY=${INFURA_API_KEY}
+      - PRIVATE_KEY=${PRIVATE_KEY}
+      - CONTRACT_ADDRESS=${CONTRACT_ADDRESS}
     # ports:
     #   - "8000:8000" # FastAPI server port
     #   - "10025:10025" # Spark Blockmanager Port

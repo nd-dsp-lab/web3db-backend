@@ -1,7 +1,7 @@
 async function main() {
-  console.log("Deploying Index Management...");
+  console.log("Deploying Index State Management...");
 
-  const Contract = await ethers.getContractFactory("IndexStorage");
+  const Contract = await ethers.getContractFactory("IndexState");
   const contract = await Contract.deploy();
 
   // Wait for deployment to complete

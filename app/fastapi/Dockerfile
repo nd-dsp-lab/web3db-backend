@@ -31,13 +31,14 @@ RUN echo "Verifying Java installation..." && \
     ls -la $JAVA_HOME 2>/dev/null || echo "Warning: Cannot list JAVA_HOME directory"
 
 # Install Python dependencies
-RUN pip install --no-cache-dir fastapi uvicorn[standard] pyspark==3.3.2 pandas pyarrow requests python-multipart pygtrie python-dotenv
+RUN pip install --no-cache-dir fastapi uvicorn[standard] pyspark==3.3.2 pandas pyarrow requests python-multipart pygtrie dotenv web3
 
 # Copy the FastAPI app
 COPY app.py /app.py
 COPY bplustree.py /bplustree.py
 COPY cidindex.py /cidindex.py
 COPY trie.py /trie.py
+COPY index_state.py /index_state.py
 
 # Set environment variable for PySpark to find Java
 ENV PYSPARK_SUBMIT_ARGS="--driver-java-options=-Dlog4j.logLevel=info pyspark-shell"

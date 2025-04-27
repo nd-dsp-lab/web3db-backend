@@ -71,6 +71,7 @@ async def upload_patient_data(file: UploadFile = File(...)):
     """
     Upload patient_data.csv to IPFS in Parquet format
     Returns a Content Identifier (CID) for the uploaded file
+    Updates all indices in a single blockchain transaction
     """
     logger.info("POST /upload/patient-data - Processing patient data upload")
 
@@ -134,18 +135,22 @@ async def upload_patient_data(file: UploadFile = File(...)):
         parquet_buffer.close()
         del parquet_buffer
         
-        # Keep track of updated indices
+        # Prepare for batch processing
+        attributes_to_update = []
+        cids_to_update = []
         updated_indices = {}
         
+        # First, retrieve current index CIDs
         for index_key in indexed_values.keys():
-            # Create/update index for each index attribute
-            logger.info(f"Creating/updating index for attribute: {index_key}")
+            # Get current index CID from smart contract
+            logger.info(f"Retrieving current index for attribute: {index_key}")
             success, current_cid = index_state.get_index(index_key)
             
             if not success:
                 logger.error(f"Failed to retrieve index for {index_key} from smart contract")
                 continue
                 
+            # Process the index
             if current_cid == "":
                 # Create new index
                 logger.info(f"Creating new index for {index_key}")
@@ -176,19 +181,39 @@ async def upload_patient_data(file: UploadFile = File(...)):
             index_cid = response.json()["Hash"]
             logger.info(f"Index for {index_key} uploaded to IPFS with CID: {index_cid}")
             
-            # Update smart contract with new index CID
-            success = index_state.update_index(index_key, index_cid)
-            if success:
-                logger.info(f"Updated index CID for {index_key} in smart contract")
-                updated_indices[index_key] = index_cid
-            else:
-                logger.error(f"Failed to update index CID for {index_key} in smart contract")
+            # Add to batch update lists
+            attributes_to_update.append(index_key)
+            cids_to_update.append(index_cid)
+            updated_indices[index_key] = index_cid
             
             # Clear the serialized index
             serialized_index.close()
             del serialized_index
             # Clear the index object
             del index
+
+        # Perform batch update to smart contract
+        if attributes_to_update:
+            logger.info(f"Performing batch update for {len(attributes_to_update)} indices")
+            logger.info(f"Attributes: {attributes_to_update}")
+            logger.info(f"CIDs: {cids_to_update}")
+            
+            success = index_state.batch_update_indices(attributes_to_update, cids_to_update)
+            
+            if success:
+                logger.info(f"Successfully updated all {len(attributes_to_update)} indices in a single transaction")
+            else:
+                logger.error("Batch update failed, falling back to individual updates")
+                
+                # Fall back to individual updates if batch update fails
+                updated_indices = {}
+                for i, attr in enumerate(attributes_to_update):
+                    success = index_state.update_index(attr, cids_to_update[i])
+                    if success:
+                        logger.info(f"Successfully updated {attr} index")
+                        updated_indices[attr] = cids_to_update[i]
+                    else:
+                        logger.error(f"Failed to update {attr} index")
 
         # Explicitly trigger garbage collection
         gc.collect()

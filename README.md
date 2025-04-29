@@ -22,6 +22,7 @@ cd app
 Edit the `.env` file and update the following configurations:
 
 #### Spark Master Configuration
+
 ```
 SPARK_MASTER_HOST=<your-host-ip>
 SPARK_DRIVER_HOST=<your-host-ip>
@@ -31,6 +32,7 @@ SPARK_MASTER=spark://<your-host-ip>:7077
 ```
 
 #### Web3 Configuration
+
 ```
 PRIVATE_KEY=<your-metamask-private-key>
 ```
@@ -51,16 +53,20 @@ Upon successful deployment, you'll see output similar to the following.
 Congratulations! You've successfully deployed your Web3DB node. Verify your deployment using:
 
 ### Web Interfaces
-- WebUI: http://<your-host-ip>:8000/docs#/
-- Spark Master UI: http://<your-host-ip>:8080/
+
+- WebUI: http://your-host-ip:8000/docs#/
+- Spark Master UI: http://your-host-ip:8080/
 
 ### Docker Containers
+
 Check running containers:
+
 ```bash
 sudo docker ps
 ```
 
 You should see 4 containers running:
+
 - spark-master
 - fastapi-driver
 - ipfs
@@ -71,6 +77,7 @@ You should see 4 containers running:
 By default, your deployment includes 1 spark worker. You can add additional workers to your cluster.
 
 ### Adding Workers
+
 Workers can be co-located on the same host or distributed across different hosts within the same network.
 
 ```bash
@@ -80,21 +87,23 @@ sudo docker compose -f worker.yml up -d
 This deploys an additional spark worker with a co-located IPFS node.
 
 ### Verifying Worker Addition
-- Check the Spark Master UI: http://<your-host-ip>:8080/
+
+- Check the Spark Master UI: http://your-host-ip:8080/
 - View worker logs: `sudo docker logs spark-worker`
 
 ## Shutting Down
 
 ### Stop a Worker
+
 ```bash
 sudo docker compose -f worker.yml down
 ```
 
 ### Stop the Entire Node
+
 ```bash
 ./stop.sh
 ```
-
 
 ## Website
 

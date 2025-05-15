@@ -1,18 +1,21 @@
+# start.sh
 #!/bin/bash
 
-# Build and start spark-master containers
-echo "Building and starting Spark master containers..."
-sudo docker compose -f spark-master.yml build
-sudo docker compose -f spark-master.yml up -d
+# Load environment variables from .env file if they are used by docker-compose
+if [ -f .env ]; then
+  export $(echo $(cat .env | sed 's/#.*//g'| xargs) | envsubst)
+fi
 
-# Build and start driver containers
-echo "Building and starting Spark driver containers..."
+echo "Ensuring IPFS data directory exists..."
+mkdir -p ./ipfs_data
+
+echo "Building and starting FastAPI/Spark-local (SGX) and IPFS containers..."
+# The build context is defined in driver.yml (./fastapi)
 sudo docker compose -f driver.yml build
 sudo docker compose -f driver.yml up -d
 
-# Build and start worker containers
-echo "Building and starting Spark worker containers..."
-sudo docker compose -f worker.yml build
-sudo docker compose -f worker.yml up -d
-
-echo "All containers have been built and started successfully."
+echo "FastAPI/Spark (SGX) app should be running. Check logs:"
+echo "FastAPI/Spark logs: sudo docker logs fastapi-spark-local-sgx -f"
+echo "IPFS logs: sudo docker logs ipfs-node -f"
+echo "FastAPI accessible at http://<your_host_ip>:8000 (if network_mode:host)"
+echo "Spark UI typically at http://<your_host_ip>:${SPARK_UI_PORT:-4040} (if network_mode:host)"

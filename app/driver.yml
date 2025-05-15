@@ -1,39 +1,37 @@
-# should be run on machine with public ip
+# driver.yml
+
+version: '3.8'
 
 services:
-  # FastAPI Driver Server (Spark Driver)
-  fastapi:
-    build: ./fastapi
-    container_name: fastapi-driver
-    network_mode: host
+  fastapi-sgx:
+    build:
+      context: ./fastapi 
+      dockerfile: Dockerfile
+    container_name: fastapi-spark-local-sgx
+    network_mode: "host"
     environment:
-      - SPARK_MASTER=spark://${SPARK_MASTER_HOST}:7077
-      - SPARK_DRIVER_HOST=${SPARK_DRIVER_HOST}
-    # ports:
-    #   - "8000:8000" # FastAPI server port
-    #   - "10025:10025" # Spark Blockmanager Port
-    #   - "10026:10026" # Spark Driver-Blockmanager Port
-    #   - "10027:10027" # Spark Driver-Executor Port
+      - IPFS_API_URL_ADD=${IPFS_API_URL_ADD:-http://127.0.0.1:5001/api/v0/add}
+      - IPFS_API_URL_CAT=${IPFS_API_URL_CAT:-http://127.0.0.1:5001/api/v0/cat}
+      - SPARK_UI_PORT=${SPARK_UI_PORT:-4040}
+      - JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
+    devices:
+      - "/dev/sgx_enclave:/dev/sgx_enclave"
     volumes:
-      - fastapi-temp:/data/chunks
-    # networks:
-    #   - app-net
+      - ./data:/app/data
+      - ./build:/app/build
+    security_opt:
+      - seccomp=unconfined
+    cap_add:
+      - SYS_PTRACE
+      - SYS_ADMIN
+      - IPC_LOCK
+    restart: unless-stopped
 
   ipfs:
     image: ipfs/kubo:latest
-    networks:
-      - app-net
-    container_name: ipfs-test
-    ports:
-      - "4001:4001"
-      - "5001:5001"
-      - "8082:8080" # Or another available port
+    container_name: ipfs-node
+    network_mode: "host"
     volumes:
-      - ./data/ipfs:/data/ipfs
+      - ./ipfs_data:/data/ipfs
+    restart: unless-stopped
 
-networks:
-  app-net:
-    driver: bridge
-volumes:
-  fastapi-temp:
-  ipfs_data:

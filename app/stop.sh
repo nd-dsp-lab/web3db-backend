@@ -1,15 +1,8 @@
 #!/bin/bash
 
-# Stop and remove containers defined in spark-master.yml
-echo "Stopping Spark master containers..."
-sudo docker compose -f spark-master.yml down
+echo "Stopping FastAPI/Spark-local (SGX) and IPFS containers..."
+sudo docker compose -f driver.yml down --remove-orphans
 
-# Stop and remove containers defined in worker.yml
-echo "Stopping Spark worker containers..."
-sudo docker compose -f worker.yml down
-
-# Stop and remove containers defined in driver.yml
-echo "Stopping Spark driver containers..."
-sudo docker compose -f driver.yml down
-
-echo "All containers have been stopped successfully."
+echo "All relevant containers have been stopped and removed."
+# Optional: Clean up volumes if desired, but be careful with data.
+# echo "To remove IPFS data volume, run: sudo docker volume rm <projectname>_ipfs_data"

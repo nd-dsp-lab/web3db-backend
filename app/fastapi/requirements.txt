@@ -1,0 +1,12 @@
+# fastapi/requirements.txt
+fastapi
+uvicorn[standard]
+pyspark==3.3.2
+pandas
+pyarrow
+requests
+python-multipart
+pygtrie
+python-dotenv
+# numpy is an implicit dependency of pandas, but good to list if CIDIndex uses it directly
+numpy

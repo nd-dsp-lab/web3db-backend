@@ -59,6 +59,7 @@ data/
 
 # IPFS
 .ipfs/
+ipfs_data/
 
 
 

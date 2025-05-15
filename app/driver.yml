@@ -1,7 +1,5 @@
 # driver.yml
 
-version: '3.8'
-
 services:
   fastapi-sgx:
     build:

@@ -29,6 +29,11 @@ env/
 ENV/
 # .env
 
+#SGX
+python.manifest
+python.manifest.sgx 
+python.sig
+
 # IDEs and editors
 .idea/
 .vscode/

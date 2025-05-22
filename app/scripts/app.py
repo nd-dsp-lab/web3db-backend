@@ -13,11 +13,19 @@ print(f"Looking for CSV file at: {csv_file}")
 # Read CSV into DataFrame
 patient_data = pd.read_csv(csv_file)
 
+# Check if CSV data is empty
+if patient_data.empty:
+    raise ValueError("Error: CSV file contains no data")
+
 query_file = os.path.join(script_dir, "query.sql")
 
 # Read the SQL query from file
 with open(query_file, "r") as f:
     query = f.read()
+
+# Check if query is empty
+if not query.strip():
+    raise ValueError("Error: SQL query file is empty")
 
 # Execute SQL query
 result = sqldf(query, locals())

@@ -11,10 +11,13 @@ csv_file = os.path.join(script_dir, "../dataset/patient_data.csv")
 print(f"Looking for CSV file at: {csv_file}")
 
 # Read CSV into DataFrame
-df = pd.read_csv(csv_file)
+patient_data = pd.read_csv(csv_file)
 
-# Define SQL query
-query = "SELECT * FROM df WHERE Age > 80"
+query_file = os.path.join(script_dir, "query.sql")
+
+# Read the SQL query from file
+with open(query_file, "r") as f:
+    query = f.read()
 
 # Execute SQL query
 result = sqldf(query, locals())

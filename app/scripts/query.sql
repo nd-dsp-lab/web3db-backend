@@ -1,0 +1,1 @@
+SELECT * FROM patient_data WHERE Age > 80

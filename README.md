@@ -76,6 +76,9 @@ You should see 4 containers running:
 Go to the WebUI to upload sample patient data. We have data samples in app/dataset directory for few hospitals. Suppose, your node is representing Hospital 1. So you upload data_hospital_1.csv. This will upload data to public ipfs and update the index in smart contract so that any web3db node can access your data. Right now we don't have any access control. So any node will be able to query your data.
 ![alt text](assets/upload.png)
 
+If the data upload is successful, the output will be like this -
+![alt text](assets/data_upload_success.png)
+
 ### 5. Query Data
 Go to the /query API as shown below. Run the following query to check your data. You can query other hospital (e.g., HOSP-003) data too.
 ```sql
@@ -85,6 +88,9 @@ Go to the /query API as shown below. Run the following query to check your data.
 }
 ```
 ![alt text](assets/query.png)
+
+If the query is successful, the result looks like below:
+![alt text](assets/query_results.png)
 ## Scaling Workers
 
 By default, your deployment includes 1 spark worker. You can add additional workers to your cluster.
@@ -100,7 +106,7 @@ sudo docker compose -f worker.yml up -d
 This deploys an additional spark worker with a co-located IPFS node.
 
 ### Verifying Worker Addition
-
+![alt text](assets/spark.png)
 - Check the Spark Master UI: http://your-host-ip:8080/
 - View worker logs: `sudo docker logs spark-worker`
 

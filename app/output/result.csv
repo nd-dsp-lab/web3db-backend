@@ -1,0 +1,5 @@
+PatientID,Name,Age,Gender,BloodType,Condition,VisitDate,Doctor,HospitalID,Prescription,DiagnosisReport
+e5782952-60cd-49db-bea0-eb70ca8b425c,Thomas Hoffman,100,Male,O+,Asthma,2024-06-17,Susan Allen,HOSP-001,Apply twice a day,MRI shows no issues
+66871fab-4ee6-436f-89d7-8ab394be4e35,Alison Bond,94,Male,O+,Asthma,2023-07-01,Jeffrey Davis,HOSP-001,Apply twice a day,X-ray indicates fracture
+0aa4e727-04f5-4749-aa3e-e0dd9054a516,Taylor Shah,100,Male,A-,None,2023-07-29,Chris Lopez,HOSP-001,No prescription,High blood sugar detected
+7be14cbd-9b7f-4e1b-ac95-3dddba85eeec,Stacy Matthews,100,Other,A+,Heart Disease,2023-09-24,Javier Contreras,HOSP-001,Apply twice a day,Normal check-up

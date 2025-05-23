@@ -26,9 +26,11 @@ fs.mounts = [
   { path = "{{ path }}", uri = "file:{{ path }}" },
 {% endfor %}
   { path = "{{ entrypoint }}", uri = "file:{{ entrypoint }}" },
-  #{ path = "/etc/hosts", uri = "file:helper-files/hosts" },
   { path = "/usr/share/zoneinfo", uri = "file:/usr/share/zoneinfo" },
   { type = "tmpfs", path = "/tmp" },
+  {path = "/output", uri = "file:/home/shossain/web3db-backend/app/output"},
+  {path = "/dataset", uri = "file:/home/shossain/web3db-backend/app/dataset"},
+  {path = "/query", uri = "file:/home/shossain/web3db-backend/app/query"}
 ]
 
 sys.stack.size = "2M"
@@ -50,7 +52,11 @@ sgx.trusted_files = [
   "file:{{ path }}{{ '/' if path.is_dir() else '' }}",
 {% endfor %}
   "file:scripts/",
-  "file:dataset/",
- # "file:helper-files/",
  "file:/usr/share/zoneinfo/",
+]
+
+sgx.allowed_files = [
+  "file:/home/shossain/web3db-backend/app/output/",
+  "file:/home/shossain/web3db-backend/app/dataset/",
+  "file:/home/shossain/web3db-backend/app/query/",
 ]

@@ -17,7 +17,7 @@ patient_data = pd.read_csv(csv_file)
 if patient_data.empty:
     raise ValueError("Error: CSV file contains no data")
 
-query_file = os.path.join(script_dir, "query.sql")
+query_file = "/query/query.sql"
 
 # Read the SQL query from file
 with open(query_file, "r") as f:
@@ -29,6 +29,11 @@ if not query.strip():
 
 # Execute SQL query
 result = sqldf(query, locals())
+
+# Write result to output directory mounted by Gramine
+output_file = "/output/result.csv"
+result.to_csv(output_file, index=False)
+print(f"Result written to {output_file}")
 
 # Print the result
 print(result)

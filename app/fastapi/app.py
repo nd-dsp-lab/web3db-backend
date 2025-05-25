@@ -13,6 +13,7 @@ import gc
 from cidindex import CIDIndex
 from pyspark.sql import SparkSession
 import os
+import time
 
 
 # Configure logging
@@ -205,7 +206,7 @@ async def query_distributed(request: QueryRequest):
     # check the cids
     logger.info(f"Query returned {len(cids)} CIDs")
     logger.info(f"Query CIDs: {cids}")
-
+    start_time = time.time()
     try:
         # cids = request.cids
         query = request.query
@@ -289,7 +290,8 @@ async def query_distributed(request: QueryRequest):
         # Execute the SQL query
         logger.info(f"Executing query: {query}")
         result_df = spark.sql(query)
-
+        end_time = time.time()
+        logger.info(f"Query execution time: {end_time - start_time:.2f} seconds")
         # Convert results to JSON
         result_json = result_df.toJSON().collect()
         result_json = [eval(record.replace("null", "None")) for record in result_json]

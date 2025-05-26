@@ -39,7 +39,8 @@ sys.enable_extra_runtime_domain_names_conf = true
 sgx.debug = true
 sgx.edmm_enable = {{ 'true' if env.get('EDMM', '0') == '1' else 'false' }}
 sgx.enclave_size = "2G"
-sgx.max_threads = {{ '1' if env.get('EDMM', '0') == '1' else '32' }}
+#sgx.max_threads = {{ '1' if env.get('EDMM', '0') == '1' else '32' }}
+sgx.max_threads = 64
 
 sgx.remote_attestation = "none"
 
@@ -59,4 +60,6 @@ sgx.allowed_files = [
   "file:/home/shossain/web3db-backend/app/output/",
   "file:/home/shossain/web3db-backend/app/dataset/",
   "file:/home/shossain/web3db-backend/app/query/",
+  #"file:/usr/lib/x86_64-linux-gnu/*",
+  #"file:/lib/x86_64-linux-gnu/*"
 ]

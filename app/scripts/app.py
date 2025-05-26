@@ -22,7 +22,7 @@ if not cid:
     raise ValueError("Error: IPFS_CID environment variable not set")
 
 # Fetch data from IPFS
-ipfs_api_url = "http://localhost:5001/api/v0/cat"
+ipfs_api_url = "http://129.74.152.201:5001/api/v0/cat"
 response_parquet = requests.post(ipfs_api_url, params={"arg": cid}, timeout=30)
 printtime(f"Data fetched in {time.time() - start_time:.2f} seconds")
 

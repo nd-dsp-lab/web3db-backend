@@ -1,4 +1,2 @@
 PatientID,Name,Age,Gender,BloodType,Condition,VisitDate,Doctor,HospitalID,Prescription,DiagnosisReport
-7126,Martin Francis,27,F,AB+,Acute Tonsillitis,2025-05-01,Dr. Joseph,HOSP1,Amoxicillin,"Positive for strep, antibiotics started"
-7126,Jocelyn Case,90,M,A-,Hypertension,2025-05-01,Dr. Walter,HOSP1,Lisinopril,"BP elevated, monitor regularly"
-7126,Michael Trevino,74,F,A+,Back Pain,2025-05-01,Dr. Lewis,HOSP1,Ibuprofen,"Muscle strain, therapy recommended"
+6310,Jennifer Perez,73,F,A-,Hypertension,2025-05-01,Dr. Rowe,HOSP1,Lisinopril,"BP elevated, monitor regularly"

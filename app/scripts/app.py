@@ -31,10 +31,11 @@ if response_parquet.status_code != 200:
     raise ValueError(f"Error: Failed to fetch data from IPFS. Status code: {response_parquet.status_code}")
 
 # Read Parquet data into DataFrame (fixed incorrect function name)
+conversion_start_time = time.time()
 parquet_buffer = io.BytesIO(response_parquet.content)
 table = pq.read_table(parquet_buffer)
 patient_data = table.to_pandas()
-
+printtime(f"Data converted to DataFrame in {time.time() - conversion_start_time:.2f} seconds")
 # Check if data is empty
 if patient_data.empty:
     raise ValueError("Error: Parquet file contains no data")

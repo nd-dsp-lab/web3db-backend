@@ -1,1 +1,1 @@
-SELECT * FROM patient_data WHERE Age > 90 AND HospitalID = 'HOSP-001'
+SELECT * FROM patient_data WHERE PatientID = 7126

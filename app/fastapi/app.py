@@ -312,6 +312,52 @@ async def query_distributed(request: QueryRequest):
         logger.error(f"Error processing distributed query: {str(e)}")
         return {"error": f"Failed to process distributed query: {str(e)}"}
     
+@app.get("/ipfs/fetch/{cid}")
+async def fetch_from_ipfs(cid: str):
+
+    logger.info(f"GET /ipfs/fetch/{cid} - Fetching data from IPFS")
+
+    try:
+        # Record start time
+        start_time = time.time()
+
+        # Fetch data from IPFS
+        ipfs_api_url = "http://localhost:5001/api/v0/cat"
+        response = requests.post(ipfs_api_url, params={"arg": cid}, timeout=30)
+
+        # Record end time
+        end_time = time.time()
+        fetch_time = end_time - start_time
+
+        # Check if the request was successful
+        if response.status_code != 200:
+            logger.error(f"Failed to fetch CID {cid}: {response.status_code} - {response.text}")
+            return {
+                "status": "error",
+                "message": f"Failed to fetch CID: {response.status_code}",
+                "time_taken_seconds": fetch_time
+            }
+
+        # Get content size
+        content_size = len(response.content)
+
+        logger.info(f"Successfully fetched CID {cid} in {fetch_time:.4f} seconds. Size: {content_size} bytes")
+
+        return {
+            "status": "success",
+            "message": f"Successfully fetched CID: {cid}",
+            "time_taken_seconds": fetch_time,
+            "size_bytes": content_size,
+            "size_formatted": f"{content_size/1024/1024:.2f} MB" if content_size > 1024*1024 else f"{content_size/1024:.2f} KB"
+        }
+
+    except Exception as e:
+        logger.error(f"Error fetching CID {cid}: {str(e)}")
+        return {
+            "status": "error",
+            "message": f"Failed to fetch CID: {str(e)}",
+            "time_taken_seconds": time.time() - start_time if 'start_time' in locals() else None
+        }
     
 def retrieve_index(name):
     logger.info(f"Retrieving index for {name}")

@@ -1,20 +1,19 @@
 from math import inf
 import re
-from fastapi import FastAPI, UploadFile, File
-from pydantic import BaseModel
-from typing import List
+import os
+import io
+import gc
+import time
+import logging
 import requests
 import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
-import io
-import logging
-import gc
-from cidindex import CIDIndex
+from typing import List
+from fastapi import FastAPI, UploadFile, File
+from pydantic import BaseModel
 from pyspark.sql import SparkSession
-import os
-import time
-
+from cidindex import CIDIndex
 
 # Configure logging
 logging.basicConfig(
@@ -26,34 +25,22 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
-# Initialize global variables for index
-# Add HospitalID for testing (because there is no repeated PatientID in the test data)
+# Directory to store Parquet files from IPFS
+SHARED_TMP_DIR = "/tmp/ipfs_parquet"
+os.makedirs(SHARED_TMP_DIR, exist_ok=True)
 
+# Global index tracking
 app.state.index_cids = {
     'PatientID': None,
     'HospitalID': None,
-    'Age': None,   
+    'Age': None,
 }
 
-# change the default index attribute to test the index
-# default_index_attribute = 'PatientID'
-
-
-logger.info("Starting FastAPI application")
-
+# Initialize Spark session in local mode
 logger.info("Initializing Spark Session")
-spark_master = os.environ.get("SPARK_MASTER", "spark://spark-master:7077")
-print(f"Spark master: {spark_master}")
-spark_driver_host = os.environ.get("SPARK_DRIVER_HOST", "localhost")
-print(f"Spark driver host: {spark_driver_host}")
-
 spark = (
     SparkSession.builder.appName("FastAPISparkDriver")
-    .master(spark_master)
-    .config("spark.blockManager.port", "10025")
-    .config("spark.driver.blockManager.port", "10026")
-    .config("spark.driver.host", spark_driver_host)
-    .config("spark.driver.port", "10027")
+    .master("local[*]")  # Must be local to access /tmp paths reliably
     .config("spark.python.worker.reuse", "true")
     .config("spark.pyspark.python", "/usr/bin/python3")
     .config("spark.pyspark.driver.python", "/usr/bin/python3")
@@ -61,415 +48,157 @@ spark = (
 )
 logger.info(f"Spark Session created: {spark.sparkContext.appName}")
 
-
 @app.post("/upload/patient-data")
 async def upload_patient_data(file: UploadFile = File(...)):
-    """
-    Upload patient_data.csv to IPFS in Parquet format
-    Returns a Content Identifier (CID) for the uploaded file
-    """
     logger.info("POST /upload/patient-data - Processing patient data upload")
-
     try:
-        # Read CSV file content into memory
-        logger.info("Reading uploaded CSV file into memory")
         content = await file.read()
+        df = pd.read_csv(io.BytesIO(content), dtype={"PatientID": str, "HospitalID": str, "Age": int})
+        indexed_values = {k: set(df[k].values) for k in app.state.index_cids if k in df.columns}
 
-        # Process CSV in memory
-        logger.info("Converting CSV to DataFrame")
-        csv_buffer = io.BytesIO(content)
-        df = pd.read_csv(csv_buffer, dtype={"PatientID": str, "HospitalID": str, "Age": int})
-        
-        # Get values for the default index attribute
-        indexed_values = {}
-        for index_key in app.state.index_cids.keys():
-            if index_key in df.columns:
-                indexed_values[index_key] = set(df[index_key].values)
-                # logger.info(f"Indexed values for {index_key}: {indexed_values[index_key]}")
-            else:
-                logger.warning(f"Index attribute {index_key} not found in DataFrame columns")
-        
-        # Clear initial content and CSV buffer
-        del content
-        csv_buffer.close()
-        del csv_buffer
-
-        # Convert DataFrame to Parquet in memory
-        logger.info("Converting DataFrame to Parquet format in memory")
-        parquet_buffer = io.BytesIO()
-        table = pa.Table.from_pandas(df)
-
-        # Clear DataFrame and table after conversion
-        del df
-
-        pq.write_table(table, parquet_buffer)
-        del table
-
-        # Reset buffer position to beginning
-        parquet_buffer.seek(0)
+        # Convert to Parquet
+        buffer = io.BytesIO()
+        pq.write_table(pa.Table.from_pandas(df), buffer)
+        buffer.seek(0)
 
         # Upload to IPFS
-        ipfs_api_url = "http://localhost:5001/api/v0/add"
-        logger.info(f"Uploading Parquet data to IPFS node at {ipfs_api_url}")
+        ipfs_api = "http://localhost:5001/api/v0/add"
+        resp = requests.post(ipfs_api, files={"file": ("patient_data.parquet", buffer)})
+        resp.raise_for_status()
+        data_cid = resp.json()["Hash"]
+        buffer.close()
+        del df
 
-        response = requests.post(
-            ipfs_api_url,
-            files={
-                "file": (
-                    "patient_data.parquet",
-                    parquet_buffer,
-                    "application/octet-stream",
-                )
-            },
-        )
-        response.raise_for_status()
-        cid = response.json()["Hash"]
-        logger.info(f"Patient data uploaded to IPFS with CID: {cid}")
-
-        # Clear the parquet buffer
-        parquet_buffer.close()
-        del parquet_buffer
-        
-        
-        for index_key in indexed_values.keys():
-            # Create/update index for the default index attribute
-            logger.info(f"Creating/updating index for attribute: {index_key}")
-            if index_key not in app.state.index_cids or app.state.index_cids[index_key] is None:
-                # Create new index
-                logger.info(f"Creating new index for {index_key}")
-                index = CIDIndex([(val, cid) for val in indexed_values[index_key]])
-                # print the index type
-                logger.info(f"Index type: {index.index_type}")
+        # Build/update index
+        for attr, values in indexed_values.items():
+            data_to_add = [(v, data_cid) for v in values]
+            existing_index = retrieve_index(attr)
+            if existing_index:
+                existing_index.update(data_to_add)
+                index = existing_index
             else:
-                index = retrieve_index(index_key)
-                # Update existing index
-                logger.info(f"Updating existing index for {index_key}")
-                index.update([(val, cid) for val in indexed_values[index_key]])
-            # Serialize and upload index to IPFS
-            logger.info(f"Serializing index for {index_key}")
-            serialized_index = index.dump()
-            # Put index on IPFS
-            logger.info(f"Uploading index for {index_key} to IPFS")
-            response = requests.post(
-                ipfs_api_url, 
-                files={"file": (f"{index_key}_index", serialized_index, "application/octet-stream")}
-            )
-            response.raise_for_status()
-            index_cid = response.json()["Hash"]
-            logger.info(f"Index for {index_key} uploaded to IPFS with CID: {index_cid}")
-            # Update global state with new index CID
-            app.state.index_cids[index_key] = index_cid
-            logger.info(f"Updated index CID for {index_key} in global state")
-            # Clear the serialized index
-            serialized_index.close()
-            del serialized_index
-            # Clear the index object
-            del index
+                index = CIDIndex(data=data_to_add)
+            serialized = index.dump()
+            resp = requests.post(ipfs_api, files={"file": (f"{attr}_index", serialized)})
+            resp.raise_for_status()
+            app.state.index_cids[attr] = resp.json()["Hash"]
+            serialized.close()
 
-        # Explicitly trigger garbage collection
         gc.collect()
+        return {
+            "data_cid": data_cid,
+            "index_cids": app.state.index_cids,
+        }
 
-        logger.info("Memory buffers cleared")
-
-        # Return the CID
-        return {"data_message": "Patient data uploaded successfully at " + cid, "index_message": "Successfully created index for " + str(app.state.index_cids)}
     except Exception as e:
-        # Make sure to clean up memory even if an error occurs
-        logger.error(f"Error processing patient data: {str(e)}")
+        logger.error(f"Upload error: {e}")
         gc.collect()
-        return {"error": f"Failed to process and upload data: {str(e)}"}
-# Define request model
-class QueryRequest(BaseModel):
-    default_index_attribute: str = str(app.state.index_cids.keys())  # Default to first index attribute
-    index_attribute: str = 'HospitalID'
-    query: str = "select * from patient_data where HospitalID = 'HOSP-003'"
+        return {"error": str(e)}
 
+class QueryRequest(BaseModel):
+    index_attribute: str = 'PatientID'
+    query: str = "select * from patient_data where PatientID = 'X'"
 
 @app.post("/query")
 async def query_distributed(request: QueryRequest):
-    """
-    Distributed query across multiple IPFS CIDs with parallel data retrieval
-    and centralized query execution
-    
-    Example query: select * from patient_data where HospitalID = 'HOSP-003'
-    """
-    logger.info("POST /query - Processing distributed query across CIDs")
-    
-    index_attribute = request.index_attribute
-    index = retrieve_index(index_attribute)
+    logger.info("POST /query - Processing distributed query")
+    index = retrieve_index(request.index_attribute)
     if not index:
-        logger.error(f"Index for {index_attribute} not found")
-        return {"error": f"Index for {index_attribute} not found"}
-    logger.info(f"Index for {index_attribute} retrieved successfully")
-    
-    cids = query_index(index, request.query, index_attribute)
-    # check the cids
-    logger.info(f"Query returned {len(cids)} CIDs")
-    logger.info(f"Query CIDs: {cids}")
+        return {"error": f"Index for {request.index_attribute} not found"}
+
+    cids = query_index(index, request.query, request.index_attribute)
+    if not cids:
+        return {"message": "No matching CIDs found"}
+
     start_time = time.time()
+    paths = []
+
+    for cid in cids:
+        try:
+            resp = requests.post("http://localhost:5001/api/v0/cat", params={"arg": cid}, timeout=10)
+            if resp.status_code == 200:
+                path = os.path.join(SHARED_TMP_DIR, f"{cid}.parquet")
+                with open(path, "wb") as f:
+                    f.write(resp.content)
+                paths.append(path)
+            else:
+                logger.warning(f"Failed to fetch {cid} from IPFS")
+        except Exception as e:
+            logger.error(f"CID {cid} fetch failed: {e}")
+
+    if not paths:
+        return {"error": "No valid Parquet files retrieved"}
+
+    # Apply Spark SQL directly on those Parquet files
     try:
-        # cids = request.cids
-        query = request.query
-
-        if not cids or not query:
-            return {"message": "No data to process or query is empty"}
-            
-        logger.info(f"Processing {len(cids)} CIDs with query: {query}")
-
-        # Create an RDD from the CIDs list
-        cids_rdd = spark.sparkContext.parallelize(cids)
-
-        # Process each CID in parallel to fetch and transform data
-        def fetch_and_process_data(cid):
-            import requests
-            import base64
-            import socket
-            import os
-            import io
-            import pandas as pd
-            import pyarrow.parquet as pq
-
-            # Get worker information
-            hostname = socket.gethostname()
-            worker_pid = os.getpid()
-            worker_id = f"{hostname}-{worker_pid}"
-
-            try:
-                # Log at the beginning of processing
-                print(f"Worker {worker_id} starting to fetch CID: {cid}")
-
-                # Fetch data from IPFS
-                ipfs_api_url = f"http://localhost:5001/api/v0/cat"
-                response = requests.post(ipfs_api_url, params={"arg": cid}, timeout=10)
-
-                if response.status_code != 200:
-                    print(
-                        f"Worker {worker_id} failed to fetch CID: {cid} with status code: {response.status_code}"
-                    )
-                    return []  # Return empty list for concat
-
-                # Process the Parquet data
-                binary_data = response.content
-                parquet_buffer = io.BytesIO(binary_data)
-                table = pq.read_table(parquet_buffer)
-                df = table.to_pandas()
-
-                # Add source CID and worker info
-                df["source_cid"] = cid
-                df["worker_id"] = worker_id
-
-                print(f"Worker {worker_id} successfully processed CID: {cid}")
-
-                # Return as list of dictionaries (records)
-                return df.to_dict(orient="records")
-
-            except Exception as e:
-                print(f"Worker {worker_id} encountered error with CID {cid}: {str(e)}")
-                return []  # Return empty list for failed CIDs
-
-        # Map each CID to its processed records and flatten the results
-        all_records = cids_rdd.flatMap(fetch_and_process_data).collect()
-
-        # If no data was processed, return error
-        if not all_records:
-            return {"error": "Failed to process any data from IPFS"}
-
-        # Create a Spark DataFrame directly from all records
-        spark_df = spark.createDataFrame(all_records)
-
-        # Extract worker assignments for reporting
-        worker_data = spark_df.select("source_cid", "worker_id").distinct().collect()
-        worker_assignments = {
-            row["source_cid"]: row["worker_id"] for row in worker_data
-        }
-        processed_cids = list(worker_assignments.keys())
-
-        # Register as temporary view
-        spark_df.createOrReplaceTempView("patient_data")
-
-        # Execute the SQL query
-        logger.info(f"Executing query: {query}")
-        result_df = spark.sql(query)
-        end_time = time.time()
-        logger.info(f"Query execution time: {end_time - start_time:.2f} seconds")
-        # Convert results to JSON
-        result_json = result_df.toJSON().collect()
-        result_json = [eval(record.replace("null", "None")) for record in result_json]
-
-        logger.info(
-            f"Query completed successfully, returning {len(result_json)} records"
-        )
-
-        return {
-            "message": "Distributed query executed successfully",
-            "cids_processed": len(processed_cids),
-            "worker_assignments": worker_assignments,
-            "record_count": len(result_json),
-            "results": result_json,
-        }
-
+        logger.info(f"Reading Parquet files: {paths}")
+        df = spark.read.option("mergeSchema", "false").parquet(*paths)
+        df.createOrReplaceTempView("patient_data")
+        result_df = spark.sql(request.query)
+        results = [row.asDict() for row in result_df.collect()]
     except Exception as e:
-        logger.error(f"Error processing distributed query: {str(e)}")
-        return {"error": f"Failed to process distributed query: {str(e)}"}
-    
+        logger.error(f"Query error: {e}")
+        return {"error": str(e)}
+    finally:
+        for p in paths:
+            try:
+                os.remove(p)
+            except Exception as e:
+                logger.warning(f"Failed to delete {p}: {e}")
+
+    elapsed = time.time() - start_time
+    return {
+        "records": len(results),
+        "results": results,
+        "execution_time_seconds": elapsed,
+    }
+
 @app.get("/ipfs/fetch/{cid}")
 async def fetch_from_ipfs(cid: str):
-
-    logger.info(f"GET /ipfs/fetch/{cid} - Fetching data from IPFS")
-
+    logger.info(f"GET /ipfs/fetch/{cid}")
     try:
-        # Record start time
-        start_time = time.time()
-
-        # Fetch data from IPFS
-        ipfs_api_url = "http://localhost:5001/api/v0/cat"
-        response = requests.post(ipfs_api_url, params={"arg": cid}, timeout=30)
-
-        # Record end time
-        end_time = time.time()
-        fetch_time = end_time - start_time
-
-        # Check if the request was successful
-        if response.status_code != 200:
-            logger.error(f"Failed to fetch CID {cid}: {response.status_code} - {response.text}")
-            return {
-                "status": "error",
-                "message": f"Failed to fetch CID: {response.status_code}",
-                "time_taken_seconds": fetch_time
-            }
-
-        # Get content size
-        content_size = len(response.content)
-
-        logger.info(f"Successfully fetched CID {cid} in {fetch_time:.4f} seconds. Size: {content_size} bytes")
-
-        return {
-            "status": "success",
-            "message": f"Successfully fetched CID: {cid}",
-            "time_taken_seconds": fetch_time,
-            "size_bytes": content_size,
-            "size_formatted": f"{content_size/1024/1024:.2f} MB" if content_size > 1024*1024 else f"{content_size/1024:.2f} KB"
-        }
-
+        start = time.time()
+        resp = requests.post("http://localhost:5001/api/v0/cat", params={"arg": cid}, timeout=30)
+        elapsed = time.time() - start
+        if resp.status_code != 200:
+            return {"status": "error", "message": resp.text, "time": elapsed}
+        return {"status": "success", "size_bytes": len(resp.content), "time": elapsed}
     except Exception as e:
-        logger.error(f"Error fetching CID {cid}: {str(e)}")
-        return {
-            "status": "error",
-            "message": f"Failed to fetch CID: {str(e)}",
-            "time_taken_seconds": time.time() - start_time if 'start_time' in locals() else None
-        }
-    
+        return {"status": "error", "message": str(e)}
+
+# --- Helper functions ---
+
 def retrieve_index(name):
-    logger.info(f"Retrieving index for {name}")
-    if name not in app.state.index_cids:
-        logger.error(f"Index for {name} not found in global state")
+    cid = app.state.index_cids.get(name)
+    if not cid:
         return None
-    
-    serialized_index = None
-    index_cid = app.state.index_cids[name]
-
-    # try fetch from IPFS using POST for the cat API
     try:
-        ipfs_api_url = f"http://localhost:5001/api/v0/cat"
-        logger.info(f"Requesting index from IPFS at URL: {ipfs_api_url} with CID: {index_cid}")
-        # Fetch index from IPFS
-        response = requests.post(ipfs_api_url, params={"arg": index_cid}, timeout=10)
-        
-        # Fetch chunk data from IPFS
-        logger.info(response)
-        if response.status_code == 200:
-            serialized_index = response.content
-        else:
-            logger.error(f"Failed to retrieve index: {response.status_code} - {response.text}")
-            serialized_index = None
-    except Exception as e:
-        logger.error(f"Error retrieving {name} index: {str(e)}")
-        serialized_index = None
-
-    if not serialized_index:
-        logger.info(f"Index for {name} not found in IPFS")
-        return None  # Return None instead of an uninitialized index
-        
-    index = CIDIndex()
-    logger.info(f"Deserializing {name} index")
-    try:
-        index.load(io.BytesIO(serialized_index))
-        logger.info(f"Index for {name} loaded successfully")
+        resp = requests.post("http://localhost:5001/api/v0/cat", params={"arg": cid}, timeout=10)
+        if resp.status_code != 200:
+            return None
+        index = CIDIndex()
+        index.load(io.BytesIO(resp.content))
         return index
     except Exception as e:
-        logger.error(f"Failed to deserialize index: {str(e)}")
+        logger.error(f"Index retrieval failed for {name}: {e}")
         return None
 
-
-def query_index(index, query, index_attribute) -> list:
-    """
-    Query the index for CIDs matching the given query, this function assumes the index_attribute condition is presented as an "and" condition in the query.
-    Args:
-        index (CIDIndex): The index to query
-        query (str): The sql query string
-        index_attribute (str): The attribute to use for querying
-    Returns:
-        list: List of CIDs matching the query for the default index attribute
-    """
-
-    # Parse the query to extract the attribute and value
-    # Simplified version, only handles integer and string comparisons
-    
-    # Parse the WHERE clause from the query
-    where_pattern = re.compile(r"where\s+(.*)", re.IGNORECASE)
-    where_match = where_pattern.search(query)
-    if not where_match:
-        logger.info("No WHERE clause found in the query, retrieving all CIDs")
-        cids = index.query_range()  # Query all CIDs
-        return cids
-    
-    where_clause = where_match.group(1).strip()
-
-    # Extract conditions related to the index_attribute
-    conditions = []
-    for condition in re.split(r"\s+and\s+", where_clause, flags=re.IGNORECASE):
-        if index_attribute in condition:
-            conditions.append(condition.strip())
-
-    logger.info(f"Extracted conditions for index attribute '{index_attribute}': {conditions}")
-    # print the index type
-    logger.info(f"Index type: {index.index_type}")
-    
-    if not conditions:
-        logger.error(f"No conditions found for index on '{index_attribute}', return all CIDs")
-        cids = index.query_range()
-        return cids
-
-    # Process conditions and query the index
-    cids = set()
-    for condition in conditions:
-        if ">=" in condition:
-            key = condition.split(">=")[1].strip().strip("'\"")
-            key = int(key) if index.index_type == "bplustree" else key
-            cids.update(index.query_range(key))
-        elif "<=" in condition:
-            key = condition.split("<=")[1].strip().strip("'\"")
-            key = int(key) if index.index_type == "bplustree" else key
-            cids.update(index.query_range(-inf, key))
-        elif ">" in condition:
-            key = condition.split(">")[1].strip().strip("'\"")
-            key = int(key) if index.index_type == "bplustree" else key
-            cids.update(index.query_range(key+1, inf))
-        elif "<" in condition:
-            key = condition.split("<")[1].strip().strip("'\"")
-            key = int(key) if index.index_type == "bplustree" else key
-            cids.update(index.query_range(-inf, key-1))
-        elif "=" in condition:
-            key = condition.split("=")[1].strip().strip("'\"")
-            key = int(key) if index.index_type == "bplustree" else key
-            cids.update(index.query(key))
-        elif "!=" in condition:
-            key = condition.split("!=")[1].strip().strip("'\"")
-            key = int(key) if index.index_type == "bplustree" else key
-            all_cids = set(index.query_range(None, None))  # Query all CIDs
-            excluded_cids = set(index.query(key))
-            cids.update(all_cids - excluded_cids)
-        else:
-            raise ValueError(f"Unsupported condition format: {condition}")
-
-    return list(cids)
+def query_index(index, query, attr) -> List[str]:
+    where = re.search(r"where\s+(.*)", query, re.IGNORECASE)
+    if not where:
+        return index.query_range()
+    conds = [c.strip() for c in re.split(r"\s+and\s+", where.group(1)) if attr in c]
+    if not conds:
+        return index.query_range()
+    out = set()
+    for c in conds:
+        op = ">=" if ">=" in c else "<=" if "<=" in c else ">" if ">" in c else "<" if "<" in c else "!=" if "!=" in c else "="
+        key = c.split(op)[1].strip().strip("'\"")
+        key = int(key) if index.index_type == "bplustree" else key
+        if op == "=": out.update(index.query(key))
+        elif op == ">": out.update(index.query_range(key + 1, inf))
+        elif op == "<": out.update(index.query_range(-inf, key - 1))
+        elif op == ">=": out.update(index.query_range(key, inf))
+        elif op == "<=": out.update(index.query_range(-inf, key))
+        elif op == "!=": out.update(set(index.query_range()) - set(index.query(key)))
+    return list(out)

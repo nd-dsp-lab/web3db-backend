@@ -2,7 +2,6 @@ import csv
 import random
 import os
 import time
-import uuid
 from faker import Faker
 from multiprocessing import Pool, cpu_count
 
@@ -12,7 +11,9 @@ fake = Faker()
 OUTPUT_DIR = '../dataset'
 N_ROWS_PER_DAY = 100000
 N_HOSPITALS = 1
-N_DAYS = 1
+N_DAYS = 500
+PATIENT_ID_MIN = 20000
+PATIENT_ID_MAX = 30000
 
 # Utility functions
 def random_blood_type():
@@ -61,7 +62,7 @@ def random_doctor():
     return 'Dr. ' + fake.last_name()
 
 def generate_patient_id():
-    return str(uuid.uuid4())
+    return str(random.randint(PATIENT_ID_MIN, PATIENT_ID_MAX))
 
 # File generation task
 def generate_csv_task(args):
@@ -107,5 +108,6 @@ def main():
     with Pool(processes=cpu_count()) as pool:
         pool.map(generate_csv_task, jobs)
     print(f"All files generated in {time.time() - start_time:.2f} seconds.")
+
 if __name__ == "__main__":
     main()

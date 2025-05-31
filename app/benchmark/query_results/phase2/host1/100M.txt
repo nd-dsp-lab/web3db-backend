@@ -1,4 +1,4 @@
-100-0
+*************************100-0*******************************
 ************
 {
   "cids": 100,
@@ -27,3 +27,49 @@
   "cid_retrieve_time_seconds": 0.4780850410461426,
   "query_execution_time_seconds": 1.0918996334075928
 }
+*****************************75-25**************************
+******************
+{
+  "cids": 100,
+  "records": 1,
+  "results": [
+    {
+      "count(1)": 75
+    }
+  ],
+  "idx_retrieve_time_seconds": 0.306499719619751,
+  "idx_query_time_seconds": 0.00024962425231933594,
+  "cid_retrieve_time_seconds": 10.347090005874634,
+  "query_execution_time_seconds": 13.921442985534668
+}
+
+{
+  "cids": 100,
+  "records": 1,
+  "results": [
+    {
+      "count(1)": 100
+    }
+  ],
+  "idx_retrieve_time_seconds": 0.2842411994934082,
+  "idx_query_time_seconds": 0.00005698204040527344,
+  "cid_retrieve_time_seconds": 4.920722484588623,
+  "query_execution_time_seconds": 5.661747932434082
+}
+
+{
+  "cids": 100,
+  "records": 1,
+  "results": [
+    {
+      "count(1)": 100
+    }
+  ],
+  "idx_retrieve_time_seconds": 0.2767446041107178,
+  "idx_query_time_seconds": 0.00008654594421386719,
+  "cid_retrieve_time_seconds": 0.4642155170440674,
+  "query_execution_time_seconds": 1.0454597473144531
+}
+
+*****************50-50****************
+*********

@@ -191,7 +191,7 @@ def retrieve_index(name):
     if not cid:
         return None
     try:
-        resp = requests.post("http://localhost:5001/api/v0/cat", params={"arg": cid}, timeout=10)
+        resp = requests.post("http://localhost:5001/api/v0/cat", params={"arg": cid}, timeout=30)
         if resp.status_code != 200:
             return None
         index = CIDIndex()
@@ -223,7 +223,7 @@ def query_index(index, query, attr) -> List[str]:
 
 def fetch_cid(cid):
     try:
-        resp = requests.post("http://localhost:5001/api/v0/cat", params={"arg": cid}, timeout=10)
+        resp = requests.post("http://localhost:5001/api/v0/cat", params={"arg": cid}, timeout=30)
         if resp.status_code == 200:
             path = os.path.join(SHARED_TMP_DIR, f"{cid}.parquet")
             with open(path, "wb") as f:

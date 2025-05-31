@@ -1,0 +1,400 @@
+File: hospital_1_day_1.csv
+Response:
+{'data_cid': 'QmYX4fRXpvsCVFdAQuBWkAQPztpyPspeLkw8HgsHZe1WgQ', 'index_cids': {'PatientID': 'Qmdt5jtUYRS8T7b1SeibG3N3MWAyAeNmc1wsG1SGFJ4uUh', 'HospitalID': 'QmVMfvksrAdHijn9QSAa6vbyJTpeimnFLZ68dz1G7Uost9', 'Age': 'QmPCF8HvjxztJVVDMqcsANzhvS341LAqGs5BijgTmWogv7'}, 'index_sizes': {'PatientID': 142532, 'HospitalID': 156, 'Age': 3253}, 'parquet_time_seconds': 0.0860147476196289, 'ipfs_upload_time_seconds': 0.05394339561462402, 'index_build_time_seconds': 0.15083050727844238, 'total_time_seconds': 0.29369306564331055}
+================================================================================
+File: hospital_1_day_2.csv
+Response:
+{'data_cid': 'QmQ21XqqnazVVRD5uKvtVuhZstysW551f6Xmrd15VSs8Au', 'index_cids': {'PatientID': 'QmNUeKGtFLAxgaNmDsGhZdFZKLeQNbSBtYvAG6WHgw2vGs', 'HospitalID': 'QmcnhmtJtHncDKh5PBAiorzJoesiqfoB5Du5tcdxCvGWre', 'Age': 'QmaHVCS13xxfvPjf3hQmCwcwDkr5V2iF1EiFxoJbWzztpa'}, 'index_sizes': {'PatientID': 172599, 'HospitalID': 206, 'Age': 3597}, 'parquet_time_seconds': 0.07854580879211426, 'ipfs_upload_time_seconds': 0.053835391998291016, 'index_build_time_seconds': 0.14848971366882324, 'total_time_seconds': 0.2843804359436035}
+================================================================================
+File: hospital_1_day_3.csv
+Response:
+{'data_cid': 'QmNtGWuN6QYpRB1qug4ckRj67aVNmamxH9j267b1AstDaZ', 'index_cids': {'PatientID': 'QmefRoi7U1Aga1i8CkEWPxFXLnUExzYG5vnTY1SqKkUx1A', 'HospitalID': 'Qmd7XBcaYm61AyAtfWps4XjVaRxVNfvvya1aysyhRpXFiy', 'Age': 'QmW7yBM79nPH9gLgqzGJGcEHcMWDEMZahj7S9CB2TFnBDk'}, 'index_sizes': {'PatientID': 192653, 'HospitalID': 255, 'Age': 3842}, 'parquet_time_seconds': 0.07227110862731934, 'ipfs_upload_time_seconds': 0.05334353446960449, 'index_build_time_seconds': 0.15243077278137207, 'total_time_seconds': 0.28131890296936035}
+================================================================================
+File: hospital_1_day_4.csv
+Response:
+{'data_cid': 'QmZsvKquSuE9NYXXqbgePnSG5AbdvbNSHrQfzwtJFYBCpR', 'index_cids': {'PatientID': 'QmZjN2sX7byS3AasV5XgR1GRfskYMz94J2NLnXEY9ZnSTA', 'HospitalID': 'Qmbp6azdFw7HePEimeGn8Ystuc4Y96jnzmvKJxNCDB8squ', 'Age': 'QmcgX24TipghNcKK7mBh7cZvEttrMUKBC7d4Ke2vZwXuPK'}, 'index_sizes': {'PatientID': 212715, 'HospitalID': 304, 'Age': 4087}, 'parquet_time_seconds': 0.07234573364257812, 'ipfs_upload_time_seconds': 0.05525040626525879, 'index_build_time_seconds': 0.15037965774536133, 'total_time_seconds': 0.28134870529174805}
+================================================================================
+File: hospital_1_day_5.csv
+Response:
+{'data_cid': 'QmQTRW4dhczVLFkGeXmvW8CT2PneqxfAhQJ4DidWvzPYME', 'index_cids': {'PatientID': 'QmYNxRq38zvTupj161WNfVXQTsLspZXaYDjkAXqjEXXkim', 'HospitalID': 'QmZc9MeDxh1ZGAxSGZmincHbAUDfz2Ri1ScJH32W29Vtvg', 'Age': 'QmVEURoB6MdHrgdnS4DVBw9iZjDza17t5Axz2wG3PzUBjE'}, 'index_sizes': {'PatientID': 232768, 'HospitalID': 353, 'Age': 4332}, 'parquet_time_seconds': 0.0742344856262207, 'ipfs_upload_time_seconds': 0.05449628829956055, 'index_build_time_seconds': 0.1533219814300537, 'total_time_seconds': 0.2856731414794922}
+================================================================================
+File: hospital_1_day_6.csv
+Response:
+{'data_cid': 'QmfZJB3HZLPE42etWWZDdHSe6je1xpQXx8pP8jz3N6HRdg', 'index_cids': {'PatientID': 'QmWAXeFzQXZRdpSpBzJsJkhfnh1vRvTKviVFw5WV1xT9Xs', 'HospitalID': 'QmWtESpKfn5J5wJjrKdpxcgCjh6VYFYHB5popAJsQ3Ujwa', 'Age': 'QmQfniaFukVbMvRwhkaVeagiC6aCQqcJD1GYRa2b4U4AA2'}, 'index_sizes': {'PatientID': 252821, 'HospitalID': 402, 'Age': 4577}, 'parquet_time_seconds': 0.0718686580657959, 'ipfs_upload_time_seconds': 0.05462789535522461, 'index_build_time_seconds': 0.1504683494567871, 'total_time_seconds': 0.28040122985839844}
+================================================================================
+File: hospital_1_day_7.csv
+Response:
+{'data_cid': 'Qmbtk5CkBq5nsjokGgdjafRFeF8MZRMyjVVai411p98WGY', 'index_cids': {'PatientID': 'QmQnycNoFru3gNjH3WxuazshTBqdnPgaNqMd6TvUd1Wcko', 'HospitalID': 'QmeZXfQMEZUswJYyhNMwy1o139ZPB2EPQn7XAmQMXvKEVW', 'Age': 'QmX7RrsuM8L5voJUdehKj1UmJVPw8EuuatQextp8JvMAUm'}, 'index_sizes': {'PatientID': 272881, 'HospitalID': 451, 'Age': 4822}, 'parquet_time_seconds': 0.07253313064575195, 'ipfs_upload_time_seconds': 0.054521799087524414, 'index_build_time_seconds': 0.1553785800933838, 'total_time_seconds': 0.2859995365142822}
+================================================================================
+File: hospital_1_day_8.csv
+Response:
+{'data_cid': 'QmfLmWtnHrVfQw8b6jQCTMBwWmTbLYCkN2UvGYfmAkfRsq', 'index_cids': {'PatientID': 'QmQgAYUXzAsepBuhmYeRhmUvPAZeLrmG4cioSxPyddWNSD', 'HospitalID': 'Qmbpq4vx5GDwQobCSWdyEc9UweyZ4QM2dodDT11HzYZMVt', 'Age': 'QmdZAAQNkwMf6dV5afgiaN43xorxcJvewqc9QgipxS1GcH'}, 'index_sizes': {'PatientID': 292934, 'HospitalID': 500, 'Age': 5067}, 'parquet_time_seconds': 0.07528519630432129, 'ipfs_upload_time_seconds': 0.05358290672302246, 'index_build_time_seconds': 0.15802907943725586, 'total_time_seconds': 0.2900116443634033}
+================================================================================
+File: hospital_1_day_9.csv
+Response:
+{'data_cid': 'QmafwuphapNheMfswwm5yaH9mPZreaLDKtASkLpnwhYVZg', 'index_cids': {'PatientID': 'QmdFyqdo7Gb9GDAfFPYHmGEMe5PfgKgrTzv7MncphmoKdR', 'HospitalID': 'QmRgVFtEAh1KdWyYtzcTbPqHy52ptt3d83h4VEpLeQ4ViN', 'Age': 'Qmcun6fD9hBpqSnS75Wfmtwt2csVhzFefpxPWjJMLnme4k'}, 'index_sizes': {'PatientID': 312987, 'HospitalID': 549, 'Age': 5312}, 'parquet_time_seconds': 0.07345056533813477, 'ipfs_upload_time_seconds': 0.052093505859375, 'index_build_time_seconds': 0.15648555755615234, 'total_time_seconds': 0.2852041721343994}
+================================================================================
+File: hospital_1_day_10.csv
+Response:
+{'data_cid': 'Qmav3TjoaJKhY9y3S5wtNdoCr4tNZhgxiKcVeecZ1FJws2', 'index_cids': {'PatientID': 'QmdQT8ARKrFm9ML812DwzmWxnuKUutDYdHSqjtMgs2DDnz', 'HospitalID': 'QmVsWFrW7kENK19mZ37J6QDryKr1K2U54AYYSPDW2EkqTq', 'Age': 'QmdmU7px3PFyCK44caywHsmpyRaN3pKi9kTikt6pXpBgpT'}, 'index_sizes': {'PatientID': 333047, 'HospitalID': 598, 'Age': 5557}, 'parquet_time_seconds': 0.07188844680786133, 'ipfs_upload_time_seconds': 0.05322623252868652, 'index_build_time_seconds': 0.15919208526611328, 'total_time_seconds': 0.28780436515808105}
+================================================================================
+File: hospital_1_day_11.csv
+Response:
+{'data_cid': 'Qmf2wjwPDosUcZAmeAoTEXLj7uLkTrPUxFyLaN5yLAKPt3', 'index_cids': {'PatientID': 'Qme3rMqcwHAUy5M3uHxvJBQeDLDmVLRaZv9o6GXdj4sGmV', 'HospitalID': 'QmNS5ywUDX8re4bgPtsrkuh5DSKkq11dRYkRPe2GrLgvs2', 'Age': 'Qme2MmfcN2hHa6shsYCPrA4Xee5bGtDpmw16JnoHf57Q6m'}, 'index_sizes': {'PatientID': 353094, 'HospitalID': 647, 'Age': 5802}, 'parquet_time_seconds': 0.07179784774780273, 'ipfs_upload_time_seconds': 0.05430197715759277, 'index_build_time_seconds': 0.1821730136871338, 'total_time_seconds': 0.31162190437316895}
+================================================================================
+File: hospital_1_day_12.csv
+Response:
+{'data_cid': 'QmPu947Dt6aEohKtRrGjidWD1yzoKWrCb5c3Jycyz5Ehka', 'index_cids': {'PatientID': 'QmYXM7RtWbn6BFzrcQK4V4WzuSyVgEiiw59wmjyo15hB3V', 'HospitalID': 'QmYFgDj99amyt3fwBgjuepuiJiq3Q1nKyeGKabbzQJE9JJ', 'Age': 'Qmcu1RemDPxwG7tszJQ2JxhZjm3oMniczwew13AXj4wdGu'}, 'index_sizes': {'PatientID': 373145, 'HospitalID': 696, 'Age': 6047}, 'parquet_time_seconds': 0.07160329818725586, 'ipfs_upload_time_seconds': 0.052800893783569336, 'index_build_time_seconds': 0.15604400634765625, 'total_time_seconds': 0.28408122062683105}
+================================================================================
+File: hospital_1_day_13.csv
+Response:
+{'data_cid': 'QmXUEssqGRUJeSY4uLT7hZZtn3MFLWRMwUe1o41FUZsoxX', 'index_cids': {'PatientID': 'QmRwRHd45kNZEVWWBJYUPa5LBPK8vtKe38VSHGBDu9kXMd', 'HospitalID': 'QmPgPqkHWJf9asY3bnze9QucPYoUGq5VuGhBqpDSTUQNDr', 'Age': 'QmcChqTqGiUvoCfquerJc8Uk62ZURg6mCDAX72v6naLKGz'}, 'index_sizes': {'PatientID': 393194, 'HospitalID': 745, 'Age': 6292}, 'parquet_time_seconds': 0.07136273384094238, 'ipfs_upload_time_seconds': 0.05414557456970215, 'index_build_time_seconds': 0.15655755996704102, 'total_time_seconds': 0.28557586669921875}
+================================================================================
+File: hospital_1_day_14.csv
+Response:
+{'data_cid': 'QmYcn3bQr1tvaT1KudkYY3oh4CFrfBk1pAujhaQ5y5JQkm', 'index_cids': {'PatientID': 'QmUKbKdqLhHcg58uPCMrY9eyQ5xk8cYuM9Yvxwiy19pAXU', 'HospitalID': 'QmS7kvRFtQv5zNn6NHUdiVtxURT3j11GjfJRc2aZxScraf', 'Age': 'QmQMbdVTwrZqSeKWkFyrwS2WmFrhZdrv32326esWqJ3hMf'}, 'index_sizes': {'PatientID': 413252, 'HospitalID': 794, 'Age': 6537}, 'parquet_time_seconds': 0.07259798049926758, 'ipfs_upload_time_seconds': 0.06363773345947266, 'index_build_time_seconds': 0.16602206230163574, 'total_time_seconds': 0.30568838119506836}
+================================================================================
+File: hospital_1_day_15.csv
+Response:
+{'data_cid': 'QmWqZ3MGUedrs3Qr9PGhkUP7AXoniZUkTqnLfBnCq9r2bk', 'index_cids': {'PatientID': 'QmUY5DoKfj3fux86rxc9BawjN4XpYDPfi3RGjujv5q4jrf', 'HospitalID': 'QmQiH5rkqeJJQLe4qTWFkQXAeLCcZHM7TfmJxfkWLKEiUv', 'Age': 'QmVogP5GqW3ATGKe6UsnXVo2R6S37keYhMzhfKtx2nGwTr'}, 'index_sizes': {'PatientID': 433301, 'HospitalID': 843, 'Age': 6782}, 'parquet_time_seconds': 0.07174825668334961, 'ipfs_upload_time_seconds': 0.05273866653442383, 'index_build_time_seconds': 0.15981721878051758, 'total_time_seconds': 0.2878251075744629}
+================================================================================
+File: hospital_1_day_16.csv
+Response:
+{'data_cid': 'QmexHA9hgkP2uPAGvVsMeU4o5w586XLYTKsyfjA1AwhmEC', 'index_cids': {'PatientID': 'QmSP8coNGERnGsZozWSbByEyPaiLQKRjxmxGjCUYtp11EX', 'HospitalID': 'QmVmgcXZNNTHLweHm9SF1iuBJTTSwasDJEzH9CfNirAY9h', 'Age': 'QmTgp7ELHiRfRqPSTbYWgTTRrEWkBm5dszvBgRXUxN2yHy'}, 'index_sizes': {'PatientID': 453350, 'HospitalID': 892, 'Age': 7027}, 'parquet_time_seconds': 0.07240796089172363, 'ipfs_upload_time_seconds': 0.05182075500488281, 'index_build_time_seconds': 0.1570267677307129, 'total_time_seconds': 0.284618616104126}
+================================================================================
+File: hospital_1_day_17.csv
+Response:
+{'data_cid': 'QmcuVZ6z7v8bDDUVXVyLrnBrfogZG4Abes6Vdjrgz99wPq', 'index_cids': {'PatientID': 'QmQk9QYmRokoHJetfuw2RQ4rbH9bPDC42wjsnwVzjcgp9o', 'HospitalID': 'QmNogadhYG9CFk3MdpFWmEKJxsYmWGMct1L2sp5tQbnNAh', 'Age': 'QmdirgeKMjUGytMJK82t7EBiJPny11ixyo7gArDZLYoyxW'}, 'index_sizes': {'PatientID': 473410, 'HospitalID': 941, 'Age': 7272}, 'parquet_time_seconds': 0.07917404174804688, 'ipfs_upload_time_seconds': 0.0533452033996582, 'index_build_time_seconds': 0.16641759872436523, 'total_time_seconds': 0.3023228645324707}
+================================================================================
+File: hospital_1_day_18.csv
+Response:
+{'data_cid': 'QmXCpf5Pz7hmjQ6JFm69uswBZjxm2qaCX9Xoqe8E7Y4NnD', 'index_cids': {'PatientID': 'QmdNJJC8CLMAo4AeR6RUDGRsXUq8xM9Uedt4X9EJaNgX1i', 'HospitalID': 'QmekNid4TXif63FsoUNx9VLjWpHHetpZhC5LrnnCWcxnX5', 'Age': 'QmdujkrVRzMeLh7pqi3NdnN4JZZ5r9t5ZbqpWyyXxuUfpq'}, 'index_sizes': {'PatientID': 493461, 'HospitalID': 990, 'Age': 7517}, 'parquet_time_seconds': 0.0772097110748291, 'ipfs_upload_time_seconds': 0.05451488494873047, 'index_build_time_seconds': 0.16816020011901855, 'total_time_seconds': 0.3034701347351074}
+================================================================================
+File: hospital_1_day_19.csv
+Response:
+{'data_cid': 'QmV2t4CLYn1SQCfWNXjo5GpugyUdTEhaMhoPh5XuzmGERU', 'index_cids': {'PatientID': 'QmWc9Wo639WmpfzvRmQpUKCKkmfdcMfThhXwuzzFGQcn6c', 'HospitalID': 'QmSxCPokQaCWuHGVuy225BJ6ZL3JrM6GN4vg3ca6So7Wto', 'Age': 'Qmapr4PdcTmvcngnwQyC67C9366iG9mK3KFn9pJKVKBZFn'}, 'index_sizes': {'PatientID': 513512, 'HospitalID': 1039, 'Age': 7762}, 'parquet_time_seconds': 0.0772714614868164, 'ipfs_upload_time_seconds': 0.05284571647644043, 'index_build_time_seconds': 0.15818500518798828, 'total_time_seconds': 0.29181814193725586}
+================================================================================
+File: hospital_1_day_20.csv
+Response:
+{'data_cid': 'QmctzwaPRxHmKeS9qrKh5b4DzGNB2gY6p2sv7fRHpdtM4i', 'index_cids': {'PatientID': 'QmYJoBV3DtV4oQGmfNEZwN4ZptNzXe1S5DRxKboymp3VTX', 'HospitalID': 'QmY28yo1S31vwRnTDrpKLW4YuZFXh5CtftfESMUH4v6dAP', 'Age': 'Qme7u6p2iSoVkdNV8vPeVG7WDG9jKcP19hDnC5wbLe3sKp'}, 'index_sizes': {'PatientID': 533572, 'HospitalID': 1088, 'Age': 8007}, 'parquet_time_seconds': 0.07308769226074219, 'ipfs_upload_time_seconds': 0.05759024620056152, 'index_build_time_seconds': 0.16877985000610352, 'total_time_seconds': 0.30267930030822754}
+================================================================================
+File: hospital_1_day_21.csv
+Response:
+{'data_cid': 'Qmf2mNsR8ZTJSLjp2trBj41QaMF1W9BUznBDofqCDgDj2H', 'index_cids': {'PatientID': 'QmTQmDkXsa7otTg7836Xf4jBoG385To4VzRe2HsUmKVWDU', 'HospitalID': 'QmeybcvLx3icakXvbEfs9g4QGDNzQoBrRqJcNPkSHVoSXe', 'Age': 'QmdEUHrazRZTRfbSSMgLCeR6wUzfqizuYTnfhpkA8viPiK'}, 'index_sizes': {'PatientID': 553623, 'HospitalID': 1137, 'Age': 8252}, 'parquet_time_seconds': 0.07285928726196289, 'ipfs_upload_time_seconds': 0.05233478546142578, 'index_build_time_seconds': 0.16776251792907715, 'total_time_seconds': 0.29644322395324707}
+================================================================================
+File: hospital_1_day_22.csv
+Response:
+{'data_cid': 'QmbdkZwESFQuX6Qs9NcMmjpcRSyZ1VKMweJXwMAhLrSRw1', 'index_cids': {'PatientID': 'QmWhdM8XZ3wedrMppoCaRAWHk3TFZFBYxEKDXiGF6sCshU', 'HospitalID': 'QmTWtZQBB5Lf3bdkLMGdLmwbbVXzg7E9cehcjz12qRBvXz', 'Age': 'QmTeQsnVcutuxfn1kiemZSVewBYUFo6kdnDK9nArc9UN5m'}, 'index_sizes': {'PatientID': 573672, 'HospitalID': 1186, 'Age': 8497}, 'parquet_time_seconds': 0.07270646095275879, 'ipfs_upload_time_seconds': 0.0525968074798584, 'index_build_time_seconds': 0.16023635864257812, 'total_time_seconds': 0.28881192207336426}
+================================================================================
+File: hospital_1_day_23.csv
+Response:
+{'data_cid': 'QmcV7GYsnvKY3xdmZFE298rBeG1qWPSStRYcw3VTPpRzrJ', 'index_cids': {'PatientID': 'QmZuAV5MJk654WppCFezNLur5fMRKRTgd3SGtfURx4JbDz', 'HospitalID': 'QmTczPvgr6NXQQn52r7zJNSUo32yfN3qkNMKsy25cEd92d', 'Age': 'QmWv4ddutBJ21iz8sVrS5wveh5kw3bnv1T1GBPraX23thG'}, 'index_sizes': {'PatientID': 593730, 'HospitalID': 1235, 'Age': 8742}, 'parquet_time_seconds': 0.07193922996520996, 'ipfs_upload_time_seconds': 0.0530397891998291, 'index_build_time_seconds': 0.16072368621826172, 'total_time_seconds': 0.2893829345703125}
+================================================================================
+File: hospital_1_day_24.csv
+Response:
+{'data_cid': 'QmSmTXMJUR75ueR8KfQ2iARYb87nNYUJmQP85uAHYzf5Gm', 'index_cids': {'PatientID': 'QmciiAGVqY9jYEDBCoHjcQ4Coe4ybxQMaS1UHYbDKj8sLh', 'HospitalID': 'QmajWFsWAiMN46pJgQVKEKNifsBEoYWEPgGLPiX9VMcgJD', 'Age': 'QmRWtpupJqEHh3Z1d2Mf9fz2RPj7ycEHULrJLVR8XTZMKf'}, 'index_sizes': {'PatientID': 613781, 'HospitalID': 1284, 'Age': 8987}, 'parquet_time_seconds': 0.07061123847961426, 'ipfs_upload_time_seconds': 0.05641651153564453, 'index_build_time_seconds': 0.16345572471618652, 'total_time_seconds': 0.293637752532959}
+================================================================================
+File: hospital_1_day_25.csv
+Response:
+{'data_cid': 'QmbJczYVmHeMGBVvnF2JE5TjEw9a2XCTSKDjXd6oDdYUvK', 'index_cids': {'PatientID': 'QmTZSUjpVqMx22LXJrUnxVUnMM7oXXfqCdxqwjZgvdh1od', 'HospitalID': 'QmNrupj1A6vUNybHSofivegVa4KjfmLrpBYmmnYpHHVU4d', 'Age': 'QmXcPVLMeJJecBw3eJt99SvLuVecdJYemPW4bkKwJBhnJ4'}, 'index_sizes': {'PatientID': 633832, 'HospitalID': 1333, 'Age': 9232}, 'parquet_time_seconds': 0.0712587833404541, 'ipfs_upload_time_seconds': 0.05235695838928223, 'index_build_time_seconds': 0.16719388961791992, 'total_time_seconds': 0.2945380210876465}
+================================================================================
+File: hospital_1_day_26.csv
+Response:
+{'data_cid': 'QmYzhjvsXjavfQ3DNz5uwNpFp3kut5QqLDJThn9Qt38z2w', 'index_cids': {'PatientID': 'QmNxX8wZ6CXSyLH1aqmGFvrnrqxKsGLQPUtDCLAnQCznyu', 'HospitalID': 'QmTUCvapnazv8EmhLLH98Z8WwbaDYqZWbgQaq7GntzERAa', 'Age': 'Qmd6B8Ypoyx86AcVWxhrjCPnSWGdvtQeSgqDj3XKxRHsVt'}, 'index_sizes': {'PatientID': 653883, 'HospitalID': 1382, 'Age': 9480}, 'parquet_time_seconds': 0.0721745491027832, 'ipfs_upload_time_seconds': 0.0526890754699707, 'index_build_time_seconds': 0.18658757209777832, 'total_time_seconds': 0.3146800994873047}
+================================================================================
+File: hospital_1_day_27.csv
+Response:
+{'data_cid': 'QmPxNufEUE3XQ5M1Tpwro9XfVxSVtwU1xEZzH7LvVfxWDw', 'index_cids': {'PatientID': 'QmcKGFEUMqoQKjcyRvk91YHRemv4aeQzG1GAUzFhHVsMJT', 'HospitalID': 'QmReaAwjaJJpD7so8fK9pAwXUXwN6Tz4oVH9nwpcsDBEP2', 'Age': 'QmQgXJXWjcYuscmmchwsy8QPMDH6QBYjKEvFDaArqqbgs6'}, 'index_sizes': {'PatientID': 673941, 'HospitalID': 1431, 'Age': 9725}, 'parquet_time_seconds': 0.07159042358398438, 'ipfs_upload_time_seconds': 0.05319380760192871, 'index_build_time_seconds': 0.16908693313598633, 'total_time_seconds': 0.2974100112915039}
+================================================================================
+File: hospital_1_day_28.csv
+Response:
+{'data_cid': 'QmVfLZVLjZnesgQ1KBPW6VDF5fQC6XnnX3e7EFraqPbdzi', 'index_cids': {'PatientID': 'QmZkatnPdFyW6L7KxURZMqGmJSn9a9JunXCQ9iM1MsKN5K', 'HospitalID': 'QmdhN6cnC88SFqv2JTranU8Hqkmz7ywcokapBoxo1zmKV4', 'Age': 'QmPUP9G34r5JNTVhzHf9Uzt2Gk5Gwj3GEEb94PKrG4rYRy'}, 'index_sizes': {'PatientID': 693992, 'HospitalID': 1480, 'Age': 9970}, 'parquet_time_seconds': 0.07369232177734375, 'ipfs_upload_time_seconds': 0.05237698554992676, 'index_build_time_seconds': 0.16307282447814941, 'total_time_seconds': 0.2926177978515625}
+================================================================================
+File: hospital_1_day_29.csv
+Response:
+{'data_cid': 'QmP1MNKFStfWY9Af56HDgasqznRTaDFfZbKRTJmmNm4PL2', 'index_cids': {'PatientID': 'QmcyYjfWCN575RtKPFvV1NfaRm2JwZXjFGZen7wpcq8buW', 'HospitalID': 'QmdCVa49C1SUrGLnryB38aNNjZ4LQ6yfhWvH5DS2woLSdR', 'Age': 'QmSgRSXtiytzfUzW6zxEUqEF6NvbVqYY9kWJWQErPmrwzS'}, 'index_sizes': {'PatientID': 714043, 'HospitalID': 1529, 'Age': 10215}, 'parquet_time_seconds': 0.07254362106323242, 'ipfs_upload_time_seconds': 0.0538787841796875, 'index_build_time_seconds': 0.16695189476013184, 'total_time_seconds': 0.2964637279510498}
+================================================================================
+File: hospital_1_day_30.csv
+Response:
+{'data_cid': 'QmStVwsfC5ibpTEyyzp1fzopkoktnFPx3SvZBX7zMo8xi4', 'index_cids': {'PatientID': 'QmVgW59zogezMpsMiKpCKKGKZewCeTSSeUvjP2ZqqChbYJ', 'HospitalID': 'QmYWZPHfPb7DmRV2Hjd42ZFFtKi6rKX9f4cgTT7UhqA1K1', 'Age': 'QmPdrKk5kMXqFdKs6CtFCGwFtb6m1yrpusubGigZPFHa97'}, 'index_sizes': {'PatientID': 734103, 'HospitalID': 1578, 'Age': 10460}, 'parquet_time_seconds': 0.0711822509765625, 'ipfs_upload_time_seconds': 0.053366899490356445, 'index_build_time_seconds': 0.19302868843078613, 'total_time_seconds': 0.3213636875152588}
+================================================================================
+File: hospital_1_day_31.csv
+Response:
+{'data_cid': 'QmckqyJzDZDoinxQFQzuvnGenSHFeayTfmKoCM8Yjtf7JZ', 'index_cids': {'PatientID': 'QmPL8imy27yXffuYdHUntHNVySJ4fzMrkqWy1KZrxAJvHw', 'HospitalID': 'QmX41sC2qK2uDPT2yga6DLsRxy5BKiivLnCwWYjczEs6XN', 'Age': 'QmZTPQ7VMJ5FEDFbGwJcJawopVUX9PCsfbGYVLxsJRMAkV'}, 'index_sizes': {'PatientID': 754150, 'HospitalID': 1627, 'Age': 10705}, 'parquet_time_seconds': 0.07196211814880371, 'ipfs_upload_time_seconds': 0.05350661277770996, 'index_build_time_seconds': 0.17946577072143555, 'total_time_seconds': 0.3082561492919922}
+================================================================================
+File: hospital_1_day_32.csv
+Response:
+{'data_cid': 'QmapsjLB54RyUL3x1XzetJbVVhBuu5b9XHVxEipRM7NTX1', 'index_cids': {'PatientID': 'QmVhsawsAmVBW7UyFzUZJ88ak1p9e7dMEcUS6wDHQbu9dy', 'HospitalID': 'QmU4o5mZ1cLnEki1z5wDzmFSpteSv8oR5AYV73nzpPkBZS', 'Age': 'QmP94XYkwpYjbegMJU5pUzcqYxWtmnZeF7nyBisFJh5CLr'}, 'index_sizes': {'PatientID': 774199, 'HospitalID': 1676, 'Age': 10950}, 'parquet_time_seconds': 0.07185220718383789, 'ipfs_upload_time_seconds': 0.0526430606842041, 'index_build_time_seconds': 0.16531968116760254, 'total_time_seconds': 0.2935020923614502}
+================================================================================
+File: hospital_1_day_33.csv
+Response:
+{'data_cid': 'QmcqpLL3FSmifswpnfub57ttrSNkUQJfMKQ1yVQAfMnHRP', 'index_cids': {'PatientID': 'QmUoWFFmJtKFEJ4wHZ3KfEDEM5Y6vsawC9NrPGJvEkK7Lt', 'HospitalID': 'QmaYzXCibjzkx3w4UgCSRuZGWimpvMrV8v2CW6FAyPU5Yt', 'Age': 'QmR66HUB7YwnqFNRGDmHNcsx4ZARPBahvWSJsNvESWTGmf'}, 'index_sizes': {'PatientID': 794257, 'HospitalID': 1725, 'Age': 11195}, 'parquet_time_seconds': 0.07250666618347168, 'ipfs_upload_time_seconds': 0.053530216217041016, 'index_build_time_seconds': 0.16942334175109863, 'total_time_seconds': 0.2991328239440918}
+================================================================================
+File: hospital_1_day_34.csv
+Response:
+{'data_cid': 'QmPWnBYMbxe2kUGsrwq2E6EbgKWW4HW6gkq6bKtMYFmAkK', 'index_cids': {'PatientID': 'Qmby5SJNp6xmaRonLqPqMqQ7ajqjhWhBxmh3Ms7kYN4jxH', 'HospitalID': 'QmW6xYAc1ysbiRxgvPAPYBBfqmEWo9YgmaQqGgHstBCsbe', 'Age': 'QmbxbELCVh7EXoEnx7pSnGQezGwvPGkBDu8xj9YD95xmTH'}, 'index_sizes': {'PatientID': 814308, 'HospitalID': 1774, 'Age': 11440}, 'parquet_time_seconds': 0.07199668884277344, 'ipfs_upload_time_seconds': 0.053339481353759766, 'index_build_time_seconds': 0.1673429012298584, 'total_time_seconds': 0.295879602432251}
+================================================================================
+File: hospital_1_day_35.csv
+Response:
+{'data_cid': 'QmaGcS7KuJQXMQWQ6PeDHFbbSQt4MoTKrVhCCHpeQU4RzZ', 'index_cids': {'PatientID': 'QmcFNVMGEtMGShGLaK5nEi8dA7KZTD2Dx7G3TpEdRzNZor', 'HospitalID': 'QmThqfXeQWJDov4cnVyTCS1wHJ839MDCGZ2qkFLa7PxdLY', 'Age': 'QmPWLp5rpMGRqZC24pAU1CPztdfYxAE4TuXhEWcdeZEXyM'}, 'index_sizes': {'PatientID': 834359, 'HospitalID': 1823, 'Age': 11685}, 'parquet_time_seconds': 0.07127904891967773, 'ipfs_upload_time_seconds': 0.05353546142578125, 'index_build_time_seconds': 0.17050576210021973, 'total_time_seconds': 0.2986118793487549}
+================================================================================
+File: hospital_1_day_36.csv
+Response:
+{'data_cid': 'QmW1sREgCsok4KQHvd39QLghjpPKmob9wKFn5HZUuQ5Q68', 'index_cids': {'PatientID': 'QmNi44B79tyFr7fxiFpUvEdeJoWuZBrhDRVT6oUm4sWhoW', 'HospitalID': 'Qmahsv412jvoDiF7rG1qZmnKWvR1LyyhHA9vo2Lifhizbe', 'Age': 'QmdKeSThuUNhZzdtMiDygfBDu9nHkjVPdnQsuY4x9y28Tj'}, 'index_sizes': {'PatientID': 854419, 'HospitalID': 1872, 'Age': 11930}, 'parquet_time_seconds': 0.0706624984741211, 'ipfs_upload_time_seconds': 0.05343365669250488, 'index_build_time_seconds': 0.1678776741027832, 'total_time_seconds': 0.29534053802490234}
+================================================================================
+File: hospital_1_day_37.csv
+Response:
+{'data_cid': 'QmWRd6yuTgCDVqw9SrLop52mbs2Bvjf1vqQRfN9vLBBMzk', 'index_cids': {'PatientID': 'QmbfrieQVryyugaGqrwRYoEsWZ7dtDfQ1PwmaE9fJ44rNr', 'HospitalID': 'QmNgBZRKBwUMcwRqAofa2pRPpazYXjE3AejH3K87rxtJQA', 'Age': 'QmR7VqetazVEjPnn5s7ku4RCCiKCAnxHP4jaePrDokpfxF'}, 'index_sizes': {'PatientID': 874470, 'HospitalID': 1921, 'Age': 12175}, 'parquet_time_seconds': 0.07099032402038574, 'ipfs_upload_time_seconds': 0.05248665809631348, 'index_build_time_seconds': 0.17377924919128418, 'total_time_seconds': 0.3005552291870117}
+================================================================================
+File: hospital_1_day_38.csv
+Response:
+{'data_cid': 'QmXJL3iFTcBem5xQAyabCTrkjnXAzvXuFj1HD3tirU5Gjt', 'index_cids': {'PatientID': 'QmaXNANrEYeFDCYjxbkqmDxYpmcdQBSwyckFNELMWiBCzV', 'HospitalID': 'QmfDsLdozc6RK1AgjiDbaKhTftS5sG4BMqJMpHdyX1Bk6a', 'Age': 'QmTJDQsiSVcpE16xKMu3m1uBWDrjUpRs5V8vxctcbwER5x'}, 'index_sizes': {'PatientID': 894521, 'HospitalID': 1970, 'Age': 12420}, 'parquet_time_seconds': 0.0726006031036377, 'ipfs_upload_time_seconds': 0.053993940353393555, 'index_build_time_seconds': 0.17237210273742676, 'total_time_seconds': 0.30242419242858887}
+================================================================================
+File: hospital_1_day_39.csv
+Response:
+{'data_cid': 'QmTrsMnB9n2pmmPFqSMrWcxDX9L53XCQzkhkaxqhM8PP3H', 'index_cids': {'PatientID': 'QmPagmctbe6pTJm3un6bRKq4Tz84G83CqVscbg4J76wuSq', 'HospitalID': 'QmdF5FEXesGMvDFES3FqfFxkr5LSq6QsxS5vNabJsmEfjM', 'Age': 'QmSTVfJd4gx1DagRDCAAnuJY2KKafXvzecj3t5WZzWX5be'}, 'index_sizes': {'PatientID': 914572, 'HospitalID': 2019, 'Age': 12665}, 'parquet_time_seconds': 0.07184815406799316, 'ipfs_upload_time_seconds': 0.051526784896850586, 'index_build_time_seconds': 0.1693568229675293, 'total_time_seconds': 0.2962067127227783}
+================================================================================
+File: hospital_1_day_40.csv
+Response:
+{'data_cid': 'QmX9CnKNAPG5GhLSyy1Fs1WzZwKWLwJaSYMCQTmrbmCDfi', 'index_cids': {'PatientID': 'QmQ5BooMGdfSi4zMHssxXDSHvELALC1tsA7dzgs6UNXxHm', 'HospitalID': 'QmeTVoKcznnDou4dczpKk9ZWeLJMZd6NsfakeCvJkxZaXd', 'Age': 'QmTFMncz9KT9dVXzKZz61z3qDWDYYJ4pWnWNeB2zVdDwNR'}, 'index_sizes': {'PatientID': 934630, 'HospitalID': 2068, 'Age': 12910}, 'parquet_time_seconds': 0.07117104530334473, 'ipfs_upload_time_seconds': 0.05200791358947754, 'index_build_time_seconds': 0.16869854927062988, 'total_time_seconds': 0.29527711868286133}
+================================================================================
+File: hospital_1_day_41.csv
+Response:
+{'data_cid': 'QmXkW3sXFYxxnEt2j3W4GwbXkvQ44UfQ5aaKE8m5i8yxBR', 'index_cids': {'PatientID': 'QmbPTTcvZZUFzfuckSAMRL3uNcCQpXkygrdpzb1Hm4hYF9', 'HospitalID': 'QmWmrXHmGi78fB5J2oJWEsCVcYRP1Vy4KwtogNRuxetTB8', 'Age': 'QmRmoRCFfNDokMrfP9N5H1m6uuz3MDQ9qW32vDTjPcWpRx'}, 'index_sizes': {'PatientID': 954679, 'HospitalID': 2117, 'Age': 13155}, 'parquet_time_seconds': 0.07244062423706055, 'ipfs_upload_time_seconds': 0.05529165267944336, 'index_build_time_seconds': 0.1752772331237793, 'total_time_seconds': 0.30652379989624023}
+================================================================================
+File: hospital_1_day_42.csv
+Response:
+{'data_cid': 'QmQTVmfFBh9K1MH4ujfqgNEPb6iTqQPFMAVgpAiWLkNPF4', 'index_cids': {'PatientID': 'QmXddqC2QcyP4TBKgVGrgZYdHV4gmQ8qBvVgsKvJjP43DQ', 'HospitalID': 'QmRTUAczaZzf2fnMY2PKmiW95BDiuQaNqZoi1JkBZrFcpz', 'Age': 'QmYpRnJHNuuYia856vPazhq5fJFrudU1Eiz7gohYaZ3CNu'}, 'index_sizes': {'PatientID': 974730, 'HospitalID': 2166, 'Age': 13400}, 'parquet_time_seconds': 0.0722968578338623, 'ipfs_upload_time_seconds': 0.052352190017700195, 'index_build_time_seconds': 0.25885009765625, 'total_time_seconds': 0.38693809509277344}
+================================================================================
+File: hospital_1_day_43.csv
+Response:
+{'data_cid': 'QmWd2ta7Qa9F3Hi69bCFgjZAAEfbD5XTx89vvhi3ZiMaND', 'index_cids': {'PatientID': 'QmWDQoPGzHDXo9nGoEu6k23MuzotgFgGr2YN3863W3PdEp', 'HospitalID': 'QmZ3xqVF2z6Y5E3hvbV4fnpnPeW9M5ZJw53qjkuqw4c4MD', 'Age': 'QmYEJXDt7PrDyYTuaiVrXhiU2XYm91o41GwooxAKiu3dMW'}, 'index_sizes': {'PatientID': 994790, 'HospitalID': 2215, 'Age': 13645}, 'parquet_time_seconds': 0.07235383987426758, 'ipfs_upload_time_seconds': 0.05290412902832031, 'index_build_time_seconds': 0.17362332344055176, 'total_time_seconds': 0.3022339344024658}
+================================================================================
+File: hospital_1_day_44.csv
+Response:
+{'data_cid': 'QmXPxp8xGz2NfWMvXxPGLq7YdMpz3tQT3kEcFcP41pZcdF', 'index_cids': {'PatientID': 'QmWHj3Dc6XWcEisY5pNhj35asfAqZgpvC7gWi6BYPmZuZr', 'HospitalID': 'QmUGTJLzsPGueNcbLT9fM9J3R4Jxp7JDjmmJoJvAVmxETN', 'Age': 'QmS7MEcKoxcHGvHTWCqWM1P4E5gDPrcjNkaHDmf1KEGgGC'}, 'index_sizes': {'PatientID': 1014839, 'HospitalID': 2264, 'Age': 13890}, 'parquet_time_seconds': 0.07105517387390137, 'ipfs_upload_time_seconds': 0.05456662178039551, 'index_build_time_seconds': 0.1925675868988037, 'total_time_seconds': 0.3217051029205322}
+================================================================================
+File: hospital_1_day_45.csv
+Response:
+{'data_cid': 'QmUkfEsYKWYJX1mztKYYaSTmvuUpWLND9DLizsmrVs6cLa', 'index_cids': {'PatientID': 'QmRTScNLpN56S3ADA8UzFjpaBma3eg4gzWwhkUvpFhgk1D', 'HospitalID': 'QmPwzie2W49jieJxyXf6rbx3qT9xwXodskLtsj3SHqekQA', 'Age': 'QmS9LFXFY8ZCoihC7AKhUPXseW8Kmbf2BcEACGpDPNVzca'}, 'index_sizes': {'PatientID': 1034890, 'HospitalID': 2313, 'Age': 14135}, 'parquet_time_seconds': 0.07125425338745117, 'ipfs_upload_time_seconds': 0.0552220344543457, 'index_build_time_seconds': 0.1755995750427246, 'total_time_seconds': 0.30534958839416504}
+================================================================================
+File: hospital_1_day_46.csv
+Response:
+{'data_cid': 'QmWPAtbmNjQwugDA97SP2ikMNiNq8du99hARQb8hiF4XwZ', 'index_cids': {'PatientID': 'QmQZfYc2yczK3T51vMyC9j2PmXBUmHUorgW6mvQ5avocqr', 'HospitalID': 'QmcsTPTCrh72Z92sgLohEx2UW1JjatDuA5gVs7krkg1NHt', 'Age': 'QmV4Lfik9R92DYaMxUo2y6QMfj8m1yUxunSnk4NZrQa5bf'}, 'index_sizes': {'PatientID': 1054950, 'HospitalID': 2362, 'Age': 14380}, 'parquet_time_seconds': 0.07174348831176758, 'ipfs_upload_time_seconds': 0.05351090431213379, 'index_build_time_seconds': 0.17655277252197266, 'total_time_seconds': 0.30524539947509766}
+================================================================================
+File: hospital_1_day_47.csv
+Response:
+{'data_cid': 'Qmek2dLbfoCMbDemsuQPdHmPsmsNKiX79G4VRnJTHAoVkY', 'index_cids': {'PatientID': 'QmeDnHzwmttWvGhoEehBXyiifJuiWsnv8S5hMLtMk6ttbv', 'HospitalID': 'QmVE66TaaADCDwjopo3PmyRDey9uSLudTnkZsffQ1ZS8Lq', 'Age': 'QmWhBfZuFUm4pZvw5BXqKxCZCFrF7cBBzLtWiDzYyxTQ8E'}, 'index_sizes': {'PatientID': 1075001, 'HospitalID': 2411, 'Age': 14625}, 'parquet_time_seconds': 0.07266879081726074, 'ipfs_upload_time_seconds': 0.0536808967590332, 'index_build_time_seconds': 0.1755812168121338, 'total_time_seconds': 0.30540943145751953}
+================================================================================
+File: hospital_1_day_48.csv
+Response:
+{'data_cid': 'QmVv75X1tpV53jvEZVqUpAsgrbFazuVVh4sYkBLG5Briwk', 'index_cids': {'PatientID': 'QmYS7ZRyWRUSEzdv5xQjhRRUX4WRkCSNBUL6qse9Q8tSx1', 'HospitalID': 'Qmb1xUry2SpxMELEpGkFYoWB6ie9SXZVAyy3gmtFZqxCE6', 'Age': 'QmZXtFtiTwrwdM1mXBLEwgxA3ZVbybPzxWABdfUW5eLtNJ'}, 'index_sizes': {'PatientID': 1095052, 'HospitalID': 2460, 'Age': 14870}, 'parquet_time_seconds': 0.07129406929016113, 'ipfs_upload_time_seconds': 0.0550997257232666, 'index_build_time_seconds': 0.17836737632751465, 'total_time_seconds': 0.30803632736206055}
+================================================================================
+File: hospital_1_day_49.csv
+Response:
+{'data_cid': 'QmNUNjEWXcjyQHZBQ4zQ8yHLL7ReDuX9D1Gm91HQp51Nr5', 'index_cids': {'PatientID': 'Qmak9EgAzzvZbPEcCXa1n74tqNjkGYnmMZAoa73XweHAcx', 'HospitalID': 'QmWQuvHYUR9CRGSxiYJJK3CxoYYYYW1XM9SymAUWzXiSjo', 'Age': 'QmcGLyToRXZZjVacthXZygEDHDcT7wrV5HiVWBn7rhpU1s'}, 'index_sizes': {'PatientID': 1115110, 'HospitalID': 2509, 'Age': 15115}, 'parquet_time_seconds': 0.07091045379638672, 'ipfs_upload_time_seconds': 0.053971052169799805, 'index_build_time_seconds': 0.17942261695861816, 'total_time_seconds': 0.3074071407318115}
+================================================================================
+File: hospital_1_day_50.csv
+Response:
+{'data_cid': 'QmV9B96KrgmJwg4N5wbc21ERZW9VF4sybwHASi7RyJSesC', 'index_cids': {'PatientID': 'QmeMf2PHFMCHwPXHaHvi9qXZqRmHUKa6uHZu4g7UPe9TKw', 'HospitalID': 'QmdcdJigB2CVZehLKKwrMdVMB3VS3mDSTuxHUS2PhTKnXG', 'Age': 'QmRvtDR1EFJwfWct7ZEeJELUwfTePuaBYDkgz4EuKp5HEY'}, 'index_sizes': {'PatientID': 1135161, 'HospitalID': 2558, 'Age': 15360}, 'parquet_time_seconds': 0.07153677940368652, 'ipfs_upload_time_seconds': 0.053220510482788086, 'index_build_time_seconds': 0.17754673957824707, 'total_time_seconds': 0.3053555488586426}
+================================================================================
+File: hospital_1_day_51.csv
+Response:
+{'data_cid': 'QmQMRs7fjRK8zZVmRAzhLBA9s37Rz74788xpVsfyzrzbts', 'index_cids': {'PatientID': 'QmeL4necrKDbujbmKzokJzJf4wCRSLULc7mTgEvYmJRnVA', 'HospitalID': 'QmeMbP2VySM2XnBgYgwiFRf8FyQVXo9HG1chVXL362asnn', 'Age': 'QmQvMFYKj3EbtsTx4S8ffn66dR21hiT5SER6k7yer6fpYa'}, 'index_sizes': {'PatientID': 1155210, 'HospitalID': 2607, 'Age': 15608}, 'parquet_time_seconds': 0.07123208045959473, 'ipfs_upload_time_seconds': 0.053131103515625, 'index_build_time_seconds': 0.18020892143249512, 'total_time_seconds': 0.30826711654663086}
+================================================================================
+File: hospital_1_day_52.csv
+Response:
+{'data_cid': 'QmYcTWfFcbdqPAqiXyKwbxmsAPjessYrAuoqDh1tg3LN8e', 'index_cids': {'PatientID': 'QmRTm6obRAuBYuVwQbJSUAXhT5cJxqWyULLjcZeRgLhUeR', 'HospitalID': 'QmTJDewYdYEJxNbySVvp9oahpYJoXQR4dPtfPEyC1SC16Z', 'Age': 'QmcE8Kkwh5dm8GTGnYSuqRCAuuf6m2kPB2uKtYusx1cW6Q'}, 'index_sizes': {'PatientID': 1175261, 'HospitalID': 2656, 'Age': 15853}, 'parquet_time_seconds': 0.07151937484741211, 'ipfs_upload_time_seconds': 0.051888227462768555, 'index_build_time_seconds': 0.17807412147521973, 'total_time_seconds': 0.30500221252441406}
+================================================================================
+File: hospital_1_day_53.csv
+Response:
+{'data_cid': 'QmcncMAGRKKynHnG1zciHmsDPdDxUia7VQoiWwmUAcL41i', 'index_cids': {'PatientID': 'QmUeVWHEVAFjt9eYXEYFw5HV9ns4oGAHYvUpNsezj197nv', 'HospitalID': 'QmV6ohtCWj9qvqadAYrgaGtdKms1fgU5B4QF7Q41fts7ih', 'Age': 'QmfPzoRRRUP82bUPnP4ZLPQsMtVbxFmp5yFAkP7243CHvV'}, 'index_sizes': {'PatientID': 1195321, 'HospitalID': 2705, 'Age': 16098}, 'parquet_time_seconds': 0.07165241241455078, 'ipfs_upload_time_seconds': 0.05360269546508789, 'index_build_time_seconds': 0.17927169799804688, 'total_time_seconds': 0.30800843238830566}
+================================================================================
+File: hospital_1_day_54.csv
+Response:
+{'data_cid': 'QmRBVEeyXpzGmyLzMGaMj6ma2DAWfogG7mhzkr5uZmAmy9', 'index_cids': {'PatientID': 'QmUGV9C7dcAFbdqTFRzq1U3Awc9UCCCyWUwLipDg8QUgPU', 'HospitalID': 'QmWTKSLMVYhtq8T3ZdSZcz3Q3pNjppgvxjnDzf9dyVDyPi', 'Age': 'QmTbATS7xy9zRUH5sKpZD8bfpQmbNt6MnPrdkksjEzk4e6'}, 'index_sizes': {'PatientID': 1215372, 'HospitalID': 2754, 'Age': 16343}, 'parquet_time_seconds': 0.07156729698181152, 'ipfs_upload_time_seconds': 0.05400347709655762, 'index_build_time_seconds': 0.17894220352172852, 'total_time_seconds': 0.3078632354736328}
+================================================================================
+File: hospital_1_day_55.csv
+Response:
+{'data_cid': 'QmWFqTjG5r5SYchX3XDxdmbd14HDjuPgBaeS9VtgLxBBM1', 'index_cids': {'PatientID': 'QmWs6skWNay7RuRqss2ozNbjQABMj5C9zLCVderZfwCa8Z', 'HospitalID': 'QmZQvxHbMukuDCwWX6Du3QrbvNMFSSP7rHcdd8gactiYhh', 'Age': 'QmTuxovxaBueq8UbMZrmPscSF5JENT1NR9AuLMd5oPPP9S'}, 'index_sizes': {'PatientID': 1235421, 'HospitalID': 2803, 'Age': 16588}, 'parquet_time_seconds': 0.07125997543334961, 'ipfs_upload_time_seconds': 0.05238485336303711, 'index_build_time_seconds': 0.17679786682128906, 'total_time_seconds': 0.30375075340270996}
+================================================================================
+File: hospital_1_day_56.csv
+Response:
+{'data_cid': 'Qma5JrAycJEUWXkWwFnzVx6wuPmosyzxWGgeT7NNuJXVCr', 'index_cids': {'PatientID': 'QmZWoWFZnjj9zbx8kms2YJDXWYB2mcvwMDft69pfcVy2YT', 'HospitalID': 'QmRkWAscvaqETfEXnDtSr8jTB5fntzn2hTbzrekxEr3dfa', 'Age': 'Qmb87CnsyyJrRWZNYUBmpMGKUSHoFojVQ8A2gPm5S4YWbd'}, 'index_sizes': {'PatientID': 1255479, 'HospitalID': 2852, 'Age': 16833}, 'parquet_time_seconds': 0.07184958457946777, 'ipfs_upload_time_seconds': 0.05515313148498535, 'index_build_time_seconds': 0.1784038543701172, 'total_time_seconds': 0.30878400802612305}
+================================================================================
+File: hospital_1_day_57.csv
+Response:
+{'data_cid': 'QmS8RB8DqxRbVhiFyDjSD2NrEutPV23RgTVz99j7Ebbsbw', 'index_cids': {'PatientID': 'QmfPHQJ3seUDnx2TMthgWUZv51gSYzVAU2EreiuitCHCWc', 'HospitalID': 'QmQTumeJzAx3zSYSbgS6S37ZH1aigAZFbicWUhZNqCnc6a', 'Age': 'QmfTFFFkoqBC7H1XJCNUaNYdvEmjxTE6P9TeYXr8ZH2fta'}, 'index_sizes': {'PatientID': 1275526, 'HospitalID': 2901, 'Age': 17078}, 'parquet_time_seconds': 0.07143568992614746, 'ipfs_upload_time_seconds': 0.05250096321105957, 'index_build_time_seconds': 0.1843395233154297, 'total_time_seconds': 0.3116767406463623}
+================================================================================
+File: hospital_1_day_58.csv
+Response:
+{'data_cid': 'QmV8zCGA76wKKnigyweJSTSjfKio46pPtJzxg3j62e89VZ', 'index_cids': {'PatientID': 'QmW9Q4272pmt9T8ZXPHCHYr6F1Yexv2L3ggYXStrvnRP4v', 'HospitalID': 'QmNrSXogd8qj6YD2yQ6cMuqF35YeJeaXz3okbbTKb1CGte', 'Age': 'QmYuJmgwGqa6RDoxRaAg4xceYHqeZFFHqjA9CnEtg8pjAM'}, 'index_sizes': {'PatientID': 1295577, 'HospitalID': 2950, 'Age': 17323}, 'parquet_time_seconds': 0.0719306468963623, 'ipfs_upload_time_seconds': 0.05317807197570801, 'index_build_time_seconds': 0.20348215103149414, 'total_time_seconds': 0.331920862197876}
+================================================================================
+File: hospital_1_day_59.csv
+Response:
+{'data_cid': 'QmVdBC79piwc2FBrhtUFUnQeC19ukJHAxLoL9tWYSC6DTe', 'index_cids': {'PatientID': 'QmVFYiNASTLbbZ16nX7Zvid8Ws2RPFEckQbnQJ9ZnQEDRH', 'HospitalID': 'QmT1keBAx7SHc4QcmbwmpaBYERJMtYxc3CTb2WSSSPFnbm', 'Age': 'QmbvtMSffLgF4dmKsJXvypfRGEmpyRs7ukrKCr5PUMr6YH'}, 'index_sizes': {'PatientID': 1315637, 'HospitalID': 2999, 'Age': 17568}, 'parquet_time_seconds': 0.07217550277709961, 'ipfs_upload_time_seconds': 0.053133249282836914, 'index_build_time_seconds': 0.18214797973632812, 'total_time_seconds': 0.31107592582702637}
+================================================================================
+File: hospital_1_day_60.csv
+Response:
+{'data_cid': 'QmPzYR7a2o98eYJTkq6YLYWdxcPdghT2abrwLQfym58GiC', 'index_cids': {'PatientID': 'QmTQikpNGFFmsWztYMrcn7V22nvsh3owLwxRBwjJQZbLh2', 'HospitalID': 'QmQ3LiBjvioYtWKN9KWJyRBd2LKD6H41wH7mVsXrnKWYZ6', 'Age': 'QmbnTNBQxjJs8xaHZVbrECLrDZvjk3ZMD6ZBJqTMFRK7PP'}, 'index_sizes': {'PatientID': 1335686, 'HospitalID': 3048, 'Age': 17813}, 'parquet_time_seconds': 0.07200145721435547, 'ipfs_upload_time_seconds': 0.05242204666137695, 'index_build_time_seconds': 0.18399739265441895, 'total_time_seconds': 0.3115060329437256}
+================================================================================
+File: hospital_1_day_61.csv
+Response:
+{'data_cid': 'QmUB7kmZrrozVDbua6CWm3BDnm93eiu2BrxEDbSRfKciwG', 'index_cids': {'PatientID': 'QmZYuqhkS2YMrkhdtQzwqPqeLBKyqoKvfDotxb5zMwcqsE', 'HospitalID': 'QmRSHcBxK3YzxiSuRpt2ah7Sb89bYmiN48j74ag72m1v3v', 'Age': 'QmZoowhAVpjUBQi1PTyaDuE7Acifv7CHASoJGMuH9L1eK3'}, 'index_sizes': {'PatientID': 1355737, 'HospitalID': 3097, 'Age': 18058}, 'parquet_time_seconds': 0.07147216796875, 'ipfs_upload_time_seconds': 0.05417513847351074, 'index_build_time_seconds': 0.18751907348632812, 'total_time_seconds': 0.3166837692260742}
+================================================================================
+File: hospital_1_day_62.csv
+Response:
+{'data_cid': 'Qmb7HnFAy1ZwPVwLrwcrXnTbTwr5FuMAKJ1J77VGkKeaqT', 'index_cids': {'PatientID': 'QmQJUGsNUHHox9cPgnxB8ZSVU1ddapQ479oXgrbh3nHZp3', 'HospitalID': 'QmQfanR1igScDgUqyyMBnkHU1EfSvhx3XthaWNbeozwXGf', 'Age': 'QmNMbkQ7jG1h7zKu4tazwpDc5EWmAZPKZLTm44eiH3mdBS'}, 'index_sizes': {'PatientID': 1375788, 'HospitalID': 3146, 'Age': 18303}, 'parquet_time_seconds': 0.07322001457214355, 'ipfs_upload_time_seconds': 0.05170798301696777, 'index_build_time_seconds': 0.18621373176574707, 'total_time_seconds': 0.3144869804382324}
+================================================================================
+File: hospital_1_day_63.csv
+Response:
+{'data_cid': 'QmYkFwKbRuTqaZE8tBBqxjp88cgeAaR6dYceV56yqU2JoB', 'index_cids': {'PatientID': 'QmTs58TvEY3yoJa7pQY7DP15aj9jHXWxqdQi8M4QVLhDRE', 'HospitalID': 'Qmd5GNnFuzhDrFAyL23szx9NFm2ydxkSmDkigqGFHnepjV', 'Age': 'QmdpP2ZXH9NuGipGKau9rEqWCdBANqFj6CFpaaAREsnr8T'}, 'index_sizes': {'PatientID': 1395848, 'HospitalID': 3195, 'Age': 18548}, 'parquet_time_seconds': 0.07151651382446289, 'ipfs_upload_time_seconds': 0.056357383728027344, 'index_build_time_seconds': 0.19533681869506836, 'total_time_seconds': 0.326610803604126}
+================================================================================
+File: hospital_1_day_64.csv
+Response:
+{'data_cid': 'QmYt3bz1wfgbeMxkRwyb7mJKccp2LJafprtMyZZTMUqUF7', 'index_cids': {'PatientID': 'QmYPuvK39hKN8JTrVt3uu8tgtfFXgZDb82AK9r3Pp3jXVB', 'HospitalID': 'QmVB5aTFZqsgcC2krLzJfHP9LYGw9Ko9kwe3uhVaAwhfUs', 'Age': 'QmQdTH3ZvNM1YTeFhN8qcxE86HUM9pAdHHmHp8mwmZBpMb'}, 'index_sizes': {'PatientID': 1415899, 'HospitalID': 3244, 'Age': 18793}, 'parquet_time_seconds': 0.07305264472961426, 'ipfs_upload_time_seconds': 0.05183076858520508, 'index_build_time_seconds': 0.1867356300354004, 'total_time_seconds': 0.314821720123291}
+================================================================================
+File: hospital_1_day_65.csv
+Response:
+{'data_cid': 'Qmd5NiCfErLcdUoFHSNwAjwNpHaF4kS2wRJyH2JwBskfgU', 'index_cids': {'PatientID': 'QmZKfsRCpcF4sUAzXTe3FMVkFhUf72b6cdodrG3QiPVEMq', 'HospitalID': 'QmW5R7diechb3n2x1RQHb2kZiGiGk65P85DjJFZGtK9dgf', 'Age': 'QmY4JyqU1fkZq2PdWPWpVttM8zxgkYAAwxpK8paVKnGJzW'}, 'index_sizes': {'PatientID': 1435950, 'HospitalID': 3293, 'Age': 19038}, 'parquet_time_seconds': 0.07333731651306152, 'ipfs_upload_time_seconds': 0.05389094352722168, 'index_build_time_seconds': 0.1928572654724121, 'total_time_seconds': 0.32361412048339844}
+================================================================================
+File: hospital_1_day_66.csv
+Response:
+{'data_cid': 'QmWBPrGKG81ik8G9vsUfpxKqarXtyBVSECqBTn4gojciSa', 'index_cids': {'PatientID': 'QmY29JxDia31WwguQmm8N3cScsWpsUaGEZn4M5SwGJ3FC8', 'HospitalID': 'QmeajFs7VszyFzq42uQTqbGhRKwQsgySw19e3dBSek1gfU', 'Age': 'QmYaj3BzVwMSAdCHT9kC6xaNVKVq7L1x8k4nXhX7WULEUp'}, 'index_sizes': {'PatientID': 1456010, 'HospitalID': 3342, 'Age': 19283}, 'parquet_time_seconds': 0.0725553035736084, 'ipfs_upload_time_seconds': 0.052004337310791016, 'index_build_time_seconds': 0.18826699256896973, 'total_time_seconds': 0.3162710666656494}
+================================================================================
+File: hospital_1_day_67.csv
+Response:
+{'data_cid': 'QmZ6HK9qrrd6ovjYNCHhPhhxNpoHktS4rdiubXKEVYeDsD', 'index_cids': {'PatientID': 'QmTn5VYnDKCRPdndpRTwiTVBZh7o1TBTaBiwGkuF5aqpwD', 'HospitalID': 'QmRecRTP4enRmiGz4SJW9kADZxvc2fLtp5F2G1DkHMJouL', 'Age': 'QmZ8ik9CedUbLaqCKfgWuPo5moBVWY5mceHQFk3Z7Ng6bS'}, 'index_sizes': {'PatientID': 1476061, 'HospitalID': 3391, 'Age': 19528}, 'parquet_time_seconds': 0.07217788696289062, 'ipfs_upload_time_seconds': 0.052037715911865234, 'index_build_time_seconds': 0.18610429763793945, 'total_time_seconds': 0.3139383792877197}
+================================================================================
+File: hospital_1_day_68.csv
+Response:
+{'data_cid': 'QmY6V9zg5EkV8FZRCnQY4udJgDEVrZvqy33GbojtDXwFhT', 'index_cids': {'PatientID': 'QmRmhymz18HeQ5nVdajFQpRFsJQvJVrDg1r96wctTCdfUF', 'HospitalID': 'QmfJ24dB7vnHFAz4NCdRiqhPZwSEZcpW3gA6h5Z3pTffZh', 'Age': 'QmVncHNbHAHeaSFViLNVY3zBKwhvng33WqrEAEawEA3qBf'}, 'index_sizes': {'PatientID': 1496108, 'HospitalID': 3440, 'Age': 19773}, 'parquet_time_seconds': 0.07164812088012695, 'ipfs_upload_time_seconds': 0.05327963829040527, 'index_build_time_seconds': 0.2102816104888916, 'total_time_seconds': 0.3385305404663086}
+================================================================================
+File: hospital_1_day_69.csv
+Response:
+{'data_cid': 'QmeUtsMLs5WAjBV7PhnqCDFQjMucSrJaojKYF6fxA14Gv8', 'index_cids': {'PatientID': 'QmU3oaMejMkmZcDdHu83wmWQsRENo3aca11NBw2RJvW46F', 'HospitalID': 'QmPwTzdvLdE9EYZghABYQxG5ntpC5XSAYeUJJo7L13zyXt', 'Age': 'QmeJxPrsLQMEbZ2rYQeacDj7stVrHeHppvG6ryPcLub18r'}, 'index_sizes': {'PatientID': 1516168, 'HospitalID': 3489, 'Age': 20018}, 'parquet_time_seconds': 0.07274246215820312, 'ipfs_upload_time_seconds': 0.05376386642456055, 'index_build_time_seconds': 0.19189000129699707, 'total_time_seconds': 0.3220541477203369}
+================================================================================
+File: hospital_1_day_70.csv
+Response:
+{'data_cid': 'QmWDMvNXsuFoefA4j4mKitmQxutgfCwJSYQysymYNagqYA', 'index_cids': {'PatientID': 'QmTBz1NdKJU7wxreR8NEaEa38EwczfYX6s2bdmP2HZEDh2', 'HospitalID': 'Qmbn4EuNE1YPvnbT8uaucf3B7oDpyYUxzPA98fJSSpGoNr', 'Age': 'QmTqxavYoXyEnZPK5RpZJBt5ZqfyLcAqDXmaBCqr29GCXG'}, 'index_sizes': {'PatientID': 1536219, 'HospitalID': 3538, 'Age': 20263}, 'parquet_time_seconds': 0.07187819480895996, 'ipfs_upload_time_seconds': 0.05138516426086426, 'index_build_time_seconds': 0.18447351455688477, 'total_time_seconds': 0.31142330169677734}
+================================================================================
+File: hospital_1_day_71.csv
+Response:
+{'data_cid': 'QmRScfX68mzGuke2PnbCUbEmX1BatRFtM8uJbo7LLkWG9e', 'index_cids': {'PatientID': 'QmT2h8iGreL219LSQ3hVqsiZRk1zwcuqoaewrYoV7HSKa5', 'HospitalID': 'QmVjnARMpox5D8ckUnFULfMVizkMppBpGBZuWmUC4pepzp', 'Age': 'QmcKpfhx21YxxGzMLFyVF3oSeeDBSSkD3awvr2jFzAZTBg'}, 'index_sizes': {'PatientID': 1556268, 'HospitalID': 3587, 'Age': 20508}, 'parquet_time_seconds': 0.07242393493652344, 'ipfs_upload_time_seconds': 0.05307912826538086, 'index_build_time_seconds': 0.1892712116241455, 'total_time_seconds': 0.3188791275024414}
+================================================================================
+File: hospital_1_day_72.csv
+Response:
+{'data_cid': 'QmX9Qe6XHSLJqH3oz71Yn8zZFsrkqYPrqVbKNRppu1wzyj', 'index_cids': {'PatientID': 'Qmbti86StPWtpJBkKbPyY9NTbZnUQ6EGdckHTLNmb4xBmq', 'HospitalID': 'QmUTJH6BtCbGrwjzHF5VEy1vgZinx6XrzbWBuHeQNzvY1U', 'Age': 'QmYNW5mcTU2GLviLEcYh8fuz4gvfgUNzmNWxMFGBDjFiTN'}, 'index_sizes': {'PatientID': 1576328, 'HospitalID': 3636, 'Age': 20753}, 'parquet_time_seconds': 0.07210683822631836, 'ipfs_upload_time_seconds': 0.052316904067993164, 'index_build_time_seconds': 0.19910621643066406, 'total_time_seconds': 0.32741403579711914}
+================================================================================
+File: hospital_1_day_73.csv
+Response:
+{'data_cid': 'QmaCyBeQrYT1HHBWgCTvBKPUmJFZmgMBfrTUWK2uXTaRaE', 'index_cids': {'PatientID': 'QmWikih8JsqRtMnTQNcmMzXjZQbSDpetCFxpwiSHoPPJzg', 'HospitalID': 'QmY184GSzJDKV2wa7tUrdbzJ7FeG9AmpaRfQPHwhq7bNxW', 'Age': 'Qmb7FXbjwDZHEQJPSh7q4d9HvEoBTSER8aXJLNryH7eCqN'}, 'index_sizes': {'PatientID': 1596375, 'HospitalID': 3685, 'Age': 20998}, 'parquet_time_seconds': 0.07120919227600098, 'ipfs_upload_time_seconds': 0.056508541107177734, 'index_build_time_seconds': 0.1963176727294922, 'total_time_seconds': 0.3278045654296875}
+================================================================================
+File: hospital_1_day_74.csv
+Response:
+{'data_cid': 'QmVBKjeLMrpaNWVaSui8uqnYYcL5epaUQw7WtoDtELmGnG', 'index_cids': {'PatientID': 'QmXYuc3d5LV1VXMFx1ap1rqa4EmKfwwBsKRFccXBgV75L3', 'HospitalID': 'QmdiKHKH1NitNHTsWuEar2XZcwum1YnCrZZAj4AYVzVo3x', 'Age': 'QmcVvxJyM3tkgAeudBzPeu4S4S1g1qqWBQKnh1GNto52pa'}, 'index_sizes': {'PatientID': 1616426, 'HospitalID': 3734, 'Age': 21243}, 'parquet_time_seconds': 0.0719602108001709, 'ipfs_upload_time_seconds': 0.052817583084106445, 'index_build_time_seconds': 0.19056153297424316, 'total_time_seconds': 0.31903791427612305}
+================================================================================
+File: hospital_1_day_75.csv
+Response:
+{'data_cid': 'QmWdLSEvce194paYAtX74ThhDrJdouy8JUs2DKxzXW1JmL', 'index_cids': {'PatientID': 'QmZH34t2irL2R7i6nE8hLFdoEgcPAxCre6iJjypWiqALw9', 'HospitalID': 'QmfAtvxGr4ekufvkQUTZTyEu4NjxFiJiv8nUDZH1zhLTgN', 'Age': 'QmX1MccK4zmezbp9VZXJcSkkbUuNGRAB4wG9bQL8gbxmH5'}, 'index_sizes': {'PatientID': 1636477, 'HospitalID': 3783, 'Age': 21488}, 'parquet_time_seconds': 0.07269644737243652, 'ipfs_upload_time_seconds': 0.05229020118713379, 'index_build_time_seconds': 0.1894361972808838, 'total_time_seconds': 0.318314790725708}
+================================================================================
+File: hospital_1_day_76.csv
+Response:
+{'data_cid': 'QmdXXxyJ9mnTaFPjzxCBX9ZLy3KnfhpyMpvHTMPrSmbtUE', 'index_cids': {'PatientID': 'QmfDJKSsm42tF5m8pV2FA2jpnZ3KB73HjSGc2pDf8pGfAM', 'HospitalID': 'QmYWxtjKjoE4Wh2jqauPrG6JtqEcJR1LPgmj4XozL7SqHz', 'Age': 'QmYKiT254LfRmSWmorsnXZ5a81z7KYbfsaotbGc8raWD3R'}, 'index_sizes': {'PatientID': 1656535, 'HospitalID': 3832, 'Age': 21736}, 'parquet_time_seconds': 0.07171130180358887, 'ipfs_upload_time_seconds': 0.054965972900390625, 'index_build_time_seconds': 0.18909764289855957, 'total_time_seconds': 0.3194749355316162}
+================================================================================
+File: hospital_1_day_77.csv
+Response:
+{'data_cid': 'QmPFkSASXPzQWnxvCCP3DXQDXZJRPASoL4GttoNdRZTurT', 'index_cids': {'PatientID': 'Qmb95VndotG2egxsKx6e84AEj2sLan6dLuZeJMmgSEH4ZX', 'HospitalID': 'Qmao6PraTqjmRR3oRhmLnkwLyeJ6pqYoRiNinFX2zeAPvh', 'Age': 'QmQb7k5zETtf5NVQ6uSW4UdhmKoMzsG54NdfwyZnVvUvWD'}, 'index_sizes': {'PatientID': 1676584, 'HospitalID': 3881, 'Age': 21981}, 'parquet_time_seconds': 0.07117795944213867, 'ipfs_upload_time_seconds': 0.053324222564697266, 'index_build_time_seconds': 0.1978626251220703, 'total_time_seconds': 0.32654881477355957}
+================================================================================
+File: hospital_1_day_78.csv
+Response:
+{'data_cid': 'QmbczPXTQ3MtZZNssodt4Y6nbsF6YxW7HTPCGLb6X41i44', 'index_cids': {'PatientID': 'QmYkcEz9vA5Dap9MPaHLVc7K9Kx179ugwVY1NmkrmzFvyV', 'HospitalID': 'QmVyqT2ozHK1W9ynWngFGJkHY7nawducWcdBGmAFFSd6Ny', 'Age': 'QmeYoGdZsWLoFhXzoW9UC3xfy9arNHH4Fxj1JdzVvBpG3a'}, 'index_sizes': {'PatientID': 1696633, 'HospitalID': 3930, 'Age': 22226}, 'parquet_time_seconds': 0.0724940299987793, 'ipfs_upload_time_seconds': 0.0529329776763916, 'index_build_time_seconds': 0.19168305397033691, 'total_time_seconds': 0.320972204208374}
+================================================================================
+File: hospital_1_day_79.csv
+Response:
+{'data_cid': 'QmbuAb8tGxv4Vej58Tmym4TVnQAA2Kk7fExUuzrhn9ihX7', 'index_cids': {'PatientID': 'QmbYnpMxD46v3WyyUcgWkqo1y3Pmc7Hk1JnFWRFsVCMsih', 'HospitalID': 'QmYtJkQaPS7U9HDpsdzJAYvo6TE2rNFvsFrJU9cqDHig9r', 'Age': 'QmQZjT2t82erkBvT8rxjTB2z8THzHvkGPNieCzt3Ud2XxT'}, 'index_sizes': {'PatientID': 1716693, 'HospitalID': 3979, 'Age': 22471}, 'parquet_time_seconds': 0.07163643836975098, 'ipfs_upload_time_seconds': 0.05337405204772949, 'index_build_time_seconds': 0.18970227241516113, 'total_time_seconds': 0.3185596466064453}
+================================================================================
+File: hospital_1_day_80.csv
+Response:
+{'data_cid': 'QmQSeYYL561XtZ4y6eGpj6j38fSwLmNz7w8G9ncH6AbBEs', 'index_cids': {'PatientID': 'QmTLW4np99AwChtrE2Mfm9DW1Trjwtd2JujJAxCxvksreZ', 'HospitalID': 'QmXktrBaf18eQnGYGRhTZiLQRebnWvBmaqiBYBpHC9Y7Hk', 'Age': 'QmWgnFX2xpCYbxNQnQHJ8nmZ66aVAkN4CFzcPwCbV4tgn1'}, 'index_sizes': {'PatientID': 1736744, 'HospitalID': 4028, 'Age': 22716}, 'parquet_time_seconds': 0.07207107543945312, 'ipfs_upload_time_seconds': 0.05443692207336426, 'index_build_time_seconds': 0.19269752502441406, 'total_time_seconds': 0.32251644134521484}
+================================================================================
+File: hospital_1_day_81.csv
+Response:
+{'data_cid': 'QmZpTvG8pNYJK2aDLouedpgYjMYWmqtdoYHNret6Noy2fT', 'index_cids': {'PatientID': 'QmdiBZrZAzw5PEqp8eZ97VzymFgWaxXCFgNveuwRBAfaEK', 'HospitalID': 'QmNccF4fenAU5Bt7Z8FbiBus91CnqfFp8EneULYTwqhiQz', 'Age': 'QmavYNLRbmNPuiN5NRtKdxYU6UXuBSSCWZNmCHdZtfNxje'}, 'index_sizes': {'PatientID': 1756795, 'HospitalID': 4077, 'Age': 22961}, 'parquet_time_seconds': 0.07266354560852051, 'ipfs_upload_time_seconds': 0.05233573913574219, 'index_build_time_seconds': 0.19751477241516113, 'total_time_seconds': 0.32613539695739746}
+================================================================================
+File: hospital_1_day_82.csv
+Response:
+{'data_cid': 'QmXVAeGNZZhqRUBiDCPrZpCyVzFnhk29vrfsupdozUZw95', 'index_cids': {'PatientID': 'QmXzr1BQheGEJLV4MEJDGbv2x2DqAgBhV1coKL4myosUnv', 'HospitalID': 'QmSLb1tSmHc1yQ2w3TFo19KDMBevb84wfwTtMzUzo9J7bB', 'Age': 'Qma8BsEbjwBhAqb4Sm6dNNWN38p1hVFPPa3Qv6wbX6piaZ'}, 'index_sizes': {'PatientID': 1776855, 'HospitalID': 4126, 'Age': 23206}, 'parquet_time_seconds': 0.07225227355957031, 'ipfs_upload_time_seconds': 0.05528569221496582, 'index_build_time_seconds': 0.19359707832336426, 'total_time_seconds': 0.3249385356903076}
+================================================================================
+File: hospital_1_day_83.csv
+Response:
+{'data_cid': 'QmZXt34A9tgjmHjBpuFEWFEKQngLQWmVaX6UAy7h2EgKyJ', 'index_cids': {'PatientID': 'QmUuTLWUDRoMCmPZku8XmH8Qk6X6tVkcX74G13Ug4VJpae', 'HospitalID': 'QmV2VJVrYSXjHqSkksKdZJ3qAGtQnQ1GTn7dTU16JrxFAK', 'Age': 'QmSBfJJCCT6AXTs1XCeg8yDTSarC6Hc9Do9XXjuUzfrYNT'}, 'index_sizes': {'PatientID': 1796904, 'HospitalID': 4175, 'Age': 23451}, 'parquet_time_seconds': 0.07574081420898438, 'ipfs_upload_time_seconds': 0.05256986618041992, 'index_build_time_seconds': 0.19786405563354492, 'total_time_seconds': 0.32980799674987793}
+================================================================================
+File: hospital_1_day_84.csv
+Response:
+{'data_cid': 'QmdSzZqKt3mAoG3k7yD5x3n3THgMfaagmvX2FyFH6iD9H1', 'index_cids': {'PatientID': 'QmR4oeLd25xoTkUsfQiiojnxbU3K8JZc4iKrRKRV7Z9r2u', 'HospitalID': 'QmTWSNBADRSVnvzsyRPT3oE2uN2MEULzwRRjjiFMPCmwiX', 'Age': 'QmdgGhuk7kNua6xfKpuLmsWXra1feyE1RCKZofambQtSAa'}, 'index_sizes': {'PatientID': 1816955, 'HospitalID': 4224, 'Age': 23696}, 'parquet_time_seconds': 0.07200050354003906, 'ipfs_upload_time_seconds': 0.05369257926940918, 'index_build_time_seconds': 0.19266533851623535, 'total_time_seconds': 0.3221731185913086}
+================================================================================
+File: hospital_1_day_85.csv
+Response:
+{'data_cid': 'QmV1wJXrybcgTjokEw3yAZsoEjsu1cF9N86npr6J9B2uDz', 'index_cids': {'PatientID': 'QmYnmvmTwV99DxNijtR5iXbRWg2cvjrWGAKyFJ1VU9J3Lm', 'HospitalID': 'QmSm2zoHJNKr6ZBkDqBm8ZnUWAqbuhdh9SEEhjsUkQXbYU', 'Age': 'QmPWCzQzh86WTvghKNpnUoyMtez2rpEF5f3CFHWr5H68Zi'}, 'index_sizes': {'PatientID': 1837015, 'HospitalID': 4273, 'Age': 23941}, 'parquet_time_seconds': 0.07391119003295898, 'ipfs_upload_time_seconds': 0.05768179893493652, 'index_build_time_seconds': 0.20078420639038086, 'total_time_seconds': 0.33624696731567383}
+================================================================================
+File: hospital_1_day_86.csv
+Response:
+{'data_cid': 'QmNx3AiHrPffzHoUHFiYhAsBYjhoKvoV2jSX2pF8T1k7bg', 'index_cids': {'PatientID': 'QmafFPHBuin3Sp9v6o2d1ibwzy1Gj5zJT9jiuo57w5XYMN', 'HospitalID': 'QmTH75rLxjHVsr5EoBUJwMxko9LdiWv4gsVyt5dFCSwLEM', 'Age': 'QmdMJGHBDRBB1X6rHHv8tVPctWy8K3wMWkt9sFez8VTEAC'}, 'index_sizes': {'PatientID': 1857066, 'HospitalID': 4322, 'Age': 24186}, 'parquet_time_seconds': 0.07355213165283203, 'ipfs_upload_time_seconds': 0.05646777153015137, 'index_build_time_seconds': 0.19643807411193848, 'total_time_seconds': 0.33028125762939453}
+================================================================================
+File: hospital_1_day_87.csv
+Response:
+{'data_cid': 'QmXNhsU3yvBkHmWRGYWPt2EFjbzLeaefgzNNqKB1UmXXmT', 'index_cids': {'PatientID': 'QmSk5QbTLoibsa4z4Lx1RhX52MNqYHcd4Rqxupz981Xqg2', 'HospitalID': 'QmcXPqPyoJLPZEqB7vZfi15LPPZoRPADFLd8AGxR2dWhSk', 'Age': 'QmVbcJC9hoqkZZ7qRtgafpwoFB1RBFd2j5VMUB5Cx8KP69'}, 'index_sizes': {'PatientID': 1877117, 'HospitalID': 4371, 'Age': 24431}, 'parquet_time_seconds': 0.07233214378356934, 'ipfs_upload_time_seconds': 0.055103302001953125, 'index_build_time_seconds': 0.19745826721191406, 'total_time_seconds': 0.32887721061706543}
+================================================================================
+File: hospital_1_day_88.csv
+Response:
+{'data_cid': 'QmZHr9qpbDFreqVd5bfAUsj4cdcAqryMWViWtTAJMKjzLK', 'index_cids': {'PatientID': 'Qmes2HpWv8FaaUtaxb4ADay62BNJrpbxZTHoLRbeWtnTbB', 'HospitalID': 'QmPTZT4QNqM2we1YM8oAtqFjSs5sk3y7acD5e53BYowMMs', 'Age': 'QmZJNZDdcMJnVAX6k8VGj5AdwR5qskrJM6TBpesbyfWHMp'}, 'index_sizes': {'PatientID': 1897166, 'HospitalID': 4420, 'Age': 24676}, 'parquet_time_seconds': 0.07360053062438965, 'ipfs_upload_time_seconds': 0.05280900001525879, 'index_build_time_seconds': 0.22243452072143555, 'total_time_seconds': 0.3525872230529785}
+================================================================================
+File: hospital_1_day_89.csv
+Response:
+{'data_cid': 'QmcW2ZLs2cubFPTKmna4c9E6AJGe4jJ4exSsNUYEXQAuE5', 'index_cids': {'PatientID': 'Qmf4gVaHAgpNvjXMwECtEUwkg2tzSKtyEbuzm2bjbnKJxi', 'HospitalID': 'QmUzBvzizNoEaTCssaAKe4Anx7AGk3J4ySafNHj3x61dqU', 'Age': 'QmT76t42HutiThtVV8oWeUbpTa91CdKZRzFTkZ3QLvDX7H'}, 'index_sizes': {'PatientID': 1917226, 'HospitalID': 4469, 'Age': 24921}, 'parquet_time_seconds': 0.07193970680236816, 'ipfs_upload_time_seconds': 0.05351424217224121, 'index_build_time_seconds': 0.20304274559020996, 'total_time_seconds': 0.3325796127319336}
+================================================================================
+File: hospital_1_day_90.csv
+Response:
+{'data_cid': 'QmU34KCxZQ1cNenJZPtFM9TV2CgUUhhUp2dATgEXynVZd1', 'index_cids': {'PatientID': 'QmUzLusEkFnDbCa2MzFie8hD7Q2WxyY3mWUC6rLV5H2bkD', 'HospitalID': 'QmVcNTiWgF7Psmz3NpFWeVReHTxhpFGTVibDx8urWY2MFy', 'Age': 'Qmadcvoi9piJ62HPfdag1PEYoQu9rTjx4VqDGn94HypvG8'}, 'index_sizes': {'PatientID': 1937277, 'HospitalID': 4518, 'Age': 25166}, 'parquet_time_seconds': 0.07149100303649902, 'ipfs_upload_time_seconds': 0.05258297920227051, 'index_build_time_seconds': 0.19649124145507812, 'total_time_seconds': 0.32428574562072754}
+================================================================================
+File: hospital_1_day_91.csv
+Response:
+{'data_cid': 'QmXdf3qUb8CJCrNAStoBv6xKykk9epsMaUYpQEryL3Fp9n', 'index_cids': {'PatientID': 'QmWkFrGCoGniJcxwqFocgPAQpruPXiCcyUUBYrA9mSVYoy', 'HospitalID': 'QmYwfpCK8JYiidNbHV3Yg8KazrpoxgdisYQ5bqB4SqoDhb', 'Age': 'Qmbio5p7Dj39NuGPGjYnr6EzzLaXvcBqswN3kQRiSwqf1v'}, 'index_sizes': {'PatientID': 1957328, 'HospitalID': 4567, 'Age': 25411}, 'parquet_time_seconds': 0.09574055671691895, 'ipfs_upload_time_seconds': 0.05230140686035156, 'index_build_time_seconds': 0.21826696395874023, 'total_time_seconds': 0.36980366706848145}
+================================================================================
+File: hospital_1_day_92.csv
+Response:
+{'data_cid': 'QmVgih5rrwH6T15YDB1pvVYzgjoVevMsEQfy8VdzTdkd3N', 'index_cids': {'PatientID': 'QmZ7nE83WauSgYCfuG8oorKU31ds2E2xnHn1AbWEGZnwGz', 'HospitalID': 'QmQyDKrmYru4EKRgH5x5thgjm4M5rPjf4FYzhrtc8MQdQ6', 'Age': 'QmaMiMNhNzR2AgyZqNjGR6jy4LgQAbSmyQXxN8hC1DdB2D'}, 'index_sizes': {'PatientID': 1977388, 'HospitalID': 4616, 'Age': 25656}, 'parquet_time_seconds': 0.07192134857177734, 'ipfs_upload_time_seconds': 0.053658485412597656, 'index_build_time_seconds': 0.19890284538269043, 'total_time_seconds': 0.32821178436279297}
+================================================================================
+File: hospital_1_day_93.csv
+Response:
+{'data_cid': 'QmVFEGYUgXJEYJhjddKmv44AkrBMgQdriwq3x2eGqheeB4', 'index_cids': {'PatientID': 'QmU4JeGBUxo1dMoohmbdRiKBENkeNcKS7VtFmX1S7y4iWX', 'HospitalID': 'QmNWPF7Wr78xLciokDu5VmSjf9tSYf3bsnbWqqTEYqYoib', 'Age': 'QmY997Hk6Q4GCGN1CqAxom1G3RPhVx2S9npsWrRRj4QaT5'}, 'index_sizes': {'PatientID': 1997439, 'HospitalID': 4665, 'Age': 25901}, 'parquet_time_seconds': 0.07266569137573242, 'ipfs_upload_time_seconds': 0.05394768714904785, 'index_build_time_seconds': 0.20433592796325684, 'total_time_seconds': 0.3350865840911865}
+================================================================================
+File: hospital_1_day_94.csv
+Response:
+{'data_cid': 'Qmc9knJDpmrRj21PHsQ38bsfF81pBJWBWtBFcbxFdesEww', 'index_cids': {'PatientID': 'Qmag2p9fxuTPKtDUzcS2r4pNwgnZ8hJT3FegsHEoCrQDJJ', 'HospitalID': 'QmXRhhv7mNqNBva31xYwBtTNxHM8bwEYzCvK5QD41Kqvcv', 'Age': 'QmfHNRpRxb3X597Kid33HpdvHJxBQ8djkk1eqtAQ9Bj5fK'}, 'index_sizes': {'PatientID': 2017490, 'HospitalID': 4714, 'Age': 26146}, 'parquet_time_seconds': 0.07366204261779785, 'ipfs_upload_time_seconds': 0.05527925491333008, 'index_build_time_seconds': 0.20064711570739746, 'total_time_seconds': 0.3332083225250244}
+================================================================================
+File: hospital_1_day_95.csv
+Response:
+{'data_cid': 'QmdVCmsBLiJRmqPRDjFPM65Nz1PmTdQPZsmi5GYH33ptao', 'index_cids': {'PatientID': 'QmPUDuYUytwD9NTQeicpm78uoktCftNnNNfU8UV7rvfZZU', 'HospitalID': 'QmSehMi3kdyHt9saPVwASGppfxLxQn3Sudi4iNRVziAiBF', 'Age': 'Qmakmigqs3kDAEEVLFzH6BHg211Hmb9NTgns7EaVfEuCab'}, 'index_sizes': {'PatientID': 2037550, 'HospitalID': 4763, 'Age': 26391}, 'parquet_time_seconds': 0.07191848754882812, 'ipfs_upload_time_seconds': 0.05310845375061035, 'index_build_time_seconds': 0.20034480094909668, 'total_time_seconds': 0.32915830612182617}
+================================================================================
+File: hospital_1_day_96.csv
+Response:
+{'data_cid': 'Qma3t5a7xbmXAU35UCTNZd3k5GFwmknGSBge5TGB4hBsoL', 'index_cids': {'PatientID': 'QmRw9TSxAuZE2qmiA4TPi9xUmMsLdytaSECdUdjMcB5LT8', 'HospitalID': 'QmU6VGHUZWNctdyWoA8HrcQbRPEeVkVSy2TSqKrhpSkwrK', 'Age': 'QmYsfMjjZaepRmwwA911pR5bbrq9Z2wXKJNrES9XNY6ADf'}, 'index_sizes': {'PatientID': 2057601, 'HospitalID': 4812, 'Age': 26636}, 'parquet_time_seconds': 0.07325387001037598, 'ipfs_upload_time_seconds': 0.05107235908508301, 'index_build_time_seconds': 0.20121240615844727, 'total_time_seconds': 0.3291785717010498}
+================================================================================
+File: hospital_1_day_97.csv
+Response:
+{'data_cid': 'QmNnZtokzYz241rgv5XaPYb4aUCy8Tn1so73yiEkdVc6cK', 'index_cids': {'PatientID': 'QmdT8ajhgM8FkYKdwX9Z9xA2dFo4qvthHzjphmoVFcrXF3', 'HospitalID': 'QmdXuYj1MELvJC43qcE66cTE3kGPigy1eU5WmvNVNd87p9', 'Age': 'QmUzkvRyGAm8dcUiHhvzBEFzCxcrisrxZmcDMXD4f9NzS6'}, 'index_sizes': {'PatientID': 2077650, 'HospitalID': 4861, 'Age': 26881}, 'parquet_time_seconds': 0.07339191436767578, 'ipfs_upload_time_seconds': 0.05382800102233887, 'index_build_time_seconds': 0.2157132625579834, 'total_time_seconds': 0.3465695381164551}
+================================================================================
+File: hospital_1_day_98.csv
+Response:
+{'data_cid': 'QmdgDpFw85ZiDjsnkFrAHpVNpC1pbEXM7d9otEMo8T94yk', 'index_cids': {'PatientID': 'QmPTcVrhHMVdcxo6FLeZFDVskF6qtdm8RGUYmQkMfn92BP', 'HospitalID': 'QmWqjStHrQ5pSrVgRRLTb4oeX7Fh5sU5tu2nD73PT3TmQe', 'Age': 'QmSJRz1jVAPjAW1QrZJnXgFGrqDgUb1zak4Saq7T5Bdm26'}, 'index_sizes': {'PatientID': 2097708, 'HospitalID': 4910, 'Age': 27126}, 'parquet_time_seconds': 0.07233190536499023, 'ipfs_upload_time_seconds': 0.05456185340881348, 'index_build_time_seconds': 0.20900774002075195, 'total_time_seconds': 0.33963966369628906}
+================================================================================
+File: hospital_1_day_99.csv
+Response:
+{'data_cid': 'QmWFkdsD2j6LqqjZ2bqVAsgRzeVohdcoVzKprZG4sbAQ6g', 'index_cids': {'PatientID': 'QmSPK5pyx8zpMTKZNkWC1Ko3zdbFMmxNv9N7E2rnH3R6sh', 'HospitalID': 'QmTBENAaDd1KRc9pdNntEsrHrPUocYFbTbMeTCgxacoma9', 'Age': 'QmY313d8PnHrzaqTE2WKNjaP4FSU7YUBQXbaYGb3NeLbcD'}, 'index_sizes': {'PatientID': 2117769, 'HospitalID': 4959, 'Age': 27371}, 'parquet_time_seconds': 0.07156109809875488, 'ipfs_upload_time_seconds': 0.05264592170715332, 'index_build_time_seconds': 0.20478296279907227, 'total_time_seconds': 0.3322744369506836}
+================================================================================
+File: hospital_1_day_100.csv
+Response:
+{'data_cid': 'QmWbfC7vGvGR84oxznxU1LmYW75AcjpxeqbqC1X9njBhVo', 'index_cids': {'PatientID': 'QmWiKuSkP6ViX6zkBRj48NAkXP7KToqpZjX1mvnVDviQRT', 'HospitalID': 'QmNsiPUmjx586xzXfmXcBoyn1KFSaA62StXC7dFR5GL5k5', 'Age': 'QmVi8U61qkSYgqGAPKEcy9Vdno1Lo9kA5FCauZtWrAYNc7'}, 'index_sizes': {'PatientID': 2137818, 'HospitalID': 5008, 'Age': 27616}, 'parquet_time_seconds': 0.07397150993347168, 'ipfs_upload_time_seconds': 0.05307340621948242, 'index_build_time_seconds': 0.2045459747314453, 'total_time_seconds': 0.3351752758026123}
+================================================================================

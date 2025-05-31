@@ -11,7 +11,7 @@ fake = Faker()
 # Constants
 OUTPUT_DIR = '../dataset'
 N_ROWS_PER_DAY = 100000
-N_HOSPITALS = 10
+N_HOSPITALS = 1
 N_DAYS = 1
 
 # Utility functions

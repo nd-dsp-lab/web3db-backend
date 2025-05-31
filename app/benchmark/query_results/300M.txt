@@ -1,0 +1,29 @@
+Without
+{
+  "cids": 2986,
+  "records": 1,
+  "results": [
+    {
+      "count(1)": 298600000
+    }
+  ],
+  "idx_retrieve_time_seconds": 1.012404680252075195,
+  "idx_query_time_seconds": 0.004016876220703125,
+  "cid_retrieve_time_seconds": 13.593371391296387,
+  "query_execution_time_seconds": 16.883683443069458
+}
+
+With
+{
+  "cids": 1,
+  "records": 1,
+  "results": [
+    {
+      "count(1)": 9
+    }
+  ],
+  "idx_retrieve_time_seconds": 1.0921807289123535,
+  "idx_query_time_seconds": 0.0000629425048828125,
+  "cid_retrieve_time_seconds": 0.006615161895751953,
+  "query_execution_time_seconds": 1.158400297164917
+}

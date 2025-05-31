@@ -1,0 +1,34 @@
+{
+  "index_attribute": "PatientID",
+  "query": "select count(*) from patient_data where PatientID = 10788"
+}
+
+Without index
+{
+  "cids": 2000,
+  "records": 1,
+  "results": [
+    {
+      "count(1)": 9
+    }
+  ],
+  "idx_retrieve_time_seconds": 0.013161182403564453,
+  "idx_query_time_seconds": 0.0020987987518310547,
+  "cid_retrieve_time_seconds": 9.061759948730469,
+  "query_execution_time_seconds": 11.82464051246643
+}
+
+With index
+{
+  "cids": 1,
+  "records": 1,
+  "results": [
+    {
+      "count(1)": 9
+    }
+  ],
+  "idx_retrieve_time_seconds": 0.5605940818786621,
+  "idx_query_time_seconds": 0.00003910064697265625,
+  "cid_retrieve_time_seconds": 0.006297588348388672,
+  "query_execution_time_seconds": 0.6366336345672607
+}

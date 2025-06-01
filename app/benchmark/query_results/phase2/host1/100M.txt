@@ -41,6 +41,61 @@
   "cid_retrieve_time_seconds": 0.4796335697174072,
   "query_execution_time_seconds": 1.0203912258148193
 }
+host 1
+{
+  "cids": 100,
+  "records": 1,
+  "results": [
+    {
+      "count(1)": 100
+    }
+  ],
+  "idx_retrieve_time_seconds": 0.2382957935333252,
+  "idx_query_time_seconds": 0.0001926422119140625,
+  "cid_retrieve_time_seconds": 0.49131226539611816,
+  "query_execution_time_seconds": 3.745072841644287
+}
+{
+  "cids": 100,
+  "records": 1,
+  "results": [
+    {
+      "count(1)": 100
+    }
+  ],
+  "idx_retrieve_time_seconds": 0.23990106582641602,
+  "idx_query_time_seconds": 0.0000457763671875,
+  "cid_retrieve_time_seconds": 0.42897915840148926,
+  "query_execution_time_seconds": 1.0958333015441895
+}
+host 2
+{
+  "cids": 100,
+  "records": 1,
+  "results": [
+    {
+      "count(1)": 100
+    }
+  ],
+  "idx_retrieve_time_seconds": 0.23398709297180176,
+  "idx_query_time_seconds": 0.0001838207244873047,
+  "cid_retrieve_time_seconds": 1.99314284324646,
+  "query_execution_time_seconds": 5.1522300243377686
+}
+
+{
+  "cids": 100,
+  "records": 1,
+  "results": [
+    {
+      "count(1)": 100
+    }
+  ],
+  "idx_retrieve_time_seconds": 0.2617318630218506,
+  "idx_query_time_seconds": 0.00004363059997558594,
+  "cid_retrieve_time_seconds": 0.4023587703704834,
+  "query_execution_time_seconds": 1.0655672550201416
+}
 *****************************75-25**************************
 ******************
 {

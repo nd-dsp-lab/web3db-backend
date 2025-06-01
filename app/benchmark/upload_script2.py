@@ -5,6 +5,7 @@ import time
 
 # Constants
 API_URL = "http://129.74.152.201:8000/upload/patient-data"
+# API_URL = "http://129.74.155.150:8001/upload/patient-data"
 BASE_DIR = os.path.dirname(__file__)
 DATASET_DIR = os.path.join(BASE_DIR, "../dataset")
 RESPONSE_DIR = os.path.join(BASE_DIR, "../benchmark/upload_response")

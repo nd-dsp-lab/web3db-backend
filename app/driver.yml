@@ -1,5 +1,3 @@
-# should be run on machine with public ip
-
 services:
   # FastAPI Driver Server (Spark Driver)
   fastapi:
@@ -9,31 +7,55 @@ services:
     environment:
       - SPARK_MASTER=spark://${SPARK_MASTER_HOST}:7077
       - SPARK_DRIVER_HOST=${SPARK_DRIVER_HOST}
-    # ports:
-    #   - "8000:8000" # FastAPI server port
-    #   - "10025:10025" # Spark Blockmanager Port
-    #   - "10026:10026" # Spark Driver-Blockmanager Port
-    #   - "10027:10027" # Spark Driver-Executor Port
+      - IPFS_API=http://localhost:5001  # Since both use host network
     volumes:
       - fastapi-temp:/data/chunks
-    # networks:
-    #   - app-net
 
   ipfs:
-    image: ipfs/kubo:latest
-    networks:
-      - app-net
-    container_name: ipfs-test
-    ports:
-      - "4001:4001"
-      - "5001:5001"
-      - "8082:8080" # Or another available port
+    image: ipfs/go-ipfs:latest
+    container_name: ipfs-public
+    restart: unless-stopped
     volumes:
       - ./data/ipfs:/data/ipfs
+    network_mode: host
+    environment:
+      - IPFS_PROFILE=server  # Optimized for server use
+      - IPFS_PATH=/data/ipfs
+    entrypoint: |
+      sh -c "
+        # Configure IPFS for public access
+        ipfs init --profile server || true && \
 
-networks:
-  app-net:
-    driver: bridge
+        # API - bind to localhost only for security
+        ipfs config Addresses.API /ip4/127.0.0.1/tcp/5001 && \
+
+        # Gateway - public read access
+        ipfs config Addresses.Gateway /ip4/0.0.0.0/tcp/8082 && \
+
+        # Swarm - public connectivity
+        ipfs config --json Addresses.Swarm '[
+          \"/ip4/0.0.0.0/tcp/4001\",
+          \"/ip6/::/tcp/4001\",
+          \"/ip4/0.0.0.0/udp/4001/quic\",
+          \"/ip6/::/udp/4001/quic\"
+        ]' && \
+
+        # Enable public gateway features
+        ipfs config --json Gateway.PublicGateways '{
+          \"localhost\": {
+            \"UseSubdomains\": false,
+            \"Paths\": [\"/ipfs\", \"/ipns\"]
+          }
+        }' && \
+
+        # Announce public IP (replace with your actual public IP)
+        ipfs config --json Addresses.Announce '[
+          \"/ip4/${PUBLIC_IP}/tcp/4001\"
+        ]' && \
+
+        # Start daemon
+        ipfs daemon --migrate --enable-gc --routing=dhtserver
+      "
+
 volumes:
   fastapi-temp:
-  ipfs_data:

@@ -1,0 +1,49 @@
+services:
+  ipfs:
+    image: ipfs/go-ipfs:latest
+    container_name: ipfs-public
+    restart: unless-stopped
+    volumes:
+      - ./data/ipfs:/data/ipfs
+    network_mode: host
+    environment:
+      - IPFS_PROFILE=server  # Optimized for server use
+      - IPFS_PATH=/data/ipfs
+    entrypoint: |
+      sh -c "
+        # Configure IPFS for public access
+        ipfs init --profile server || true && \
+
+        # API - bind to localhost only for security
+        ipfs config Addresses.API /ip4/127.0.0.1/tcp/5001 && \
+
+        # Gateway - public read access
+        ipfs config Addresses.Gateway /ip4/0.0.0.0/tcp/8082 && \
+
+        # Swarm - public connectivity
+        ipfs config --json Addresses.Swarm '[
+          \"/ip4/0.0.0.0/tcp/4001\",
+          \"/ip6/::/tcp/4001\",
+          \"/ip4/0.0.0.0/udp/4001/quic\",
+          \"/ip6/::/udp/4001/quic\"
+        ]' && \
+
+        # Enable public gateway features
+        ipfs config --json Gateway.PublicGateways '{
+          \"localhost\": {
+            \"UseSubdomains\": false,
+            \"Paths\": [\"/ipfs\", \"/ipns\"]
+          }
+        }' && \
+
+        # Announce public IP (replace with your actual public IP)
+        ipfs config --json Addresses.Announce '[
+          \"/ip4/129.74.155.237/tcp/4001\"
+        ]' && \
+
+        # Start daemon
+        ipfs daemon --migrate --enable-gc --routing=dhtserver
+      "
+
+volumes:
+  fastapi-temp:

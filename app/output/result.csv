@@ -1,2 +1,2 @@
 PatientID,Name,Age,Gender,BloodType,Condition,VisitDate,Doctor,HospitalID,Prescription,DiagnosisReport
-6310,Jennifer Perez,73,F,A-,Hypertension,2025-05-01,Dr. Rowe,HOSP1,Lisinopril,"BP elevated, monitor regularly"
+10100,Kimberly Evans,23,M,AB+,Heart Failure,2025-05-01,Dr. Ross,HOSP1,Furosemide,"Fluid overload, adjust diuretic"

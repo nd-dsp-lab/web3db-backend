@@ -1,0 +1,9 @@
+Index retrieved in 0.504933 seconds
+Index query took 0.000393 seconds
+1 CIDs found for query
+Fetching data from IPFS CID: QmQYyiuvKvUUV9o4vM6zALDWHgbqYuPc86aBjHF7r4suLh
+Data fetched from IPFS in 0.015936 seconds
+Data written to temp file in 0.013426 seconds
+DuckDB connection established in 0.801725 seconds
+Query executed in 0.010146 seconds
+Total execution time: 1.346663 seconds

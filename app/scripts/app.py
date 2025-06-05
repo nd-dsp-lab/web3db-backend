@@ -50,7 +50,7 @@ def query_index(index, query, attr) -> List[str]:
 # Get the script's directory
 script_dir = os.path.dirname(os.path.abspath(__file__))
 query = "SELECT count(*) FROM read_parquet('/tmp/temp_data.parquet') WHERE PatientID = '10501'"
-index_cid = "QmP7MEMNmCtkmJAVGWz11p5L8Dzm1C8wEXSPzgDAujq7yF"
+index_cid = "QmdGsKvk6f5zG9ayFA4FQ7aWEhcRxNM8W4TpQheBNWY59C"
 def printtime(message):
     print(message)
 

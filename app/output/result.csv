@@ -1,2 +1,2 @@
-PatientID,Name,Age,Gender,BloodType,Condition,VisitDate,Doctor,HospitalID,Prescription,DiagnosisReport
-10100,Kimberly Evans,23,M,AB+,Heart Failure,2025-05-01,Dr. Ross,HOSP1,Furosemide,"Fluid overload, adjust diuretic"
+count_star()
+1

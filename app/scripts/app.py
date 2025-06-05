@@ -39,7 +39,7 @@ conn = duckdb.connect(':memory:', config={'threads': 1})
 printtime(f"DuckDB connection established in {time.time() - duckdb_time_start:.2f} seconds")
 
 # Execute query directly on parquet file
-query = "SELECT * FROM read_parquet('/tmp/temp_data.parquet') WHERE PatientID = '10100'"
+query = "SELECT count(*) FROM read_parquet('/tmp/temp_data.parquet') WHERE PatientID = '10100'"
 query_start = time.time()
 result = conn.execute(query).fetchdf()
 printtime(f"Query executed in {time.time() - query_start:.2f} seconds")

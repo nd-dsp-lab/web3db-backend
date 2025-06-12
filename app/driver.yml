@@ -5,8 +5,6 @@ services:
     container_name: fastapi-driver
     network_mode: host
     environment:
-      - SPARK_MASTER=spark://${SPARK_MASTER_HOST}:7077
-      - SPARK_DRIVER_HOST=${SPARK_DRIVER_HOST}
       - IPFS_API=http://localhost:5001  # Since both use host network
     volumes:
       - fastapi-temp:/data/chunks

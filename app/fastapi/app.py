@@ -9,10 +9,10 @@ import requests
 import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
+import duckdb
 from typing import List
 from fastapi import FastAPI, UploadFile, File
 from pydantic import BaseModel
-from pyspark.sql import SparkSession
 import concurrent.futures
 from cidindex import CIDIndex
 
@@ -37,17 +37,12 @@ app.state.index_cids = {
     'Age': None,
 }
 app.state.index_sizes = {}
-# Initialize Spark session in local mode
-logger.info("Initializing Spark Session")
-spark = (
-    SparkSession.builder.appName("FastAPISparkDriver")
-    .master("local[*]")  # Must be local to access /tmp paths reliably
-    .config("spark.python.worker.reuse", "true")
-    .config("spark.pyspark.python", "/usr/bin/python3")
-    .config("spark.pyspark.driver.python", "/usr/bin/python3")
-    .getOrCreate()
-)
-logger.info(f"Spark Session created: {spark.sparkContext.appName}")
+
+# Initialize DuckDB connection
+logger.info("Initializing DuckDB Connection")
+# Use in-memory database for better performance
+duckdb_conn = duckdb.connect(':memory:')
+logger.info("DuckDB Connection created")
 
 @app.post("/upload/patient-data")
 async def upload_patient_data(file: UploadFile = File(...)):
@@ -74,7 +69,7 @@ async def upload_patient_data(file: UploadFile = File(...)):
         data_cid = resp.json()["Hash"]
         buffer.close()
         del df 
-        
+
         # Build/update index
         idx_start = time.time()
         for attr, values in indexed_values.items():
@@ -144,16 +139,38 @@ async def query_distributed(request: QueryRequest):
     if not paths:
         return {"error": "No valid Parquet files retrieved"}
 
-    # Apply Spark SQL directly on those Parquet files
+    # Apply DuckDB SQL directly on those Parquet files
     try:
-        df = spark.read.option("mergeSchema", "false").parquet(*paths)
-        df.createOrReplaceTempView("patient_data")
-        result_df = spark.sql(request.query)
-        results = [row.asDict() for row in result_df.collect()]
+        # Create a temporary view from multiple Parquet files
+        # DuckDB can read multiple Parquet files using glob patterns or explicit paths
+        if len(paths) == 1:
+            query_with_table = request.query.replace("patient_data", f"'{paths[0]}'")
+        else:
+            # For multiple files, use UNION ALL
+            parquet_refs = [f"SELECT * FROM '{path}'" for path in paths]
+            union_query = " UNION ALL ".join(parquet_refs)
+            duckdb_conn.execute(f"CREATE OR REPLACE VIEW patient_data AS {union_query}")
+            query_with_table = request.query
+
+        # Execute the query
+        result = duckdb_conn.execute(query_with_table)
+
+        # Fetch all results and convert to list of dictionaries
+        columns = [desc[0] for desc in result.description]
+        rows = result.fetchall()
+        results = [dict(zip(columns, row)) for row in rows]
+
     except Exception as e:
         logger.error(f"Query error: {e}")
         return {"error": str(e)}
     finally:
+        # Clean up temporary view if created
+        try:
+            duckdb_conn.execute("DROP VIEW IF EXISTS patient_data")
+        except:
+            pass
+
+        # Delete temporary files
         for p in paths:
             try:
                 os.remove(p)
@@ -313,3 +330,9 @@ async def get_index_cids():
     except Exception as e:
         logger.error(f"Error retrieving index CIDs: {e}")
         return {"status": "error", "message": str(e)}
+
+# Cleanup on shutdown
+@app.on_event("shutdown")
+def shutdown_event():
+    logger.info("Closing DuckDB connection")
+    duckdb_conn.close()

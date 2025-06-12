@@ -1,0 +1,16 @@
+{
+  "cids": 1,
+  "records": 1,
+  "results": [
+    {
+      "count_star()": 1
+    }
+  ],
+  "idx_fetch_time_seconds": 0.10244178771972656,
+  "idx_decrypt_time_seconds": 0.0622866153717041,
+  "idx_query_time_seconds": 0.00013399124145507812,
+  "cid_retrieve_time_seconds": 0.014533042907714844,
+  "data_decrypt_time_seconds": 0.002028942108154297,
+  "total_cid_processing_time_seconds": 0.020290136337280273,
+  "query_execution_time_seconds": 0.4087710380554199
+}

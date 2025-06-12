@@ -61,7 +61,7 @@ docker-compose.override.yml
 *.db
 *.sqlite3
 data/
-
+/app/dataset/
 # IPFS
 .ipfs/
 ipfs_data/

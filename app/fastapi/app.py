@@ -154,25 +154,27 @@ async def upload_patient_data(file: UploadFile = File(...)):
         buffer.close()
         del df 
 
-        # Build/update index
+        # Build/update encrypted indexes with timing
         idx_start = time.time()
+        total_index_encrypt_time = 0
+        total_index_upload_time = 0
+
         for attr, values in indexed_values.items():
             data_to_add = [(v, data_cid) for v in values]
-            existing_index = retrieve_index(attr)
+            existing_index = retrieve_index(attr)  # This now handles decryption
             if existing_index:
                 existing_index.update(data_to_add)
                 index = existing_index
             else:
                 index = CIDIndex(data=data_to_add)
-            serialized = index.dump()
-            serialized.seek(0, io.SEEK_END)
-            index_size_bytes = serialized.tell()
-            serialized.seek(0)
-            app.state.index_sizes[attr] = index_size_bytes
-            resp = requests.post(ipfs_api, files={"file": (f"{attr}_index", serialized)})
-            resp.raise_for_status()
-            app.state.index_cids[attr] = resp.json()["Hash"]
-            serialized.close()
+
+            # Upload encrypted index with timing
+            index_cid, encrypt_time, upload_time = upload_encrypted_index(index, attr)
+            app.state.index_cids[attr] = index_cid
+            total_index_encrypt_time += encrypt_time
+            total_index_upload_time += upload_time
+            logger.info(f"Uploaded encrypted index for {attr}: {index_cid}")
+
         idx_end = time.time()
         time_end = time.time()
         gc.collect()
@@ -181,8 +183,10 @@ async def upload_patient_data(file: UploadFile = File(...)):
             "index_cids": app.state.index_cids,
             "index_sizes": app.state.index_sizes,
             "parquet_time_seconds": parquet_time_end - parquet_time_start,
-            "encryption_time_seconds": encryption_end - encryption_start,
+            "data_encryption_time_seconds": encryption_end - encryption_start,
             "ipfs_upload_time_seconds": ipfs_upload_end - ipfs_upload_start,
+            "index_encryption_time_seconds": total_index_encrypt_time,
+            "index_upload_time_seconds": total_index_upload_time,
             "index_build_time_seconds": idx_end - idx_start,
             "total_time_seconds": time_end - time_start
         }
@@ -192,6 +196,7 @@ async def upload_patient_data(file: UploadFile = File(...)):
         gc.collect()
         return {"error": str(e)}
 
+
 class QueryRequest(BaseModel):
     index_attribute: str = 'PatientID'
     query: str = "select * from patient_data where PatientID = 'X'"
@@ -200,14 +205,17 @@ class QueryRequest(BaseModel):
 async def query_distributed(request: QueryRequest):
     logger.info("POST /query - Processing distributed query")
     query_start_time = time.time()
-    idx_retrieve_start = time.time()
-    index = retrieve_index(request.index_attribute)
-    idx_retrieve_end = time.time()
+
+    # Retrieve and decrypt index with timing
+    index, idx_fetch_time, idx_decrypt_time = retrieve_index_with_timing(request.index_attribute)
+
     if not index:
         return {"error": f"Index for {request.index_attribute} not found"}
+
     idx_query_time_start = time.time()
     cids = query_index(index, request.query, request.index_attribute)
     idx_query_time_end = time.time()
+
     if not cids:
         return {"message": "No matching CIDs found"}
 
@@ -275,10 +283,11 @@ async def query_distributed(request: QueryRequest):
         "cids": len(cids),
         "records": len(results),
         "results": results,
-        "idx_retrieve_time_seconds": idx_retrieve_end - idx_retrieve_start,
+        "idx_fetch_time_seconds": idx_fetch_time,
+        "idx_decrypt_time_seconds": idx_decrypt_time,
         "idx_query_time_seconds": idx_query_time_end - idx_query_time_start,
         "cid_retrieve_time_seconds": total_fetch_time,
-        "decryption_time_seconds": total_decrypt_time,
+        "data_decrypt_time_seconds": total_decrypt_time,
         "total_cid_processing_time_seconds": cid_process_end - cid_process_start,
         "query_execution_time_seconds": query_end_time - query_start_time
     }
@@ -299,20 +308,85 @@ async def fetch_from_ipfs(cid: str):
 
 # --- Helper functions ---
 
-def retrieve_index(name):
+def retrieve_index_with_timing(name):
+    """
+    Retrieve and decrypt an index from IPFS with timing information.
+    Returns: (index, fetch_time, decrypt_time) or (None, 0, 0) on failure
+    """
     cid = app.state.index_cids.get(name)
     if not cid:
-        return None
+        return None, 0, 0
     try:
+        # Fetch encrypted index from IPFS
+        fetch_start = time.time()
         resp = requests.post("http://localhost:5001/api/v0/cat", params={"arg": cid}, timeout=30)
+        fetch_end = time.time()
+        fetch_time = fetch_end - fetch_start
+
         if resp.status_code != 200:
-            return None
+            return None, fetch_time, 0
+
+        # Decrypt the index data
+        decrypt_start = time.time()
+        try:
+            decrypted_data = extract_and_decrypt_package(resp.content, app.state.encryption_key)
+        except Exception as e:
+            logger.error(f"Failed to decrypt index {name}: {e}")
+            return None, fetch_time, 0
+        decrypt_end = time.time()
+        decrypt_time = decrypt_end - decrypt_start
+
+        # Load the decrypted index
         index = CIDIndex()
-        index.load(io.BytesIO(resp.content))
-        return index
+        index.load(io.BytesIO(decrypted_data))
+        return index, fetch_time, decrypt_time
+
     except Exception as e:
         logger.error(f"Index retrieval failed for {name}: {e}")
-        return None
+        return None, 0, 0
+
+def retrieve_index(name):
+    """
+    Retrieve and decrypt an index from IPFS (wrapper for backward compatibility).
+    """
+    index, _, _ = retrieve_index_with_timing(name)
+    return index
+
+def upload_encrypted_index(index, attr):
+    """
+    Serialize, encrypt, and upload an index to IPFS with timing.
+    Returns: (cid, encryption_time, upload_time)
+    """
+    try:
+        # Serialize the index
+        serialized = index.dump()
+        serialized.seek(0)
+        index_data = serialized.read()
+
+        # Get size before encryption
+        index_size_bytes = len(index_data)
+        app.state.index_sizes[attr] = index_size_bytes
+
+        # Encrypt the index data
+        encrypt_start = time.time()
+        encrypted_index = create_encrypted_package(index_data, app.state.encryption_key)
+        encrypt_end = time.time()
+        encryption_time = encrypt_end - encrypt_start
+
+        # Upload encrypted index to IPFS
+        upload_start = time.time()
+        ipfs_api = "http://localhost:5001/api/v0/add"
+        resp = requests.post(ipfs_api, files={"file": (f"{attr}_index.enc", encrypted_index)})
+        resp.raise_for_status()
+        upload_end = time.time()
+        upload_time = upload_end - upload_start
+
+        serialized.close()
+        return resp.json()["Hash"], encryption_time, upload_time
+
+    except Exception as e:
+        logger.error(f"Failed to upload encrypted index for {attr}: {e}")
+        raise
 
 def query_index(index, query, attr) -> List[str]:
     where = re.search(r"where\s+(.*)", query, re.IGNORECASE)

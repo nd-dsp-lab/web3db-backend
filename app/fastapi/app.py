@@ -212,14 +212,22 @@ async def query_distributed(request: QueryRequest):
         return {"message": "No matching CIDs found"}
 
     paths = []
+    total_fetch_time = 0
+    total_decrypt_time = 0
 
-    cid_retrieve_start = time.time()
+    cid_process_start = time.time()
     with concurrent.futures.ThreadPoolExecutor(max_workers=64) as executor:
         results = list(executor.map(fetch_and_decrypt_cid, cids))
 
-    # Filter successful paths
-    paths = [p for p in results if p]
-    cid_retrieve_end = time.time()
+    # Process results and aggregate timing
+    for result in results:
+        path, fetch_time, decrypt_time = result
+        if path:
+            paths.append(path)
+            total_fetch_time += fetch_time
+            total_decrypt_time += decrypt_time
+
+    cid_process_end = time.time()
 
     if not paths:
         return {"error": "No valid Parquet files retrieved"}
@@ -269,9 +277,12 @@ async def query_distributed(request: QueryRequest):
         "results": results,
         "idx_retrieve_time_seconds": idx_retrieve_end - idx_retrieve_start,
         "idx_query_time_seconds": idx_query_time_end - idx_query_time_start,
-        "cid_retrieve_time_seconds": cid_retrieve_end - cid_retrieve_start,
+        "cid_retrieve_time_seconds": total_fetch_time,
+        "decryption_time_seconds": total_decrypt_time,
+        "total_cid_processing_time_seconds": cid_process_end - cid_process_start,
         "query_execution_time_seconds": query_end_time - query_start_time
     }
+
 
 @app.get("/ipfs/fetch/{cid}")
 async def fetch_from_ipfs(cid: str):
@@ -326,36 +337,46 @@ def query_index(index, query, attr) -> List[str]:
 def fetch_and_decrypt_cid(cid):
     """
     Fetch encrypted data from IPFS and decrypt it to a Parquet file.
+    Returns: (path, fetch_time, decrypt_time) or (None, 0, 0) on failure
     """
     try:
         # Fetch encrypted data from IPFS
+        fetch_start = time.time()
         resp = requests.post("http://localhost:5001/api/v0/cat", params={"arg": cid}, timeout=30)
+        fetch_end = time.time()
+        fetch_time = fetch_end - fetch_start
+
         if resp.status_code != 200:
             logger.warning(f"Failed to fetch {cid} from IPFS")
-            return None
+            return None, 0, 0
 
         # Decrypt the data
+        decrypt_start = time.time()
         try:
             decrypted_data = extract_and_decrypt_package(resp.content, app.state.encryption_key)
         except Exception as e:
             logger.error(f"Failed to decrypt CID {cid}: {e}")
-            return None
+            return None, 0, 0
+        decrypt_end = time.time()
+        decrypt_time = decrypt_end - decrypt_start
 
         # Save decrypted Parquet file to temporary location
         path = os.path.join(SHARED_TMP_DIR, f"{cid}.parquet")
         with open(path, "wb") as f:
             f.write(decrypted_data)
-        return path
+
+        return path, fetch_time, decrypt_time
 
     except Exception as e:
         logger.error(f"CID {cid} fetch/decrypt failed: {e}")
-        return None
+        return None, 0, 0
 
 def fetch_cid(cid):
     """
     Legacy function - now redirects to fetch_and_decrypt_cid
     """
-    return fetch_and_decrypt_cid(cid)
+    path, fetch_time, decrypt_time = fetch_and_decrypt_cid(cid)
+    return path
 
 
 class UpdateIndexCIDsRequest(BaseModel):

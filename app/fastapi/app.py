@@ -46,7 +46,8 @@ app.state.index_sizes = {}
 # Encryption key management
 # In production, use a proper key management service
 # For now, we'll generate a key on startup and store it in app state
-app.state.encryption_key = secrets.token_bytes(32)  # 256-bit key for AES-256
+# app.state.encryption_key = secrets.token_bytes(32)  # 256-bit key for AES-256
+app.state.encryption_key = base64.b64decode(os.getenv("ENCRYPTION_KEY", "AlmbEPmAR2M4o+ohmFb2oyUV1/JqdNnlG1mG9/JbUBs="))  # Default key for testing
 logger.info("Generated AES-256 encryption key")
 
 # Initialize DuckDB connection

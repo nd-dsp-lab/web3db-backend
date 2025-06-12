@@ -15,6 +15,11 @@ from fastapi import FastAPI, UploadFile, File
 from pydantic import BaseModel
 import concurrent.futures
 from cidindex import CIDIndex
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+from cryptography.hazmat.primitives import padding
+from cryptography.hazmat.backends import default_backend
+import secrets
+import base64
 
 # Configure logging
 logging.basicConfig(
@@ -38,11 +43,83 @@ app.state.index_cids = {
 }
 app.state.index_sizes = {}
 
+# Encryption key management
+# In production, use a proper key management service
+# For now, we'll generate a key on startup and store it in app state
+app.state.encryption_key = secrets.token_bytes(32)  # 256-bit key for AES-256
+logger.info("Generated AES-256 encryption key")
+
 # Initialize DuckDB connection
 logger.info("Initializing DuckDB Connection")
 # Use in-memory database for better performance
 duckdb_conn = duckdb.connect(':memory:')
 logger.info("DuckDB Connection created")
+
+# --- Encryption/Decryption Helper Functions ---
+
+def encrypt_data(data: bytes, key: bytes) -> tuple[bytes, bytes, bytes]:
+    """
+    Encrypt data using AES-256-CBC.
+    Returns: (encrypted_data, iv, tag)
+    """
+    # Generate a random IV (Initialization Vector)
+    iv = secrets.token_bytes(16)  # 128-bit IV for AES
+
+    # Create cipher
+    cipher = Cipher(
+        algorithms.AES(key),
+        modes.CBC(iv),
+        backend=default_backend()
+    )
+    encryptor = cipher.encryptor()
+
+    # Pad the data to be a multiple of 16 bytes (AES block size)
+    padder = padding.PKCS7(128).padder()
+    padded_data = padder.update(data) + padder.finalize()
+
+    # Encrypt the data
+    encrypted_data = encryptor.update(padded_data) + encryptor.finalize()
+
+    return encrypted_data, iv
+
+def decrypt_data(encrypted_data: bytes, key: bytes, iv: bytes) -> bytes:
+    """
+    Decrypt data using AES-256-CBC.
+    """
+    # Create cipher
+    cipher = Cipher(
+        algorithms.AES(key),
+        modes.CBC(iv),
+        backend=default_backend()
+    )
+    decryptor = cipher.decryptor()
+
+    # Decrypt the data
+    decrypted_padded = decryptor.update(encrypted_data) + decryptor.finalize()
+
+    # Remove padding
+    unpadder = padding.PKCS7(128).unpadder()
+    decrypted_data = unpadder.update(decrypted_padded) + unpadder.finalize()
+
+    return decrypted_data
+
+def create_encrypted_package(data: bytes, key: bytes) -> bytes:
+    """
+    Create an encrypted package with IV prepended to encrypted data.
+    Format: [IV (16 bytes)][Encrypted Data]
+    """
+    encrypted_data, iv = encrypt_data(data, key)
+    # Prepend IV to encrypted data for storage
+    return iv + encrypted_data
+
+def extract_and_decrypt_package(package: bytes, key: bytes) -> bytes:
+    """
+    Extract IV and decrypt the package.
+    """
+    # First 16 bytes are the IV
+    iv = package[:16]
+    encrypted_data = package[16:]
+    return decrypt_data(encrypted_data, key, iv)
 
 @app.post("/upload/patient-data")
 async def upload_patient_data(file: UploadFile = File(...)):
@@ -58,12 +135,18 @@ async def upload_patient_data(file: UploadFile = File(...)):
         buffer = io.BytesIO()
         pq.write_table(pa.Table.from_pandas(df), buffer)
         buffer.seek(0)
+        parquet_data = buffer.read()
         parquet_time_end = time.time()
 
-        # Upload to IPFS
+        # Encrypt the Parquet data
+        encryption_start = time.time()
+        encrypted_package = create_encrypted_package(parquet_data, app.state.encryption_key)
+        encryption_end = time.time()
+
+        # Upload encrypted data to IPFS
         ipfs_api = "http://localhost:5001/api/v0/add"
         ipfs_upload_start = time.time()
-        resp = requests.post(ipfs_api, files={"file": ("patient_data.parquet", buffer)})
+        resp = requests.post(ipfs_api, files={"file": ("patient_data.enc", encrypted_package)})
         ipfs_upload_end = time.time()
         resp.raise_for_status()
         data_cid = resp.json()["Hash"]
@@ -97,6 +180,7 @@ async def upload_patient_data(file: UploadFile = File(...)):
             "index_cids": app.state.index_cids,
             "index_sizes": app.state.index_sizes,
             "parquet_time_seconds": parquet_time_end - parquet_time_start,
+            "encryption_time_seconds": encryption_end - encryption_start,
             "ipfs_upload_time_seconds": ipfs_upload_end - ipfs_upload_start,
             "index_build_time_seconds": idx_end - idx_start,
             "total_time_seconds": time_end - time_start
@@ -130,7 +214,7 @@ async def query_distributed(request: QueryRequest):
 
     cid_retrieve_start = time.time()
     with concurrent.futures.ThreadPoolExecutor(max_workers=64) as executor:
-        results = list(executor.map(fetch_cid, cids))
+        results = list(executor.map(fetch_and_decrypt_cid, cids))
 
     # Filter successful paths
     paths = [p for p in results if p]
@@ -238,19 +322,39 @@ def query_index(index, query, attr) -> List[str]:
         elif op == "!=": out.update(set(index.query_range()) - set(index.query(key)))
     return list(out)
 
-def fetch_cid(cid):
+def fetch_and_decrypt_cid(cid):
+    """
+    Fetch encrypted data from IPFS and decrypt it to a Parquet file.
+    """
     try:
+        # Fetch encrypted data from IPFS
         resp = requests.post("http://localhost:5001/api/v0/cat", params={"arg": cid}, timeout=30)
-        if resp.status_code == 200:
-            path = os.path.join(SHARED_TMP_DIR, f"{cid}.parquet")
-            with open(path, "wb") as f:
-                f.write(resp.content)
-            return path
-        else:
+        if resp.status_code != 200:
             logger.warning(f"Failed to fetch {cid} from IPFS")
+            return None
+
+        # Decrypt the data
+        try:
+            decrypted_data = extract_and_decrypt_package(resp.content, app.state.encryption_key)
+        except Exception as e:
+            logger.error(f"Failed to decrypt CID {cid}: {e}")
+            return None
+
+        # Save decrypted Parquet file to temporary location
+        path = os.path.join(SHARED_TMP_DIR, f"{cid}.parquet")
+        with open(path, "wb") as f:
+            f.write(decrypted_data)
+        return path
+
     except Exception as e:
-        logger.error(f"CID {cid} fetch failed: {e}")
-    return None
+        logger.error(f"CID {cid} fetch/decrypt failed: {e}")
+        return None
+
+def fetch_cid(cid):
+    """
+    Legacy function - now redirects to fetch_and_decrypt_cid
+    """
+    return fetch_and_decrypt_cid(cid)
 
 
 class UpdateIndexCIDsRequest(BaseModel):
@@ -329,6 +433,40 @@ async def get_index_cids():
         }
     except Exception as e:
         logger.error(f"Error retrieving index CIDs: {e}")
+        return {"status": "error", "message": str(e)}
+
+@app.get("/encryption-key")
+async def get_encryption_key():
+    """
+    Get the current encryption key (base64 encoded).
+    WARNING: This endpoint should be secured in production!
+    """
+    logger.info("GET /encryption-key - Retrieving encryption key")
+    return {
+        "encryption_key": base64.b64encode(app.state.encryption_key).decode('utf-8'),
+        "key_size_bits": len(app.state.encryption_key) * 8
+    }
+
+@app.put("/encryption-key")
+async def update_encryption_key(key_base64: str):
+    """
+    Update the encryption key (provide base64 encoded key).
+    WARNING: This endpoint should be secured in production!
+    """
+    logger.info("PUT /encryption-key - Updating encryption key")
+    try:
+        new_key = base64.b64decode(key_base64)
+        if len(new_key) != 32:
+            return {"status": "error", "message": "Key must be 256 bits (32 bytes)"}
+
+        app.state.encryption_key = new_key
+        return {
+            "status": "success",
+            "message": "Encryption key updated successfully",
+            "key_size_bits": len(new_key) * 8
+        }
+    except Exception as e:
+        logger.error(f"Error updating encryption key: {e}")
         return {"status": "error", "message": str(e)}
 
 # Cleanup on shutdown

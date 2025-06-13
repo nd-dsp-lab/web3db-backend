@@ -9,23 +9,87 @@ import duckdb
 from cidindex import CIDIndex
 from typing import List
 from math import inf
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+from cryptography.hazmat.primitives import padding
+from cryptography.hazmat.backends import default_backend
+import base64
 
+# Encryption key - should match the one used for encryption
+# In production, this should be securely provisioned to the SGX enclave
+ENCRYPTION_KEY = base64.b64decode(os.getenv("ENCRYPTION_KEY", "AlmbEPmAR2M4o+ohmFb2oyUV1/JqdNnlG1mG9/JbUBs="))
+# Get the script's directory
+script_dir = os.path.dirname(os.path.abspath(__file__))
+query = "SELECT count(*) FROM read_parquet('/tmp/temp_data.parquet') WHERE PatientID = '10100'"
+index_cid = "QmadrJVdrYSFku9TFhnStgXfWULH5aDu5Ae5ANXip5Ssou"  # This should be the encrypted index CID
 
-# --- Helper functions ---
+# --- Decryption Helper Functions ---
 
-def retrieve_index(cid):
+def decrypt_data(encrypted_data: bytes, key: bytes, iv: bytes) -> bytes:
+    """
+    Decrypt data using AES-256-CBC.
+    """
+    cipher = Cipher(
+        algorithms.AES(key),
+        modes.CBC(iv),
+        backend=default_backend()
+    )
+    decryptor = cipher.decryptor()
+
+    # Decrypt the data
+    decrypted_padded = decryptor.update(encrypted_data) + decryptor.finalize()
+
+    # Remove padding
+    unpadder = padding.PKCS7(128).unpadder()
+    decrypted_data = unpadder.update(decrypted_padded) + unpadder.finalize()
+
+    return decrypted_data
+
+def extract_and_decrypt_package(package: bytes, key: bytes) -> bytes:
+    """
+    Extract IV and decrypt the package.
+    Format: [IV (16 bytes)][Encrypted Data]
+    """
+    # First 16 bytes are the IV
+    iv = package[:16]
+    encrypted_data = package[16:]
+    return decrypt_data(encrypted_data, key, iv)
+
+# --- Modified Helper functions ---
+
+def retrieve_and_decrypt_index(cid):
+    """
+    Retrieve and decrypt an index from IPFS.
+    Returns: (index, fetch_time, decrypt_time) or (None, 0, 0) on failure
+    """
     if not cid:
-        return None
+        return None, 0, 0
     try:
+        # Fetch encrypted index from IPFS
+        fetch_start = time.time()
         resp = requests.post("http://localhost:5001/api/v0/cat", params={"arg": cid}, timeout=30)
+        fetch_end = time.time()
+        fetch_time = fetch_end - fetch_start
+
         if resp.status_code != 200:
-            return None
+            return None, fetch_time, 0
+
+        # Decrypt the index data
+        decrypt_start = time.time()
+        try:
+            decrypted_data = extract_and_decrypt_package(resp.content, ENCRYPTION_KEY)
+        except Exception as e:
+            print(f"Failed to decrypt index: {e}")
+            return None, fetch_time, 0
+        decrypt_end = time.time()
+        decrypt_time = decrypt_end - decrypt_start
+
+        # Load the decrypted index
         index = CIDIndex()
-        index.load(io.BytesIO(resp.content))
-        return index
+        index.load(io.BytesIO(decrypted_data))
+        return index, fetch_time, decrypt_time
     except Exception as e:
         print(f"Error retrieving index: {e}")
-        return None
+        return None, 0, 0
 
 def query_index(index, query, attr) -> List[str]:
     where = re.search(r"where\s+(.*)", query, re.IGNORECASE)
@@ -47,45 +111,88 @@ def query_index(index, query, attr) -> List[str]:
         elif op == "!=": out.update(set(index.query_range()) - set(index.query(key)))
     return list(out)
 
-# Get the script's directory
-script_dir = os.path.dirname(os.path.abspath(__file__))
-query = "SELECT count(*) FROM read_parquet('/tmp/temp_data.parquet') WHERE PatientID = '10501'"
-index_cid = "QmPgfJ2mood14dA8HdK47qdxMKuMrCbWPnvQLFRzdNBATq"
+def fetch_and_decrypt_data(cid):
+    """
+    Fetch encrypted data from IPFS and decrypt it.
+    Returns: (decrypted_data, fetch_time, decrypt_time) or (None, 0, 0) on failure
+    """
+    try:
+        # Fetch encrypted data from IPFS
+        ipfs_api_url = "http://localhost:5001/api/v0/cat"
+        fetch_start = time.time()
+        resp = requests.post(ipfs_api_url, params={"arg": cid}, timeout=30)
+        fetch_end = time.time()
+        fetch_time = fetch_end - fetch_start
+
+        if resp.status_code != 200:
+            print(f"Failed to fetch {cid} from IPFS: Status {resp.status_code}")
+            return None, fetch_time, 0
+
+        # Decrypt the data
+        decrypt_start = time.time()
+        try:
+            decrypted_data = extract_and_decrypt_package(resp.content, ENCRYPTION_KEY)
+        except Exception as e:
+            print(f"Failed to decrypt data from CID {cid}: {e}")
+            return None, fetch_time, 0
+        decrypt_end = time.time()
+        decrypt_time = decrypt_end - decrypt_start
+
+        return decrypted_data, fetch_time, decrypt_time
+
+    except Exception as e:
+        print(f"Error fetching/decrypting CID {cid}: {e}")
+        return None, 0, 0
+
 def printtime(message):
     print(message)
 
 start_time = time.time()
 
+# Retrieve and decrypt index
 idx_retrieve_start = time.time()
-index = retrieve_index(index_cid)
+index, idx_fetch_time, idx_decrypt_time = retrieve_and_decrypt_index(index_cid)
 idx_retrieve_end = time.time()
 if not index:
-    printtime("Index retrieval failed, exiting.")
+    printtime("Index retrieval/decryption failed, exiting.")
     exit(1)
-printtime(f"Index retrieved in {idx_retrieve_end - idx_retrieve_start:.6f} seconds")
+printtime(f"Index retrieved and decrypted in {idx_retrieve_end - idx_retrieve_start:.6f} seconds")
+printtime(f"  - Index fetch time: {idx_fetch_time:.6f} seconds")
+printtime(f"  - Index decrypt time: {idx_decrypt_time:.6f} seconds")
+
+# Query the index
 idx_query_time_start = time.time()
 cids = query_index(index, query, "PatientID")
 idx_query_time_end = time.time()
 printtime(f"Index query took {idx_query_time_end - idx_query_time_start:.6f} seconds")
 print(len(cids), "CIDs found for query")
-# Fetch data from IPFS
+
+# Fetch and decrypt data from IPFS
 cid = cids[0] if cids else None
-ipfs_api_url = "http://localhost:5001/api/v0/cat"
-printtime(f"Fetching data from IPFS CID: {cid}")
+if not cid:
+    printtime("No CIDs found, exiting.")
+    exit(1)
 
-ipfs_time_start = time.time()
-response_parquet = requests.post(ipfs_api_url, params={"arg": cid}, timeout=30)
-printtime(f"Data fetched from IPFS in {time.time() - ipfs_time_start:.6f} seconds")
+printtime(f"Fetching and decrypting data from IPFS CID: {cid}")
 
-if response_parquet.status_code != 200:
-    raise ValueError(f"Error: Failed to fetch data. Status code: {response_parquet.status_code}")
+data_retrieve_start = time.time()
+decrypted_parquet_data, data_fetch_time, data_decrypt_time = fetch_and_decrypt_data(cid)
+data_retrieve_end = time.time()
 
-# Write to temp file for better performance
+if not decrypted_parquet_data:
+    printtime("Failed to fetch/decrypt data, exiting.")
+    exit(1)
+
+printtime(f"Data fetched and decrypted from IPFS in {data_retrieve_end - data_retrieve_start:.6f} seconds")
+printtime(f"  - Data fetch time: {data_fetch_time:.6f} seconds")
+printtime(f"  - Data decrypt time: {data_decrypt_time:.6f} seconds")
+
+# Write decrypted data to temp file for DuckDB
 temp_parquet = "/tmp/temp_data.parquet"
 write_time_start = time.time()
 with open(temp_parquet, 'wb') as f:
-    f.write(response_parquet.content)
-printtime(f"Data written to temp file in {time.time() - write_time_start:.6f} seconds")
+    f.write(decrypted_parquet_data)
+printtime(f"Decrypted data written to temp file in {time.time() - write_time_start:.6f} seconds")
 
 # Create DuckDB connection with single-threaded mode
 duckdb_time_start = time.time()
@@ -98,12 +205,25 @@ result = conn.execute(query).fetchdf()
 printtime(f"Query executed in {time.time() - query_start:.6f} seconds")
 printtime(f"Total execution time: {time.time() - start_time:.6f} seconds")
 
+# Summary of timing breakdown
+print("\n=== Timing Summary ===")
+print(f"Index operations:")
+print(f"  - Fetch: {idx_fetch_time:.6f} seconds")
+print(f"  - Decrypt: {idx_decrypt_time:.6f} seconds")
+print(f"  - Query: {idx_query_time_end - idx_query_time_start:.6f} seconds")
+print(f"Data operations:")
+print(f"  - Fetch: {data_fetch_time:.6f} seconds")
+print(f"  - Decrypt: {data_decrypt_time:.6f} seconds")
+print(f"  - Write to disk: {time.time() - write_time_start:.6f} seconds")
+print(f"DuckDB query: {time.time() - query_start:.6f} seconds")
+print(f"Total time: {time.time() - start_time:.6f} seconds")
+
 # Write output
 output_dir = "/output"
 os.makedirs(output_dir, exist_ok=True)
 output_file = os.path.join(output_dir, "result.csv")
 result.to_csv(output_file, index=False)
-print(f"Result written to {output_file}")
+print(f"\nResult written to {output_file}")
 print(f"Result shape: {result.shape}")
 
 # Cleanup

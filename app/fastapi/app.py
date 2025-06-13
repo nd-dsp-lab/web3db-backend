@@ -274,19 +274,16 @@ async def query_distributed(request: QueryRequest):
 
     # Apply DuckDB SQL directly on those Parquet files
     try:
-        # Create a temporary view from multiple Parquet files
-        # DuckDB can read multiple Parquet files using glob patterns or explicit paths
+        # For large number of files, use glob pattern or process in batches
         if len(paths) == 1:
             query_with_table = request.query.replace("patient_data", f"'{paths[0]}'")
+            result = duckdb_conn.execute(query_with_table)
         else:
-            # For multiple files, use UNION ALL
-            parquet_refs = [f"SELECT * FROM '{path}'" for path in paths]
-            union_query = " UNION ALL ".join(parquet_refs)
-            duckdb_conn.execute(f"CREATE OR REPLACE VIEW patient_data AS {union_query}")
-            query_with_table = request.query
-
-        # Execute the query
-        result = duckdb_conn.execute(query_with_table)
+            # Method 1: Use glob pattern if files are in same directory
+            # This is more efficient for many files
+            glob_pattern = os.path.join(SHARED_TMP_DIR, "*.parquet")
+            query_with_table = request.query.replace("patient_data", f"read_parquet('{glob_pattern}')")
+            result = duckdb_conn.execute(query_with_table)
 
         # Fetch all results and convert to list of dictionaries
         columns = [desc[0] for desc in result.description]
@@ -297,12 +294,6 @@ async def query_distributed(request: QueryRequest):
         logger.error(f"Query error: {e}")
         return {"error": str(e)}
     finally:
-        # Clean up temporary view if created
-        try:
-            duckdb_conn.execute("DROP VIEW IF EXISTS patient_data")
-        except:
-            pass
-
         # Delete temporary files
         for p in paths:
             try:

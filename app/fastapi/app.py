@@ -10,7 +10,7 @@ import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
 import duckdb
-from typing import List
+from typing import List, Tuple, Optional
 from fastapi import FastAPI, UploadFile, File
 from pydantic import BaseModel
 import concurrent.futures
@@ -58,10 +58,10 @@ logger.info("DuckDB Connection created")
 
 # --- Encryption/Decryption Helper Functions ---
 
-def encrypt_data(data: bytes, key: bytes) -> tuple[bytes, bytes, bytes]:
+def encrypt_data(data: bytes, key: bytes) -> tuple[bytes, bytes]:
     """
     Encrypt data using AES-256-CBC.
-    Returns: (encrypted_data, iv, tag)
+    Returns: (encrypted_data, iv)
     """
     # Generate a random IV (Initialization Vector)
     iv = secrets.token_bytes(16)  # 128-bit IV for AES
@@ -121,6 +121,38 @@ def extract_and_decrypt_package(package: bytes, key: bytes) -> bytes:
     iv = package[:16]
     encrypted_data = package[16:]
     return decrypt_data(encrypted_data, key, iv)
+
+# --- Separate fetch and decrypt functions ---
+
+def fetch_from_ipfs(cid: str) -> Optional[bytes]:
+    """
+    Fetch encrypted data from IPFS.
+    Returns encrypted data bytes or None on failure.
+    """
+    try:
+        resp = requests.post("http://localhost:5001/api/v0/cat", params={"arg": cid}, timeout=30)
+        if resp.status_code != 200:
+            logger.warning(f"Failed to fetch {cid} from IPFS: Status {resp.status_code}")
+            return None
+        return resp.content
+    except Exception as e:
+        logger.error(f"Error fetching CID {cid}: {e}")
+        return None
+
+def decrypt_to_file(encrypted_data: bytes, cid: str, key: bytes) -> Optional[str]:
+    """
+    Decrypt data and save to a file.
+    Returns file path or None on failure.
+    """
+    try:
+        decrypted_data = extract_and_decrypt_package(encrypted_data, key)
+        path = os.path.join(SHARED_TMP_DIR, f"{cid}.parquet")
+        with open(path, "wb") as f:
+            f.write(decrypted_data)
+        return path
+    except Exception as e:
+        logger.error(f"Failed to decrypt CID {cid}: {e}")
+        return None
 
 @app.post("/upload/patient-data")
 async def upload_patient_data(file: UploadFile = File(...)):
@@ -219,23 +251,23 @@ async def query_distributed(request: QueryRequest):
     if not cids:
         return {"message": "No matching CIDs found"}
 
-    paths = []
-    total_fetch_time = 0
-    total_decrypt_time = 0
-
-    cid_process_start = time.time()
+    # Fetch all CIDs in parallel
+    fetch_start = time.time()
     with concurrent.futures.ThreadPoolExecutor(max_workers=64) as executor:
-        results = list(executor.map(fetch_and_decrypt_cid, cids))
+        encrypted_data_list = list(executor.map(fetch_from_ipfs, cids))
+    fetch_end = time.time()
+    total_fetch_time = fetch_end - fetch_start
 
-    # Process results and aggregate timing
-    for result in results:
-        path, fetch_time, decrypt_time = result
-        if path:
-            paths.append(path)
-            total_fetch_time += fetch_time
-            total_decrypt_time += decrypt_time
-
-    cid_process_end = time.time()
+    # Decrypt all data sequentially (or in parallel if needed)
+    decrypt_start = time.time()
+    paths = []
+    for cid, encrypted_data in zip(cids, encrypted_data_list):
+        if encrypted_data:
+            path = decrypt_to_file(encrypted_data, cid, app.state.encryption_key)
+            if path:
+                paths.append(path)
+    decrypt_end = time.time()
+    total_decrypt_time = decrypt_end - decrypt_start
 
     if not paths:
         return {"error": "No valid Parquet files retrieved"}
@@ -288,13 +320,13 @@ async def query_distributed(request: QueryRequest):
         "idx_query_time_seconds": idx_query_time_end - idx_query_time_start,
         "cid_retrieve_time_seconds": total_fetch_time,
         "data_decrypt_time_seconds": total_decrypt_time,
-        "total_cid_processing_time_seconds": cid_process_end - cid_process_start,
+        "total_cid_processing_time_seconds": total_fetch_time + total_decrypt_time,
         "query_execution_time_seconds": query_end_time - query_start_time
     }
 
 
 @app.get("/ipfs/fetch/{cid}")
-async def fetch_from_ipfs(cid: str):
+async def fetch_from_ipfs_endpoint(cid: str):
     logger.info(f"GET /ipfs/fetch/{cid}")
     try:
         start = time.time()
@@ -316,34 +348,29 @@ def retrieve_index_with_timing(name):
     cid = app.state.index_cids.get(name)
     if not cid:
         return None, 0, 0
+
+    # Fetch encrypted index from IPFS
+    fetch_start = time.time()
+    encrypted_data = fetch_from_ipfs(cid)
+    fetch_end = time.time()
+    fetch_time = fetch_end - fetch_start
+
+    if not encrypted_data:
+        return None, fetch_time, 0
+
+    # Decrypt the index data
+    decrypt_start = time.time()
     try:
-        # Fetch encrypted index from IPFS
-        fetch_start = time.time()
-        resp = requests.post("http://localhost:5001/api/v0/cat", params={"arg": cid}, timeout=30)
-        fetch_end = time.time()
-        fetch_time = fetch_end - fetch_start
-
-        if resp.status_code != 200:
-            return None, fetch_time, 0
-
-        # Decrypt the index data
-        decrypt_start = time.time()
-        try:
-            decrypted_data = extract_and_decrypt_package(resp.content, app.state.encryption_key)
-        except Exception as e:
-            logger.error(f"Failed to decrypt index {name}: {e}")
-            return None, fetch_time, 0
-        decrypt_end = time.time()
-        decrypt_time = decrypt_end - decrypt_start
-
+        decrypted_data = extract_and_decrypt_package(encrypted_data, app.state.encryption_key)
         # Load the decrypted index
         index = CIDIndex()
         index.load(io.BytesIO(decrypted_data))
+        decrypt_end = time.time()
+        decrypt_time = decrypt_end - decrypt_start
         return index, fetch_time, decrypt_time
-
     except Exception as e:
-        logger.error(f"Index retrieval failed for {name}: {e}")
-        return None, 0, 0
+        logger.error(f"Failed to decrypt index {name}: {e}")
+        return None, fetch_time, 0
 
 def retrieve_index(name):
     """
@@ -408,48 +435,23 @@ def query_index(index, query, attr) -> List[str]:
         elif op == "!=": out.update(set(index.query_range()) - set(index.query(key)))
     return list(out)
 
+# Legacy function for backward compatibility
 def fetch_and_decrypt_cid(cid):
     """
-    Fetch encrypted data from IPFS and decrypt it to a Parquet file.
-    Returns: (path, fetch_time, decrypt_time) or (None, 0, 0) on failure
+    Legacy function - fetch and decrypt in one go
     """
-    try:
-        # Fetch encrypted data from IPFS
-        fetch_start = time.time()
-        resp = requests.post("http://localhost:5001/api/v0/cat", params={"arg": cid}, timeout=30)
-        fetch_end = time.time()
-        fetch_time = fetch_end - fetch_start
-
-        if resp.status_code != 200:
-            logger.warning(f"Failed to fetch {cid} from IPFS")
-            return None, 0, 0
-
-        # Decrypt the data
-        decrypt_start = time.time()
-        try:
-            decrypted_data = extract_and_decrypt_package(resp.content, app.state.encryption_key)
-        except Exception as e:
-            logger.error(f"Failed to decrypt CID {cid}: {e}")
-            return None, 0, 0
-        decrypt_end = time.time()
-        decrypt_time = decrypt_end - decrypt_start
-
-        # Save decrypted Parquet file to temporary location
-        path = os.path.join(SHARED_TMP_DIR, f"{cid}.parquet")
-        with open(path, "wb") as f:
-            f.write(decrypted_data)
-
-        return path, fetch_time, decrypt_time
-
-    except Exception as e:
-        logger.error(f"CID {cid} fetch/decrypt failed: {e}")
+    encrypted_data = fetch_from_ipfs(cid)
+    if not encrypted_data:
         return None, 0, 0
+
+    path = decrypt_to_file(encrypted_data, cid, app.state.encryption_key)
+    return path, 0, 0
 
 def fetch_cid(cid):
     """
     Legacy function - now redirects to fetch_and_decrypt_cid
     """
-    path, fetch_time, decrypt_time = fetch_and_decrypt_cid(cid)
+    path, _, _ = fetch_and_decrypt_cid(cid)
     return path
 
 

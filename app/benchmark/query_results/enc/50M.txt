@@ -14,3 +14,30 @@
   "total_cid_processing_time_seconds": 0.020290136337280273,
   "query_execution_time_seconds": 0.4087710380554199
 }
+
+{
+  "cids": 500,
+  "records": 1,
+  "results": [
+    {
+      "PatientID": "10100",
+      "Name": "Melissa Bell",
+      "Age": 28,
+      "Gender": "F",
+      "BloodType": "B-",
+      "Condition": "COPD",
+      "VisitDate": "2025-05-01",
+      "Doctor": "Dr. Wyatt",
+      "HospitalID": "HOSP1",
+      "Prescription": "Tiotropium",
+      "DiagnosisReport": "Stable, maintain current meds"
+    }
+  ],
+  "idx_fetch_time_seconds": 0.008716106414794922,
+  "idx_decrypt_time_seconds": 0.0064847469329833984,
+  "idx_query_time_seconds": 0.003487825393676758,
+  "cid_retrieve_time_seconds": 9.218777656555176,
+  "data_decrypt_time_seconds": 1.196120023727417,
+  "total_cid_processing_time_seconds": 10.414897680282593,
+  "query_execution_time_seconds": 11.261278629302979
+}

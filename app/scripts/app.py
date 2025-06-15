@@ -20,7 +20,7 @@ ENCRYPTION_KEY = base64.b64decode(os.getenv("ENCRYPTION_KEY", "AlmbEPmAR2M4o+ohm
 # Get the script's directory
 script_dir = os.path.dirname(os.path.abspath(__file__))
 query = "SELECT count(*) FROM read_parquet('/tmp/temp_data.parquet') WHERE PatientID = '10100'"
-index_cid = "QmadrJVdrYSFku9TFhnStgXfWULH5aDu5Ae5ANXip5Ssou"  # This should be the encrypted index CID
+index_cid = "QmWyYYiSMZbC7eWY3vH3bnGZxGWKWE6P8fsK5uVcDbBM8j"  # This should be the encrypted index CID
 
 # --- Decryption Helper Functions ---
 

@@ -14,4 +14,37 @@
   "total_cid_processing_time_seconds": 0.034928083419799805,
   "query_execution_time_seconds": 0.9422636032104492
 }
+***************
+{
+  "cids": 1,
+  "records": 1,
+  "results": [
+    {
+      "count_star()": 1
+    }
+  ],
+  "idx_fetch_time_seconds": 0.0847017765045166,
+  "idx_decrypt_time_seconds": 0.20119428634643555,
+  "idx_query_time_seconds": 0.00019311904907226562,
+  "cid_retrieve_time_seconds": 0.005226850509643555,
+  "data_decrypt_time_seconds": 0.0018131732940673828,
+  "total_cid_processing_time_seconds": 0.0070400238037109375,
+  "query_execution_time_seconds": 0.29667091369628906
+}
 
+{
+  "cids": 1000,
+  "records": 1,
+  "results": [
+    {
+      "count_star()": 1
+    }
+  ],
+  "idx_fetch_time_seconds": 0.0022542476654052734,
+  "idx_decrypt_time_seconds": 0.0017001628875732422,
+  "idx_query_time_seconds": 0.0012302398681640625,
+  "cid_retrieve_time_seconds": 4.193637847900391,
+  "data_decrypt_time_seconds": 1.1202740669250488,
+  "total_cid_processing_time_seconds": 5.3139119148254395,
+  "query_execution_time_seconds": 5.48810076713562
+}

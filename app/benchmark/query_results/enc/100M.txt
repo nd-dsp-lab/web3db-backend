@@ -1,21 +1,4 @@
 {
-  "cids": 2,
-  "records": 1,
-  "results": [
-    {
-      "count_star()": 2
-    }
-  ],
-  "idx_fetch_time_seconds": 0.23781991004943848,
-  "idx_decrypt_time_seconds": 0.653355598449707,
-  "idx_query_time_seconds": 0.0001308917999267578,
-  "cid_retrieve_time_seconds": 0.024875879287719727,
-  "data_decrypt_time_seconds": 0.010052204132080078,
-  "total_cid_processing_time_seconds": 0.034928083419799805,
-  "query_execution_time_seconds": 0.9422636032104492
-}
-***************
-{
   "cids": 1,
   "records": 1,
   "results": [
@@ -23,13 +6,13 @@
       "count_star()": 1
     }
   ],
-  "idx_fetch_time_seconds": 0.0847017765045166,
-  "idx_decrypt_time_seconds": 0.20119428634643555,
-  "idx_query_time_seconds": 0.00019311904907226562,
-  "cid_retrieve_time_seconds": 0.005226850509643555,
-  "data_decrypt_time_seconds": 0.0018131732940673828,
-  "total_cid_processing_time_seconds": 0.0070400238037109375,
-  "query_execution_time_seconds": 0.29667091369628906
+  "idx_fetch_time_seconds": 0.12332272529602051,
+  "idx_decrypt_time_seconds": 0.1981215476989746,
+  "idx_query_time_seconds": 0.000044345855712890625,
+  "cid_retrieve_time_seconds": 0.004570960998535156,
+  "data_decrypt_time_seconds": 0.0013737678527832031,
+  "total_cid_processing_time_seconds": 0.005944728851318359,
+  "query_execution_time_seconds": 0.3299398422241211
 }
 
 {
@@ -40,11 +23,11 @@
       "count_star()": 1
     }
   ],
-  "idx_fetch_time_seconds": 0.0022542476654052734,
-  "idx_decrypt_time_seconds": 0.0017001628875732422,
-  "idx_query_time_seconds": 0.0012302398681640625,
-  "cid_retrieve_time_seconds": 4.193637847900391,
-  "data_decrypt_time_seconds": 1.1202740669250488,
-  "total_cid_processing_time_seconds": 5.3139119148254395,
-  "query_execution_time_seconds": 5.48810076713562
+  "idx_fetch_time_seconds": 0.013356685638427734,
+  "idx_decrypt_time_seconds": 0.00177001953125,
+  "idx_query_time_seconds": 0.0011756420135498047,
+  "cid_retrieve_time_seconds": 4.10270881652832,
+  "data_decrypt_time_seconds": 1.111145257949829,
+  "total_cid_processing_time_seconds": 5.213854074478149,
+  "query_execution_time_seconds": 5.4074742794036865
 }

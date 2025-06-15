@@ -1,0 +1,33 @@
+{
+  "cids": 1,
+  "records": 1,
+  "results": [
+    {
+      "count_star()": 1
+    }
+  ],
+  "idx_fetch_time_seconds": 0.31324148178100586,
+  "idx_decrypt_time_seconds": 0.7143590450286865,
+  "idx_query_time_seconds": 0.00004839897155761719,
+  "cid_retrieve_time_seconds": 0.004550457000732422,
+  "data_decrypt_time_seconds": 0.0027093887329101562,
+  "total_cid_processing_time_seconds": 0.007259845733642578,
+  "query_execution_time_seconds": 1.045236587524414
+}
+
+{
+  "cids": 3000,
+  "records": 1,
+  "results": [
+    {
+      "count_star()": 1
+    }
+  ],
+  "idx_fetch_time_seconds": 0.004281282424926758,
+  "idx_decrypt_time_seconds": 0.0053904056549072266,
+  "idx_query_time_seconds": 0.0031468868255615234,
+  "cid_retrieve_time_seconds": 12.284538984298706,
+  "data_decrypt_time_seconds": 3.331385850906372,
+  "total_cid_processing_time_seconds": 15.615924835205078,
+  "query_execution_time_seconds": 16.1396906375885
+}

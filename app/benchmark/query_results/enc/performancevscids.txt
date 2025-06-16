@@ -1,0 +1,67 @@
+{
+  "cids": 500,
+  "records": 1,
+  "results": [
+    {
+      "count_star()": 500
+    }
+  ],
+  "idx_fetch_time_seconds": 0.6170454025268555,
+  "idx_decrypt_time_seconds": 0.13350296020507812,
+  "idx_lookup_time_seconds": 0.00007605552673339844,
+  "cid_fetch_time_seconds": 6.944190979003906,
+  "cid_decrypt_time_seconds": 0.5537824630737305,
+  "duckdb_query_time_seconds": 0.09844803810119629,
+  "total_query_execution_time_seconds": 8.348108053207397
+}
+
+{
+  "cids": 500,
+  "records": 1,
+  "results": [
+    {
+      "count_star()": 500
+    }
+  ],
+  "idx_fetch_time_seconds": 0.04281044006347656,
+  "idx_decrypt_time_seconds": 0.1240243911743164,
+  "idx_lookup_time_seconds": 0.00007748603820800781,
+  "cid_fetch_time_seconds": 2.0923056602478027,
+  "cid_decrypt_time_seconds": 0.5851287841796875,
+  "duckdb_query_time_seconds": 0.09910178184509277,
+  "total_query_execution_time_seconds": 2.948119878768921
+}
+
+{
+  "cids": 100,
+  "records": 1,
+  "results": [
+    {
+      "count_star()": 100
+    }
+  ],
+  "idx_fetch_time_seconds": 0.21756315231323242,
+  "idx_decrypt_time_seconds": 0.039995670318603516,
+  "idx_lookup_time_seconds": 0.00004172325134277344,
+  "cid_fetch_time_seconds": 1.4771249294281006,
+  "cid_decrypt_time_seconds": 0.11347436904907227,
+  "duckdb_query_time_seconds": 0.022157907485961914,
+  "total_query_execution_time_seconds": 1.8703796863555908
+}
+
+{
+  "cids": 100,
+  "records": 1,
+  "results": [
+    {
+      "count_star()": 100
+    }
+  ],
+  "idx_fetch_time_seconds": 0.005947113037109375,
+  "idx_decrypt_time_seconds": 0.021261930465698242,
+  "idx_lookup_time_seconds": 0.00004315376281738281,
+  "cid_fetch_time_seconds": 0.4088327884674072,
+  "cid_decrypt_time_seconds": 0.11170411109924316,
+  "duckdb_query_time_seconds": 0.021648645401000977,
+  "total_query_execution_time_seconds": 0.5694468021392822
+}

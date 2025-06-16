@@ -272,6 +272,7 @@ async def query_distributed(request: QueryRequest):
     if not paths:
         return {"error": "No valid Parquet files retrieved"}
 
+    duckdb_query_start = time.time()
     # Apply DuckDB SQL directly on those Parquet files
     try:
         # For large number of files, use glob pattern or process in batches
@@ -289,7 +290,6 @@ async def query_distributed(request: QueryRequest):
         columns = [desc[0] for desc in result.description]
         rows = result.fetchall()
         results = [dict(zip(columns, row)) for row in rows]
-
     except Exception as e:
         logger.error(f"Query error: {e}")
         return {"error": str(e)}
@@ -300,7 +300,7 @@ async def query_distributed(request: QueryRequest):
                 os.remove(p)
             except Exception as e:
                 logger.warning(f"Failed to delete {p}: {e}")
-
+    duckdb_query_end = time.time()
     query_end_time = time.time()
     return {
         "cids": len(cids),
@@ -308,11 +308,11 @@ async def query_distributed(request: QueryRequest):
         "results": results,
         "idx_fetch_time_seconds": idx_fetch_time,
         "idx_decrypt_time_seconds": idx_decrypt_time,
-        "idx_query_time_seconds": idx_query_time_end - idx_query_time_start,
-        "cid_retrieve_time_seconds": total_fetch_time,
-        "data_decrypt_time_seconds": total_decrypt_time,
-        "total_cid_processing_time_seconds": total_fetch_time + total_decrypt_time,
-        "query_execution_time_seconds": query_end_time - query_start_time
+        "idx_lookup_time_seconds": idx_query_time_end - idx_query_time_start,
+        "cid_fetch_time_seconds": total_fetch_time,
+        "cid_decrypt_time_seconds": total_decrypt_time,
+        "duckdb_query_time_seconds": duckdb_query_end - duckdb_query_start,
+        "total_query_execution_time_seconds": query_end_time - query_start_time
     }
 
 

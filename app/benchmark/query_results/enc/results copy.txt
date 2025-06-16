@@ -1,0 +1,74 @@
+Query performance for encrypted Web3DB.
+Query Engine: DuckDB (No SGX)
+>> 400M (Total Database rows)
+=== Timing Summary (DuckDB No SGX)===
+ "idx_fetch_time_seconds": 0.3989372253417969,
+  "idx_decrypt_time_seconds": 1.0468015670776367,
+  "idx_lookup_time_seconds": 0.00005936622619628906,
+  "cid_fetch_time_seconds": 0.011523008346557617,
+  "cid_decrypt_time_seconds": 0.003919363021850586,
+  "duckdb_query_time_seconds": 0.0015804767608642578,
+  "total_query_execution_time_seconds": 1.4804165363311768
+>> 300M
+=== Timing Summary (DuckDB No SGX)===
+  "idx_fetch_time_seconds": 0.3079338073730469,
+  "idx_decrypt_time_seconds": 0.7543134689331055,
+  "idx_lookup_time_seconds": 0.0000438690185546875,
+  "cid_fetch_time_seconds": 0.0044002532958984375,
+  "cid_decrypt_time_seconds": 0.002826690673828125,
+  "duckdb_query_time_seconds": 0.0013954639434814453,
+  "total_query_execution_time_seconds": 1.077455997467041
+
+>>200M
+=== Timing Summary (With Index) ===
+  "idx_fetch_time_seconds": 0.20579957962036133,
+  "idx_decrypt_time_seconds": 0.4634253978729248,
+  "idx_query_time_seconds": 0.00004649162292480469,
+  "cid_retrieve_time_seconds": 0.004415988922119141,
+  "data_decrypt_time_seconds": 0.0021898746490478516,
+  "total_cid_processing_time_seconds": 0.006605863571166992,
+  "query_execution_time_seconds": 0.6837725639343262
+=== Timing Summary (Without Index) ===
+  "cid_retrieve_time_seconds": 8.258614778518677,
+  "data_decrypt_time_seconds": 2.310854196548462,
+  "total_cid_processing_time_seconds": 10.569468975067139,
+  "query_execution_time_seconds": 10.916964292526245
+>>100M
+=== Timing Summary (DuckDB No SGX) ===
+  "idx_fetch_time_seconds": 0.09198594093322754,
+  "idx_decrypt_time_seconds": 0.21141910552978516,
+  "idx_lookup_time_seconds": 0.000043392181396484375,
+  "cid_fetch_time_seconds": 0.0043087005615234375,
+  "cid_decrypt_time_seconds": 0.002760648727416992,
+  "duckdb_query_time_seconds": 0.0014355182647705078,
+  "total_query_execution_time_seconds": 0.31470322608947754
+
+>>>50M
+=== Timing Summary (With Index) ===
+  "idx_fetch_time_seconds": 0.03617572784423828,
+  "idx_decrypt_time_seconds": 0.08964753150939941,
+  "idx_query_time_seconds": 0.00004315376281738281,
+  "cid_retrieve_time_seconds": 0.003923654556274414,
+  "data_decrypt_time_seconds": 0.0027909278869628906,
+  "total_cid_processing_time_seconds": 0.006714582443237305,
+  "query_execution_time_seconds": 0.13391518592834473
+=== Timing Summary (Without Index) ===
+  "cid_retrieve_time_seconds": 2.0863027572631836,
+  "data_decrypt_time_seconds": 0.5770688056945801,
+  "total_cid_processing_time_seconds": 2.6633715629577637,
+  "query_execution_time_seconds": 2.7537639141082764
+
+>>>10M 
+=== Timing Summary (With Index) ===
+  "idx_fetch_time_seconds": 0.018337726593017578,
+  "idx_decrypt_time_seconds": 0.020544767379760742,
+  "idx_query_time_seconds": 0.00003457069396972656,
+  "cid_retrieve_time_seconds": 0.0037174224853515625,
+  "data_decrypt_time_seconds": 0.0017316341400146484,
+  "total_cid_processing_time_seconds": 0.005449056625366211,
+  "query_execution_time_seconds": 0.04575538635253906
+=== Timing Summary (Without Index) ===
+  "cid_retrieve_time_seconds": 0.4098641872406006,
+  "data_decrypt_time_seconds": 0.11527085304260254,
+  "total_cid_processing_time_seconds": 0.5251350402832031,
+  "query_execution_time_seconds": 0.5455963611602783

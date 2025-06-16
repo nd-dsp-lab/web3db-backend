@@ -1,0 +1,89 @@
+Query performance for encrypted Web3DB.
+Query Engine: DuckDB (outside SGX)
+>> 400M (Total Database rows)
+=== Timing Summary (With Index) ===
+  "idx_fetch_time_seconds": 0.40625667572021484,
+  "idx_decrypt_time_seconds": 0.9852821826934814,
+  "idx_query_time_seconds": 0.00005054473876953125,
+  "cid_retrieve_time_seconds": 0.0039119720458984375,
+  "data_decrypt_time_seconds": 0.0025963783264160156,
+  "total_cid_processing_time_seconds": 0.006508350372314453,
+  "query_execution_time_seconds": 1.408294916152954
+=== Timing Summary (Without Index) ===
+  "cid_retrieve_time_seconds": 16.536011934280396,
+  "data_decrypt_time_seconds": 4.699181795120239,
+  "total_cid_processing_time_seconds": 21.235193729400635,
+  "query_execution_time_seconds": 21.951475858688354
+>> 300M
+=== Timing Summary (With Index) ===
+  "idx_fetch_time_seconds": 0.31324148178100586,
+  "idx_decrypt_time_seconds": 0.7143590450286865,
+  "idx_query_time_seconds": 0.00004839897155761719,
+  "cid_retrieve_time_seconds": 0.004550457000732422,
+  "data_decrypt_time_seconds": 0.0027093887329101562,
+  "total_cid_processing_time_seconds": 0.007259845733642578,
+  "query_execution_time_seconds": 1.045236587524414
+=== Timing Summary (Without Index) ===
+  "cid_retrieve_time_seconds": 12.284538984298706,
+  "data_decrypt_time_seconds": 3.331385850906372,
+  "total_cid_processing_time_seconds": 15.615924835205078,
+  "query_execution_time_seconds": 16.126872062683105
+
+>>200M
+=== Timing Summary (With Index) ===
+  "idx_fetch_time_seconds": 0.20579957962036133,
+  "idx_decrypt_time_seconds": 0.4634253978729248,
+  "idx_query_time_seconds": 0.00004649162292480469,
+  "cid_retrieve_time_seconds": 0.004415988922119141,
+  "data_decrypt_time_seconds": 0.0021898746490478516,
+  "total_cid_processing_time_seconds": 0.006605863571166992,
+  "query_execution_time_seconds": 0.6837725639343262
+=== Timing Summary (Without Index) ===
+  "cid_retrieve_time_seconds": 8.258614778518677,
+  "data_decrypt_time_seconds": 2.310854196548462,
+  "total_cid_processing_time_seconds": 10.569468975067139,
+  "query_execution_time_seconds": 10.916964292526245
+>>100M
+=== Timing Summary (DuckDB No SGX) ===
+  "idx_fetch_time_seconds": 0.12332272529602051,
+  "idx_decrypt_time_seconds": 0.1981215476989746,
+  "idx_query_time_seconds": 0.000044345855712890625,
+  "cid_retrieve_time_seconds": 0.004570960998535156,
+  "cid_decrypt_and_write_to_disk_time_seconds": 0.0013737678527832031,
+  "duckdb_query_time_seconds": 0.0013928413391113281,
+  "total_execution_time_seconds": 0.3299398422241211
+=== Timing Summary (Without Index) ===
+  "cid_retrieve_time_seconds": 4.10270881652832,
+  "data_decrypt_time_seconds": 1.111145257949829,
+  "total_cid_processing_time_seconds": 5.213854074478149,
+  "query_execution_time_seconds": 5.391171932220459
+
+>>>50M
+=== Timing Summary (With Index) ===
+  "idx_fetch_time_seconds": 0.03617572784423828,
+  "idx_decrypt_time_seconds": 0.08964753150939941,
+  "idx_query_time_seconds": 0.00004315376281738281,
+  "cid_retrieve_time_seconds": 0.003923654556274414,
+  "data_decrypt_time_seconds": 0.0027909278869628906,
+  "total_cid_processing_time_seconds": 0.006714582443237305,
+  "query_execution_time_seconds": 0.13391518592834473
+=== Timing Summary (Without Index) ===
+  "cid_retrieve_time_seconds": 2.0863027572631836,
+  "data_decrypt_time_seconds": 0.5770688056945801,
+  "total_cid_processing_time_seconds": 2.6633715629577637,
+  "query_execution_time_seconds": 2.7537639141082764
+
+>>>10M 
+=== Timing Summary (With Index) ===
+  "idx_fetch_time_seconds": 0.018337726593017578,
+  "idx_decrypt_time_seconds": 0.020544767379760742,
+  "idx_query_time_seconds": 0.00003457069396972656,
+  "cid_retrieve_time_seconds": 0.0037174224853515625,
+  "data_decrypt_time_seconds": 0.0017316341400146484,
+  "total_cid_processing_time_seconds": 0.005449056625366211,
+  "query_execution_time_seconds": 0.04575538635253906
+=== Timing Summary (Without Index) ===
+  "cid_retrieve_time_seconds": 0.4098641872406006,
+  "data_decrypt_time_seconds": 0.11527085304260254,
+  "total_cid_processing_time_seconds": 0.5251350402832031,
+  "query_execution_time_seconds": 0.5455963611602783

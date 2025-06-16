@@ -20,7 +20,11 @@ ENCRYPTION_KEY = base64.b64decode(os.getenv("ENCRYPTION_KEY", "AlmbEPmAR2M4o+ohm
 # Get the script's directory
 script_dir = os.path.dirname(os.path.abspath(__file__))
 query = "SELECT count(*) FROM read_parquet('/tmp/temp_data.parquet') WHERE PatientID = '10100'"
-index_cid = "QmWyYYiSMZbC7eWY3vH3bnGZxGWKWE6P8fsK5uVcDbBM8j"  # This should be the encrypted index CID
+index_cid = "QmPg8z56c7grAJawrhMTqFEh1YkAA8v3EVAVR1bb3oXF87"  # This should be the encrypted index CID
+# Create DuckDB connection with single-threaded mode
+duckdb_time_start = time.time()
+conn = duckdb.connect(':memory:', config={'threads': 1})
+print(f"DuckDB connection established in {time.time() - duckdb_time_start:.6f} seconds")
 
 # --- Decryption Helper Functions ---
 
@@ -148,7 +152,6 @@ def printtime(message):
     print(message)
 
 start_time = time.time()
-
 # Retrieve and decrypt index
 idx_retrieve_start = time.time()
 index, idx_fetch_time, idx_decrypt_time = retrieve_and_decrypt_index(index_cid)
@@ -192,31 +195,25 @@ temp_parquet = "/tmp/temp_data.parquet"
 write_time_start = time.time()
 with open(temp_parquet, 'wb') as f:
     f.write(decrypted_parquet_data)
-printtime(f"Decrypted data written to temp file in {time.time() - write_time_start:.6f} seconds")
-
-# Create DuckDB connection with single-threaded mode
-duckdb_time_start = time.time()
-conn = duckdb.connect(':memory:', config={'threads': 1})
-printtime(f"DuckDB connection established in {time.time() - duckdb_time_start:.6f} seconds")
+write_time = time.time() - write_time_start
+printtime(f"Decrypted data written to temp file in {write_time:.6f} seconds")
 
 # Execute query directly on parquet file
 query_start = time.time()
 result = conn.execute(query).fetchdf()
-printtime(f"Query executed in {time.time() - query_start:.6f} seconds")
-printtime(f"Total execution time: {time.time() - start_time:.6f} seconds")
+duckdb_query_time = time.time() - query_start
+printtime(f"Query executed in {duckdb_query_time:.6f} seconds")
+total_ececution_time = time.time() - start_time
 
 # Summary of timing breakdown
 print("\n=== Timing Summary ===")
-print(f"Index operations:")
-print(f"  - Fetch: {idx_fetch_time:.6f} seconds")
-print(f"  - Decrypt: {idx_decrypt_time:.6f} seconds")
-print(f"  - Query: {idx_query_time_end - idx_query_time_start:.6f} seconds")
-print(f"Data operations:")
-print(f"  - Fetch: {data_fetch_time:.6f} seconds")
-print(f"  - Decrypt: {data_decrypt_time:.6f} seconds")
-print(f"  - Write to disk: {time.time() - write_time_start:.6f} seconds")
-print(f"DuckDB query: {time.time() - query_start:.6f} seconds")
-print(f"Total time: {time.time() - start_time:.6f} seconds")
+print(f"idx_fetch_time_seconds: {idx_fetch_time:.6f} seconds")
+print(f"idx_decrypt_time_seconds: {idx_decrypt_time:.6f} seconds")
+print(f"idx_lookup_time_seconds: {idx_query_time_end - idx_query_time_start:.6f} seconds")
+print(f"cid_fetch_time_seconds: {data_fetch_time:.6f} seconds")
+print(f"cid_decrypt_time_seconds: {data_decrypt_time + write_time:.6f} seconds")
+print(f"duckdb_query_time_seconds: {time.time() - query_start:.6f} seconds")
+print(f"total_query_execution_time_seconds: {total_ececution_time:.6f} seconds")
 
 # Write output
 output_dir = "/output"

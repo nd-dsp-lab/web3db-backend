@@ -1,30 +1,24 @@
 Query performance for encrypted Web3DB.
 Query Engine: DuckDB (inside Gramine SGX)
 >> 400M (Total database rows)
-=== Timing Summary ===
-Index operations:
-  - Fetch: 4.568542 seconds
-  - Decrypt: 14.665480 seconds
-  - Query: 0.009261 seconds
-Data operations:
-  - Fetch: 0.062769 seconds
-  - Decrypt: 0.042093 seconds
-  - Write to disk: 1.042200 seconds
-DuckDB query: 0.052134 seconds
-Total time: 24.363007 seconds
+=== Timing Summary (DuckDB SGX) ===
+idx_fetch_time_seconds: 4.323950 seconds
+idx_decrypt_time_seconds: 14.062642 seconds
+idx_lookup_time_seconds: 0.008666 seconds
+cid_fetch_time_seconds: 0.058983 seconds
+cid_decrypt_time_seconds: 0.048895 seconds
+duckdb_query_time_seconds: 0.052685 seconds
+total_query_execution_time_seconds: 22.644445 seconds
 
 >> 300M
-=== Timing Summary ===
-Index operations:
-  - Fetch: 3.118624 seconds
-  - Decrypt: 8.792197 seconds
-  - Query: 0.008638 seconds
-Data operations:
-  - Fetch: 0.063111 seconds
-  - Decrypt: 0.039206 seconds
-  - Write to disk: 1.052811 seconds
-DuckDB query: 0.049919 seconds
-Total time: 15.785963 seconds
+=== Timing Summary (DuckDB SGX) ===
+idx_fetch_time_seconds: 2.572018 seconds
+idx_decrypt_time_seconds: 9.091331 seconds
+idx_lookup_time_seconds: 0.009542 seconds
+cid_fetch_time_seconds: 0.066788 seconds
+cid_decrypt_time_seconds: 0.049396 seconds
+duckdb_query_time_seconds: 0.054850 seconds
+total_query_execution_time_seconds: 14.642838 seconds
 
 >>200M
 === Timing Summary ===
@@ -41,15 +35,13 @@ Total time: 7.608053 seconds
 
 >>100M
 === Timing Summary (DuckDB Gramine SGX) ===
-Index operations:
-  - Fetch: 0.582578 seconds
-  - Decrypt: 0.956383 seconds
-  - Query: 0.003720 seconds
-CID/Data operations:
-  - Fetch: 0.047332 seconds
-  - Decrypt and write to disk: 1.046609 seconds
-DuckDB query: 0.053855 seconds
-Total time: 3.082378 seconds
+idx_fetch_time_seconds: 0.647814 seconds
+idx_decrypt_time_seconds: 1.084727 seconds
+idx_lookup_time_seconds: 0.006693 seconds
+cid_fetch_time_seconds: 0.048650 seconds
+cid_decrypt_time_seconds: 0.083753 seconds
+duckdb_query_time_seconds: 0.062532 seconds
+total_query_execution_time_seconds: 2.431265 seconds
 
 >>>50M
 === Timing Summary ===

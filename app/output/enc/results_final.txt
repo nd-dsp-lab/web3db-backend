@@ -1,0 +1,84 @@
+Query performance for encrypted Web3DB.
+Query Engine: DuckDB
+>> 100M (Total database rows)
+=== Timing Summary (With Index, No SGX) ===
+idx_fetch_time_seconds: 0.263809 seconds
+idx_decrypt_time_seconds: 0.473162 seconds
+idx_lookup_time_seconds: 0.000511 seconds
+cid_fetch_time_seconds: 0.018269 seconds
+cid_decrypt_time_seconds: 0.008096 seconds
+duckdb_query_time_seconds: 0.003917 seconds
+query_execution_time_seconds_excluding_index_overhead: 0.030794 seconds
+total_query_execution_time_seconds: 1.248035 seconds
+
+=== Timing Summary (With Index, Gramine SGX) ===
+idx_fetch_time_seconds: 0.543451 seconds
+idx_decrypt_time_seconds: 1.065428 seconds
+idx_lookup_time_seconds: 0.007777 seconds
+cid_fetch_time_seconds: 0.055091 seconds
+cid_decrypt_time_seconds: 0.048181 seconds
+duckdb_query_time_seconds: 0.062314 seconds
+query_execution_time_seconds_excluding_index_overhead: 0.173363 seconds
+total_query_execution_time_seconds: 2.576374 seconds
+
+>> 200M (Total database rows)
+=== Timing Summary (With Index, No SGX) ===
+idx_fetch_time_seconds: 0.502738 seconds
+idx_decrypt_time_seconds: 0.841767 seconds
+idx_lookup_time_seconds: 0.000488 seconds
+cid_fetch_time_seconds: 0.017852 seconds
+cid_decrypt_time_seconds: 0.006757 seconds
+duckdb_query_time_seconds: 0.004212 seconds
+query_execution_time_seconds_excluding_index_overhead: 0.029309 seconds
+total_query_execution_time_seconds: 2.333564 seconds
+
+=== Timing Summary (With Index, Gramine SGX) ===
+idx_fetch_time_seconds: 1.444257 seconds
+idx_decrypt_time_seconds: 4.239338 seconds
+idx_lookup_time_seconds: 0.008963 seconds
+cid_fetch_time_seconds: 0.056883 seconds
+cid_decrypt_time_seconds: 0.050430 seconds
+duckdb_query_time_seconds: 0.058945 seconds
+query_execution_time_seconds_excluding_index_overhead: 0.175221 seconds
+total_query_execution_time_seconds: 7.464590 seconds
+
+>> 300M (Total database rows)
+=== Timing Summary (With Index, No SGX) ===
+idx_fetch_time_seconds: 1.069671 seconds
+idx_decrypt_time_seconds: 0.796840 seconds
+idx_lookup_time_seconds: 0.000377 seconds
+cid_fetch_time_seconds: 0.015820 seconds
+cid_decrypt_time_seconds: 0.004094 seconds
+duckdb_query_time_seconds: 0.002622 seconds
+query_execution_time_seconds_excluding_index_overhead: 0.022913 seconds
+total_query_execution_time_seconds: 3.159605 seconds
+
+=== Timing Summary (With Index, Gramine SGX) ===
+idx_fetch_time_seconds: 4.873977 seconds
+idx_decrypt_time_seconds: 15.061583 seconds
+idx_lookup_time_seconds: 0.011828 seconds
+cid_fetch_time_seconds: 0.070641 seconds
+cid_decrypt_time_seconds: 0.060679 seconds
+duckdb_query_time_seconds: 0.059714 seconds
+query_execution_time_seconds_excluding_index_overhead: 0.202862 seconds
+total_query_execution_time_seconds: 24.327284 seconds
+
+>> 400M (Total database rows)
+=== Timing Summary (With Index, No SGX) ===
+idx_fetch_time_seconds: 0.932457 seconds
+idx_decrypt_time_seconds: 0.799562 seconds
+idx_lookup_time_seconds: 0.000322 seconds
+cid_fetch_time_seconds: 0.016841 seconds
+cid_decrypt_time_seconds: 0.004450 seconds
+duckdb_query_time_seconds: 0.002698 seconds
+query_execution_time_seconds_excluding_index_overhead: 0.024311 seconds
+total_query_execution_time_seconds: 3.055718 seconds
+=== Timing Summary (With Index, Gramine SGX) ===
+idx_fetch_time_seconds: 4.861907 seconds
+idx_decrypt_time_seconds: 15.683924 seconds
+idx_lookup_time_seconds: 0.011990 seconds
+cid_fetch_time_seconds: 0.078150 seconds
+cid_decrypt_time_seconds: 0.060847 seconds
+duckdb_query_time_seconds: 0.061290 seconds
+query_execution_time_seconds_excluding_index_overhead: 0.212277 seconds
+total_query_execution_time_seconds: 25.488931 seconds

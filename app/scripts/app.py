@@ -20,7 +20,7 @@ ENCRYPTION_KEY = base64.b64decode(os.getenv("ENCRYPTION_KEY", "AlmbEPmAR2M4o+ohm
 # Get the script's directory
 script_dir = os.path.dirname(os.path.abspath(__file__))
 query = "SELECT count(*) FROM read_parquet('/tmp/temp_data.parquet') WHERE PatientID = '10100'"
-index_cid = "QmPg8z56c7grAJawrhMTqFEh1YkAA8v3EVAVR1bb3oXF87"  # This should be the encrypted index CID
+index_cid = "QmaTVubhNgWGZRUwpqXHWNStiGupwGLyXS4tc2xV5q7Xbj"  # This should be the encrypted index CID
 # Create DuckDB connection with single-threaded mode
 duckdb_time_start = time.time()
 conn = duckdb.connect(':memory:', config={'threads': 1})
@@ -203,16 +203,21 @@ query_start = time.time()
 result = conn.execute(query).fetchdf()
 duckdb_query_time = time.time() - query_start
 printtime(f"Query executed in {duckdb_query_time:.6f} seconds")
+
 total_ececution_time = time.time() - start_time
 
+idx_lookup_time_seconds = idx_query_time_end - idx_query_time_start
+cid_decrypt_time_seconds = data_decrypt_time + write_time
+query_execution_time_seconds_excluding_index_overhead = idx_lookup_time_seconds + data_fetch_time + cid_decrypt_time_seconds + duckdb_query_time
 # Summary of timing breakdown
 print("\n=== Timing Summary ===")
 print(f"idx_fetch_time_seconds: {idx_fetch_time:.6f} seconds")
 print(f"idx_decrypt_time_seconds: {idx_decrypt_time:.6f} seconds")
-print(f"idx_lookup_time_seconds: {idx_query_time_end - idx_query_time_start:.6f} seconds")
+print(f"idx_lookup_time_seconds: {idx_lookup_time_seconds:.6f} seconds")
 print(f"cid_fetch_time_seconds: {data_fetch_time:.6f} seconds")
-print(f"cid_decrypt_time_seconds: {data_decrypt_time + write_time:.6f} seconds")
-print(f"duckdb_query_time_seconds: {time.time() - query_start:.6f} seconds")
+print(f"cid_decrypt_time_seconds: {cid_decrypt_time_seconds:.6f} seconds")
+print(f"duckdb_query_time_seconds: {duckdb_query_time:.6f} seconds")
+print(f"query_execution_time_seconds_excluding_index_overhead: {query_execution_time_seconds_excluding_index_overhead:.6f} seconds")
 print(f"total_query_execution_time_seconds: {total_ececution_time:.6f} seconds")
 
 # Write output

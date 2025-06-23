@@ -15,7 +15,7 @@ loader.env.LD_LIBRARY_PATH = "/lib:/lib:{{ arch_libdir }}:/usr/{{ arch_libdir }}
 loader.env.OMP_NUM_THREADS = "4"
 
 loader.insecure__use_cmdline_argv = true
-
+loader.env.GRAMINE_CRYPTO_THREADS = "4"
 sys.enable_sigterm_injection = true
 
 fs.mounts = [
@@ -33,14 +33,16 @@ fs.mounts = [
   {path = "/query", uri = "file:/home/shossain/web3db-backend/app/query"}
 ]
 
-sys.stack.size = "2M"
+sys.stack.size = "8M"
 sys.enable_extra_runtime_domain_names_conf = true
 
-sgx.debug = true
+sgx.debug = false
 sgx.edmm_enable = {{ 'true' if env.get('EDMM', '0') == '1' else 'false' }}
-sgx.enclave_size = "8G"
+#sgx.edmm_enable = true
+sgx.enclave_size = "2G"
 #sgx.max_threads = {{ '1' if env.get('EDMM', '0') == '1' else '32' }}
-sgx.max_threads = 64
+sgx.max_threads = 16
+
 
 sgx.remote_attestation = "none"
 

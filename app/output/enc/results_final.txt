@@ -189,3 +189,30 @@ Parallel fetch/decrypt time (wall time): 103.893063 seconds
 duckdb_query_time_seconds: 2.069292 seconds
 query_execution_time_seconds_excluding_index_overhead: 108.342092 seconds
 total_query_execution_time_seconds: 134.738019 seconds
+
+
+>>>> Network Distribution Effect....................
+See Notebook.
+
+
+>>> Query execution time vs number of cids returned...............
+=== Timing Summary (SGX) ===
+idx_fetch_time_seconds: 0.101080 seconds
+idx_decrypt_time_seconds: 0.262546 seconds
+idx_lookup_time_seconds: 0.053179 seconds
+Number of CIDs processed: 250
+Parallel fetch/decrypt time (wall time): 8.463247 seconds
+  - Cumulative fetch time: 7.351055 seconds
+  - Cumulative decrypt time: 0.906768 seconds
+  - Average per file: 0.033853 seconds
+duckdb_query_time_seconds: 0.147813 seconds
+query_execution_time_seconds_excluding_index_overhead: 8.664239 seconds
+total_query_execution_time_seconds: 9.112130 seconds
+
+250 -> 8.664239 seconds
+500 -> 14.923036 seconds
+750 -> 20.516290 seconds
+1000 -> 23.640152 seconds
+2000 -> 50.212799 seconds
+3000 -> 79.434887 seconds
+4000 -> 108.342092 seconds

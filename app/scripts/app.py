@@ -183,7 +183,7 @@ printtime(f"  - Index decrypt time: {idx_decrypt_time:.6f} seconds")
 
 # Query the index
 idx_query_time_start = time.time()
-cids = query_index(index, query, "Age")
+cids = query_index(index, query, "PatientID")
 idx_query_time_end = time.time()
 printtime(f"Index query took {idx_query_time_end - idx_query_time_start:.6f} seconds")
 print(f"{len(cids)} CIDs found for query")
@@ -198,7 +198,7 @@ printtime(f"Using temporary directory: {temp_dir}")
 
 # Fetch and decrypt all data from IPFS
 data_retrieve_start = time.time()
-total_fetch_time = 0
+total_fetch_time = 0x
 total_decrypt_time = 0
 parquet_files = []
 
@@ -223,8 +223,8 @@ with ThreadPoolExecutor(max_workers=max_workers) as executor:
                 total_fetch_time += fetch_time
                 total_decrypt_time += decrypt_time
                 completed += 1
-                if completed % 10 == 0:  # Progress update every 10 files
-                    printtime(f"  Progress: {completed}/{len(cids)} files processed")
+                # if completed % 10 == 0:  # Progress update every 10 files
+                #     printtime(f"  Progress: {completed}/{len(cids)} files processed")
             else:
                 print(f"  Failed to process CID: {cid}")
         except Exception as e:

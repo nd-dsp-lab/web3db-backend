@@ -37,11 +37,11 @@ sys.stack.size = "8M"
 sys.enable_extra_runtime_domain_names_conf = true
 
 sgx.debug = false
-sgx.edmm_enable = {{ 'true' if env.get('EDMM', '0') == '1' else 'false' }}
-#sgx.edmm_enable = true
-sgx.enclave_size = "16G"
+#sgx.edmm_enable = {{ 'true' if env.get('EDMM', '0') == '1' else 'false' }}
+sgx.edmm_enable = true
+sgx.enclave_size = "4G"
 #sgx.max_threads = {{ '1' if env.get('EDMM', '0') == '1' else '32' }}
-sgx.max_threads = 64
+sgx.max_threads = 32
 
 
 sgx.remote_attestation = "none"
@@ -49,16 +49,17 @@ sgx.remote_attestation = "none"
 sgx.trusted_files = [
   "file:{{ entrypoint }}",
   "file:{{ gramine.runtimedir() }}/",
-  "file:{{ arch_libdir }}/",
+  "file:{{ arch_libdir }}/"
+
+]
+
+sgx.allowed_files = [
   "file:/usr/{{ arch_libdir }}/",
 {% for path in python.get_sys_path(entrypoint) %}
   "file:{{ path }}{{ '/' if path.is_dir() else '' }}",
 {% endfor %}
   "file:scripts/",
  "file:/usr/share/zoneinfo/",
-]
-
-sgx.allowed_files = [
   "file:/home/shossain/web3db-backend/app/output/",
   "file:/home/shossain/web3db-backend/app/dataset/",
   "file:/home/shossain/web3db-backend/app/query/",

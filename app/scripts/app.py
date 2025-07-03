@@ -198,7 +198,7 @@ printtime(f"Using temporary directory: {temp_dir}")
 
 # Fetch and decrypt all data from IPFS
 data_retrieve_start = time.time()
-total_fetch_time = 0x
+total_fetch_time = 0
 total_decrypt_time = 0
 parquet_files = []
 

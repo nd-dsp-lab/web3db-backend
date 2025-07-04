@@ -1,6 +1,4 @@
-sudo pip3 install sqlalchemy==1.4.46
-
-sudo pip3 install pandasql
+sudo pip3 install -r requirements.txt --break-system-packages
 
 make clean
 

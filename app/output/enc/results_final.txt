@@ -209,6 +209,16 @@ duckdb_query_time_seconds: 0.147813 seconds
 query_execution_time_seconds_excluding_index_overhead: 8.664239 seconds
 total_query_execution_time_seconds: 9.112130 seconds
 
+Query execution time Summary
+DB Size > With idx, no sgx > With idx, sgx > Withoud idx, no sgx > Without idx, sgx
+100M > 0.030794 > 0.173363 > 8.917684 > 23.640152
+200M > 0.029309 > 0.175221 > 25.124276 > 50.212799
+300M > 0.022913 > 0.202862 > 38.848316 > 79.434887
+400M > 0.024311 > 0.212277 > 48.604722 > 108.342092
+ 
+
+
+Query Execution Time vs. Number of CIDs Retrieved
 250 -> 8.664239 seconds
 500 -> 14.923036 seconds
 750 -> 20.516290 seconds
@@ -216,3 +226,16 @@ total_query_execution_time_seconds: 9.112130 seconds
 2000 -> 50.212799 seconds
 3000 -> 79.434887 seconds
 4000 -> 108.342092 seconds
+........................................
+25 -> 0.8664239
+50 -> 1.4923036
+75 -> 2.0516290 seconds
+100 -> 2.5640152
+
+Network Distribution Effects
+X-axis > LAN > WAN
+100-0 > 2.5640 > 0
+75-25 > 2.7760 > 5.5027
+50-50 > 3.0916 > 8.3621
+25-75 > 3.4299 > 11.2195
+0-100 > 3.6412 > 14.0768

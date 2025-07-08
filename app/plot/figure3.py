@@ -13,20 +13,25 @@ width = 0.6
 plt.rcParams.update({
     "font.size": 11,
     "font.family": "serif",
-    "figure.dpi": 300
+    "axes.labelsize": 12,
+    "xtick.labelsize": 10,
+    "ytick.labelsize": 10,
+    "legend.fontsize": 10,
+    "figure.figsize": (6, 4.5),
+    "axes.linewidth": 1.5,
 })
 
 # Plot
 fig, ax = plt.subplots(figsize=(7, 5))
-bars1 = ax.bar(x, lan_times, width, label='LAN Component', color='lightblue', edgecolor='black', linewidth=1.0)
+bars1 = ax.bar(x, lan_times, width, label='LAN Component', color='#ADD8E6', edgecolor='black', linewidth=1.0)
 bars2 = ax.bar(x, wan_times, width, bottom=lan_times, label='WAN Overhead', color='lightcoral', edgecolor='black', linewidth=1.0)
 
 # Labels and ticks
-ax.set_ylabel('Query Time (seconds)')
-ax.set_xlabel('CID Distribution (Host 1 - Host 2)')
+ax.set_ylabel('Query Execution Time (seconds)')
+ax.set_xlabel('CID Distribution Per Host (Host 1 - Host 2)')
 ax.set_xticks(x)
 ax.set_xticklabels(x_labels)
-ax.legend(loc='upper left', fontsize=12)
+
 
 # Remove top and right spines
 ax.spines['top'].set_visible(False)
@@ -34,7 +39,7 @@ ax.spines['right'].set_visible(False)
 
 # Grid and layout
 ax.grid(True, which="major", axis='both', linestyle='-', linewidth=0.5, color='gray', alpha=0.3)
-ax.set_axisbelow(True)  # Put grid behind bars
+ax.set_axisbelow(True)
 plt.tight_layout()
 
 # Save as high-res PDF

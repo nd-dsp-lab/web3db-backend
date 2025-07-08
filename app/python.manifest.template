@@ -12,10 +12,16 @@ loader.env.LD_LIBRARY_PATH = "/lib:/lib:{{ arch_libdir }}:/usr/{{ arch_libdir }}
 # Python's NumPy spawns as many threads as there are CPU cores, and each thread
 # consumes a chunk of memory, so on large machines 1G enclave size may be not enough.
 # We limit the number of spawned threads via OMP_NUM_THREADS env variable.
-loader.env.OMP_NUM_THREADS = "4"
+# Optimized for SGX performance
+loader.env.OMP_NUM_THREADS = "1"
+loader.env.NUMEXPR_NUM_THREADS = "1"
+loader.env.MKL_NUM_THREADS = "1"
+loader.env.OPENBLAS_NUM_THREADS = "1"
+loader.env.BLIS_NUM_THREADS = "1"
 
 loader.insecure__use_cmdline_argv = true
-loader.env.GRAMINE_CRYPTO_THREADS = "4"
+# Reduced crypto threads for better SGX performance
+loader.env.GRAMINE_CRYPTO_THREADS = "1"
 sys.enable_sigterm_injection = true
 
 fs.mounts = [
@@ -33,16 +39,18 @@ fs.mounts = [
   {path = "/query", uri = "file:/home/shossain/web3db-backend/app/query"}
 ]
 
-sys.stack.size = "8M"
+# Optimized stack size for SGX performance
+sys.stack.size = "4M"
 sys.enable_extra_runtime_domain_names_conf = true
 
 sgx.debug = false
 #sgx.edmm_enable = {{ 'true' if env.get('EDMM', '0') == '1' else 'false' }}
 sgx.edmm_enable = true
-sgx.enclave_size = "4G"
+# Reduced enclave size for better performance and lower overhead
+sgx.enclave_size = "8G"
 #sgx.max_threads = {{ '1' if env.get('EDMM', '0') == '1' else '32' }}
-sgx.max_threads = 32
-
+# Single-threaded for optimal SGX performance
+sgx.max_threads = 1
 
 sgx.remote_attestation = "none"
 

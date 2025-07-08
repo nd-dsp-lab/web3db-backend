@@ -18,10 +18,10 @@ plt.rcParams.update({
 
 # --- Dataset ---
 x_labels = ['100M', '200M', '300M', '400M']
-with_index_nosgx = [0.025, 0.025, 0.025, 0.025]
-with_index_sgx = [0.175, 0.175, 0.202, 0.210]
-without_index_nosgx = [8.91, 25.12, 38.85, 50.21]
-without_index_sgx = [23.64, 50.21, 79.43, 100.35]
+with_index_nosgx = [0.025, 0.029, 0.030, 0.030]
+with_index_sgx = [0.173, 0.175, 0.202, 0.212]
+without_index_nosgx = [8.91, 25.12, 38.84, 48.60]
+without_index_sgx = [23.64, 50.21, 79.43, 108.34]
 
 # --- Grouped Bar Chart Setup ---
 # Create a single figure and axes

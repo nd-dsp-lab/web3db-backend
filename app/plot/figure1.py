@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.ticker import LogLocator, LogFormatter
 
 # --- IEEE Style Formatting ---
 # This section sets up the plot to look more like a standard IEEE publication figure.
@@ -49,13 +50,28 @@ ax.bar(pos2, with_index_sgx, width, label='With Index (SGX)', color=colors['blue
 ax.bar(pos3, without_index_nosgx, width, label='Without Index (No SGX)', color=colors['orange'])
 ax.bar(pos4, without_index_sgx, width, label='Without Index (SGX)', color=colors['red'])
 
-
 # --- Axes and Labels ---
 ax.set_yscale('log')
 ax.set_xlabel("Database Size (Rows)")
 ax.set_ylabel("Query Execution Time (seconds, log scale)")
 ax.set_xticks(x)
 ax.set_xticklabels(x_labels)
+
+# --- Ultra-Clean Y-Axis (No Noise) ---
+# Set explicit y-axis limits to control the range
+ax.set_ylim(0.01, 200)
+
+# Use LogLocator with specific base and subs to control tick placement
+major_locator = LogLocator(base=10, subs=(1,), numdecs=4, numticks=15)
+ax.yaxis.set_major_locator(major_locator)
+
+# Set specific major ticks
+ax.set_yticks([0.01, 0.1, 1, 10, 100])
+ax.set_yticklabels(['0.01', '0.1', '1', '10', '100'])
+
+# Completely disable minor ticks
+ax.yaxis.set_minor_locator(plt.NullLocator())
+ax.tick_params(axis='y', which='minor', size=0, width=0, labelsize=0)
 
 # --- Legend and Grid ---
 # Updated legend to be horizontal at the top, outside the plot area.
@@ -68,7 +84,6 @@ ax.grid(True, which="major", axis='y', linestyle=':', linewidth=1, color='gray',
 ax.spines['right'].set_visible(False)
 ax.spines['top'].set_visible(False)
 ax.tick_params(width=1.5, which='major')
-ax.tick_params(width=1.0, which='minor')
 
 # Adjust layout to ensure all elements, including the legend, fit perfectly.
 plt.tight_layout(pad=1.0)

@@ -28,9 +28,12 @@ bars2 = ax.bar(x, wan_times, width, bottom=lan_times, label='WAN Overhead', colo
 
 # Labels and ticks
 ax.set_ylabel('Query Execution Time (seconds)')
-ax.set_xlabel('CID Distribution Per Host (Host 1 - Host 2)')
+ax.set_xlabel('CID Distribution Per Host (Host 1 - Host 2)\n(Each CID chunk = 100K rows, 11.848 Mbits)')
 ax.set_xticks(x)
 ax.set_xticklabels(x_labels)
+
+# Add legend
+ax.legend(loc='upper left', frameon=False)
 
 
 # Remove top and right spines
@@ -43,5 +46,5 @@ ax.set_axisbelow(True)
 plt.tight_layout()
 
 # Save as high-res PDF
-plt.savefig("mtdb_network_distribution_query_time.pdf", format="pdf", dpi=300)
+plt.savefig("mtdb_network_distribution_query_time.pdf", format="pdf", dpi=300, bbox_inches='tight')
 plt.show()

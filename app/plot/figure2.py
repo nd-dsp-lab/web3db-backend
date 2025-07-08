@@ -38,7 +38,7 @@ ax.set_xticks(cids_returned) # Set ticks to match the data points
 ax.grid(True, which="major", axis='y', linestyle=':', linewidth=1, color='gray', alpha = 0.3)
 
 # Add the text annotation inside the plot
-ax.text(27, 2.4, "Each CID chunk = 100K rows (11.848 Mbits)", fontsize=10, verticalalignment='top')
+ax.text(27, 2.4, "(Each CID chunk = 100K rows, 11.848 Mbits)", fontsize=10, verticalalignment='top')
 
 
 # --- Final Touches ---

@@ -90,5 +90,5 @@ plt.tight_layout(pad=1.0)
 
 # --- Save and Show ---
 # Save the figure in high-resolution PDF format, ideal for papers.
-plt.savefig("mtdb_query_execution_time.pdf", format='pdf', dpi=300, bbox_inches='tight')
+plt.savefig("mtdb_query_execution_time_bar.pdf", format='pdf', dpi=300, bbox_inches='tight')
 plt.show()

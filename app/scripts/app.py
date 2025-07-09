@@ -22,7 +22,7 @@ ENCRYPTION_KEY = base64.b64decode(os.getenv("ENCRYPTION_KEY", "AlmbEPmAR2M4o+ohm
 # Get the script's directory
 script_dir = os.path.dirname(os.path.abspath(__file__))
 query = "SELECT count(*) FROM read_parquet('/tmp/temp_data.parquet') WHERE PatientID = '10100'"
-index_cid = "Qmawt7HaXFAtsmfuENJKQHhYVCe7JK8xmkZ6i59cu3VyrQ"  # This should be the encrypted index CID
+index_cid = "QmWyYYiSMZbC7eWY3vH3bnGZxGWKWE6P8fsK5uVcDbBM8j"  # This should be the encrypted index CID
 # Create DuckDB connection with single-threaded mode
 duckdb_time_start = time.time()
 conn = duckdb.connect(':memory:', config={'threads': 1})
@@ -153,18 +153,20 @@ def fetch_and_decrypt_data(cid):
 def fetch_and_decrypt_data_with_path(cid, temp_dir):
     """
     Fetch, decrypt and save data to a temporary file.
-    Returns: (temp_file_path, fetch_time, decrypt_time) or (None, 0, 0) on failure
+    Returns: (temp_file_path, fetch_time, decrypt_time, write_time) or (None, 0, 0, 0) on failure
     """
     decrypted_data, fetch_time, decrypt_time = fetch_and_decrypt_data(cid)
     if not decrypted_data:
-        return None, fetch_time, decrypt_time
+        return None, fetch_time, decrypt_time, 0
     
-    # Write to a temporary file
+    # Write to a temporary file and measure time
+    write_start = time.time()
     temp_file = tempfile.NamedTemporaryFile(mode='wb', dir=temp_dir, delete=False, suffix='.parquet')
     temp_file.write(decrypted_data)
     temp_file.close()
+    write_time = time.time() - write_start
     
-    return temp_file.name, fetch_time, decrypt_time
+    return temp_file.name, fetch_time, decrypt_time, write_time
 
 def printtime(message):
     print(message)
@@ -183,7 +185,7 @@ printtime(f"  - Index decrypt time: {idx_decrypt_time:.6f} seconds")
 
 # Query the index
 idx_query_time_start = time.time()
-cids = query_index(index, query, "PatientID")
+cids = query_index(index, query, "Age")
 idx_query_time_end = time.time()
 printtime(f"Index query took {idx_query_time_end - idx_query_time_start:.6f} seconds")
 print(f"{len(cids)} CIDs found for query")
@@ -200,6 +202,7 @@ printtime(f"Using temporary directory: {temp_dir}")
 data_retrieve_start = time.time()
 total_fetch_time = 0
 total_decrypt_time = 0
+total_write_time = 0
 parquet_files = []
 
 # Configure parallelism (adjust based on your system)
@@ -217,11 +220,12 @@ with ThreadPoolExecutor(max_workers=max_workers) as executor:
     for future in as_completed(future_to_cid):
         cid = future_to_cid[future]
         try:
-            file_path, fetch_time, decrypt_time = future.result()
+            file_path, fetch_time, decrypt_time, write_time = future.result()
             if file_path:
                 parquet_files.append(file_path)
                 total_fetch_time += fetch_time
                 total_decrypt_time += decrypt_time
+                total_write_time += write_time
                 completed += 1
                 # if completed % 10 == 0:  # Progress update every 10 files
                 #     printtime(f"  Progress: {completed}/{len(cids)} files processed")
@@ -233,10 +237,7 @@ with ThreadPoolExecutor(max_workers=max_workers) as executor:
 data_retrieve_end = time.time()
 
 printtime(f"\nSuccessfully fetched and decrypted {len(parquet_files)}/{len(cids)} files")
-printtime(f"Total data fetch and decrypt time: {data_retrieve_end - data_retrieve_start:.6f} seconds")
-printtime(f"  - Cumulative fetch time: {total_fetch_time:.6f} seconds")
-printtime(f"  - Cumulative decrypt time: {total_decrypt_time:.6f} seconds")
-printtime(f"  - Average time per file: {(data_retrieve_end - data_retrieve_start) / len(cids):.6f} seconds")
+printtime(f"Data processing completed in {data_retrieve_end - data_retrieve_start:.6f} seconds")
 
 if not parquet_files:
     printtime("No files were successfully fetched/decrypted, exiting.")
@@ -258,28 +259,21 @@ printtime(f"Query executed in {duckdb_query_time:.6f} seconds")
 
 total_execution_time = time.time() - start_time
 
+# Calculate timing components
 idx_lookup_time_seconds = idx_query_time_end - idx_query_time_start
-# For multiple files, we need to consider the parallel processing time
-avg_decrypt_time_per_file = total_decrypt_time / len(parquet_files) if parquet_files else 0
-avg_fetch_time_per_file = total_fetch_time / len(parquet_files) if parquet_files else 0
-# Actual wall time for fetching/decrypting (considers parallelism)
-actual_fetch_decrypt_time = data_retrieve_end - data_retrieve_start
+total_index_time_seconds = idx_retrieve_end - idx_retrieve_start  # Complete index operation
+data_processing_wall_time_seconds = data_retrieve_end - data_retrieve_start
 
-query_execution_time_seconds_excluding_index_overhead = idx_lookup_time_seconds + actual_fetch_decrypt_time + duckdb_query_time
-
-# Summary of timing breakdown
+# Clean timing summary
 print("\n=== Timing Summary ===")
-print(f"idx_fetch_time_seconds: {idx_fetch_time:.6f} seconds")
-print(f"idx_decrypt_time_seconds: {idx_decrypt_time:.6f} seconds")
-print(f"idx_lookup_time_seconds: {idx_lookup_time_seconds:.6f} seconds")
-print(f"Number of CIDs processed: {len(parquet_files)}")
-print(f"Parallel fetch/decrypt time (wall time): {actual_fetch_decrypt_time:.6f} seconds")
-print(f"  - Cumulative fetch time: {total_fetch_time:.6f} seconds")
-print(f"  - Cumulative decrypt time: {total_decrypt_time:.6f} seconds")
-print(f"  - Average per file: {actual_fetch_decrypt_time / len(parquet_files):.6f} seconds")
-print(f"duckdb_query_time_seconds: {duckdb_query_time:.6f} seconds")
-print(f"query_execution_time_seconds_excluding_index_overhead: {query_execution_time_seconds_excluding_index_overhead:.6f} seconds")
-print(f"total_query_execution_time_seconds: {total_execution_time:.6f} seconds")
+print(f"1. Index fetch time: {idx_fetch_time:.6f} seconds")
+print(f"2. Index decrypt time: {idx_decrypt_time:.6f} seconds")
+print(f"3. Index lookup time: {idx_lookup_time_seconds:.6f} seconds")
+print(f"4. Data (CIDs) fetch time: {total_fetch_time:.6f} seconds")
+print(f"5. Data (CIDs) decrypt time: {total_decrypt_time:.6f} seconds")
+print(f"6. DuckDB Query execution time: {duckdb_query_time:.6f} seconds")
+print(f"7. Query execution time without index overhead: {idx_lookup_time_seconds + total_fetch_time + total_decrypt_time + duckdb_query_time:.6f} seconds")
+print(f"8. Total execution time: {total_execution_time:.6f} seconds")
 
 # Write output
 output_dir = "/output"

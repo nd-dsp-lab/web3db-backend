@@ -18,8 +18,8 @@ plt.rcParams.update({
 
 # --- Dataset ---
 x_labels = ['100M', '200M', '300M', '400M']
-with_index_nosgx = [0.025, 0.027, 0.027, 0.025]
-with_index_sgx = [0.036, 0.033, 0.033, 0.037]
+with_index_nosgx = [0.025, 0.027, 0.027, 0.028]
+with_index_sgx = [0.033, 0.036, 0.036, 0.037]
 without_index_nosgx = [9.118, 18.980, 28.529, 33.344]
 without_index_sgx = [17.293, 35.275, 47.580, 62.818]
 

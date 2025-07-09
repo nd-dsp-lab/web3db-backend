@@ -47,7 +47,7 @@ sgx.debug = false
 #sgx.edmm_enable = {{ 'true' if env.get('EDMM', '0') == '1' else 'false' }}
 sgx.edmm_enable = true
 # Reduced enclave size for better performance and lower overhead
-sgx.enclave_size = "8G"
+sgx.enclave_size = "2G"
 #sgx.max_threads = {{ '1' if env.get('EDMM', '0') == '1' else '32' }}
 # Single-threaded for optimal SGX performance
 sgx.max_threads = 1

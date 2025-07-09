@@ -18,10 +18,10 @@ plt.rcParams.update({
 
 # --- Dataset ---
 x_labels = ['100M', '200M', '300M', '400M']
-with_index_nosgx = [0.025, 0.029, 0.030, 0.030]
-with_index_sgx = [0.173, 0.175, 0.202, 0.212]
-without_index_nosgx = [8.91, 25.12, 38.84, 48.60]
-without_index_sgx = [23.64, 50.21, 79.43, 108.34]
+with_index_nosgx = [0.025, 0.027, 0.027, 0.025]
+with_index_sgx = [0.036, 0.033, 0.033, 0.037]
+without_index_nosgx = [9.118, 18.980, 28.529, 33.344]
+without_index_sgx = [17.293, 35.275, 47.580, 62.818]
 
 # --- Grouped Bar Chart Setup ---
 # Create a single figure and axes
@@ -45,9 +45,9 @@ pos3 = x + 0.5 * width
 pos4 = x + 1.5 * width
 
 # Plot the bars
-ax.bar(pos1, with_index_nosgx, width, label='With Index (No SGX)', color=colors['green'])
+ax.bar(pos1, with_index_nosgx, width, label='With Index (Vanilla)', color=colors['green'])
 ax.bar(pos2, with_index_sgx, width, label='With Index (SGX)', color=colors['blue'])
-ax.bar(pos3, without_index_nosgx, width, label='Without Index (No SGX)', color=colors['orange'])
+ax.bar(pos3, without_index_nosgx, width, label='Without Index (Vanilla)', color=colors['orange'])
 ax.bar(pos4, without_index_sgx, width, label='Without Index (SGX)', color=colors['red'])
 
 # --- Axes and Labels ---

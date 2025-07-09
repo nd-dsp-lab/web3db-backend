@@ -22,7 +22,7 @@ ENCRYPTION_KEY = base64.b64decode(os.getenv("ENCRYPTION_KEY", "AlmbEPmAR2M4o+ohm
 # Get the script's directory
 script_dir = os.path.dirname(os.path.abspath(__file__))
 query = "SELECT count(*) FROM read_parquet('/tmp/temp_data.parquet') WHERE PatientID = '10100'"
-index_cid = "QmWyYYiSMZbC7eWY3vH3bnGZxGWKWE6P8fsK5uVcDbBM8j"  # This should be the encrypted index CID
+index_cid = "QmU5HubxmbjMhhz9ScFhSKLv4UAMHs12xqPGVVFzYAX1NR"  # This should be the encrypted index CID
 # Create DuckDB connection with single-threaded mode
 duckdb_time_start = time.time()
 conn = duckdb.connect(':memory:', config={'threads': 1})
@@ -264,6 +264,10 @@ idx_lookup_time_seconds = idx_query_time_end - idx_query_time_start
 total_index_time_seconds = idx_retrieve_end - idx_retrieve_start  # Complete index operation
 data_processing_wall_time_seconds = data_retrieve_end - data_retrieve_start
 
+# Query execution time without index overhead = index lookup + data processing (wall time) + duckdb query
+# wall clock time for data processing, not cumulative time
+query_execution_time_without_index_overhead = idx_lookup_time_seconds + data_processing_wall_time_seconds + duckdb_query_time
+
 # Clean timing summary
 print("\n=== Timing Summary ===")
 print(f"1. Index fetch time: {idx_fetch_time:.6f} seconds")
@@ -273,7 +277,8 @@ print(f"4. Data (CIDs) fetch time: {total_fetch_time:.6f} seconds")
 print(f"5. Data (CIDs) decrypt time: {total_decrypt_time:.6f} seconds")
 print(f"6. DuckDB Query execution time: {duckdb_query_time:.6f} seconds")
 print(f"7. Query execution time without index overhead: {idx_lookup_time_seconds + total_fetch_time + total_decrypt_time + duckdb_query_time:.6f} seconds")
-print(f"8. Total execution time: {total_execution_time:.6f} seconds")
+print(f"8. Query execution time without index overhead (Wall time): {query_execution_time_without_index_overhead:.6f} seconds")
+print(f"9. Total execution time: {total_execution_time:.6f} seconds")
 
 # Write output
 output_dir = "/output"

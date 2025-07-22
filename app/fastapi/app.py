@@ -235,7 +235,7 @@ class QueryRequest(BaseModel):
 
 @app.post("/query")
 async def query(request: QueryRequest):
-    logger.info("POST /query - Processing distributed query")
+    logger.info("POST /query - Processing query")
     query_start_time = time.time()
 
     # Retrieve and decrypt index with timing
@@ -317,7 +317,7 @@ async def query(request: QueryRequest):
 
 
 @app.get("/ipfs/fetch/{cid}")
-async def fetch_from_ipfs(cid: str):
+async def fetch_from_ipfs_endpoint(cid: str):
     logger.info(f"GET /ipfs/fetch/{cid}")
     try:
         start = time.time()

@@ -234,7 +234,7 @@ class QueryRequest(BaseModel):
     query: str = "select * from patient_data where PatientID = 'X'"
 
 @app.post("/query")
-async def query_distributed(request: QueryRequest):
+async def query(request: QueryRequest):
     logger.info("POST /query - Processing distributed query")
     query_start_time = time.time()
 
@@ -317,7 +317,7 @@ async def query_distributed(request: QueryRequest):
 
 
 @app.get("/ipfs/fetch/{cid}")
-async def fetch_from_ipfs_endpoint(cid: str):
+async def fetch_from_ipfs(cid: str):
     logger.info(f"GET /ipfs/fetch/{cid}")
     try:
         start = time.time()
@@ -449,49 +449,49 @@ def fetch_cid(cid):
 class UpdateIndexCIDsRequest(BaseModel):
     index_cids: dict
 
-@app.put("/index-cids")
-async def update_index_cids(request: UpdateIndexCIDsRequest):
-    """
-    Update the index CIDs mapping.
+# @app.put("/index-cids")
+# async def update_index_cids(request: UpdateIndexCIDsRequest):
+#     """
+#     Update the index CIDs mapping.
 
-    Example request body:
-    {
-        "index_cids": {
-            "PatientID": "QmXxxxx...",
-            "HospitalID": "QmYyyyy...",
-            "Age": "QmZzzzz..."
-        }
-    }
-    """
-    logger.info("PUT /index-cids - Updating index CIDs")
-    try:
-        # Validate that the keys match expected index attributes
-        valid_keys = set(app.state.index_cids.keys())
-        provided_keys = set(request.index_cids.keys())
+#     Example request body:
+#     {
+#         "index_cids": {
+#             "PatientID": "QmXxxxx...",
+#             "HospitalID": "QmYyyyy...",
+#             "Age": "QmZzzzz..."
+#         }
+#     }
+#     """
+#     logger.info("PUT /index-cids - Updating index CIDs")
+#     try:
+#         # Validate that the keys match expected index attributes
+#         valid_keys = set(app.state.index_cids.keys())
+#         provided_keys = set(request.index_cids.keys())
 
-        # Check for invalid keys
-        invalid_keys = provided_keys - valid_keys
-        if invalid_keys:
-            return {
-                "status": "error",
-                "message": f"Invalid index attributes: {invalid_keys}. Valid attributes are: {valid_keys}"
-            }
+#         # Check for invalid keys
+#         invalid_keys = provided_keys - valid_keys
+#         if invalid_keys:
+#             return {
+#                 "status": "error",
+#                 "message": f"Invalid index attributes: {invalid_keys}. Valid attributes are: {valid_keys}"
+#             }
 
-        # Update the index CIDs
-        for key, value in request.index_cids.items():
-            app.state.index_cids[key] = value
-            logger.info(f"Updated index CID for {key}: {value}")
+#         # Update the index CIDs
+#         for key, value in request.index_cids.items():
+#             app.state.index_cids[key] = value
+#             logger.info(f"Updated index CID for {key}: {value}")
 
-        return {
-            "status": "success",
-            "message": "Index CIDs updated successfully",
-            "updated_cids": request.index_cids,
-            "current_cids": app.state.index_cids
-        }
+#         return {
+#             "status": "success",
+#             "message": "Index CIDs updated successfully",
+#             "updated_cids": request.index_cids,
+#             "current_cids": app.state.index_cids
+#         }
 
-    except Exception as e:
-        logger.error(f"Error updating index CIDs: {e}")
-        return {"status": "error", "message": str(e)}
+#     except Exception as e:
+#         logger.error(f"Error updating index CIDs: {e}")
+#         return {"status": "error", "message": str(e)}
 
 @app.get("/index-cids")
 async def get_index_cids():
@@ -524,39 +524,39 @@ async def get_index_cids():
         logger.error(f"Error retrieving index CIDs: {e}")
         return {"status": "error", "message": str(e)}
 
-@app.get("/encryption-key")
-async def get_encryption_key():
-    """
-    Get the current encryption key (base64 encoded).
-    WARNING: This endpoint should be secured in production!
-    """
-    logger.info("GET /encryption-key - Retrieving encryption key")
-    return {
-        "encryption_key": base64.b64encode(app.state.encryption_key).decode('utf-8'),
-        "key_size_bits": len(app.state.encryption_key) * 8
-    }
+# @app.get("/encryption-key")
+# async def get_encryption_key():
+#     """
+#     Get the current encryption key (base64 encoded).
+#     WARNING: This endpoint should be secured in production!
+#     """
+#     logger.info("GET /encryption-key - Retrieving encryption key")
+#     return {
+#         "encryption_key": base64.b64encode(app.state.encryption_key).decode('utf-8'),
+#         "key_size_bits": len(app.state.encryption_key) * 8
+#     }
 
-@app.put("/encryption-key")
-async def update_encryption_key(key_base64: str):
-    """
-    Update the encryption key (provide base64 encoded key).
-    WARNING: This endpoint should be secured in production!
-    """
-    logger.info("PUT /encryption-key - Updating encryption key")
-    try:
-        new_key = base64.b64decode(key_base64)
-        if len(new_key) != 32:
-            return {"status": "error", "message": "Key must be 256 bits (32 bytes)"}
+# @app.put("/encryption-key")
+# async def update_encryption_key(key_base64: str):
+#     """
+#     Update the encryption key (provide base64 encoded key).
+#     WARNING: This endpoint should be secured in production!
+#     """
+#     logger.info("PUT /encryption-key - Updating encryption key")
+#     try:
+#         new_key = base64.b64decode(key_base64)
+#         if len(new_key) != 32:
+#             return {"status": "error", "message": "Key must be 256 bits (32 bytes)"}
 
-        app.state.encryption_key = new_key
-        return {
-            "status": "success",
-            "message": "Encryption key updated successfully",
-            "key_size_bits": len(new_key) * 8
-        }
-    except Exception as e:
-        logger.error(f"Error updating encryption key: {e}")
-        return {"status": "error", "message": str(e)}
+#         app.state.encryption_key = new_key
+#         return {
+#             "status": "success",
+#             "message": "Encryption key updated successfully",
+#             "key_size_bits": len(new_key) * 8
+#         }
+#     except Exception as e:
+#         logger.error(f"Error updating encryption key: {e}")
+#         return {"status": "error", "message": str(e)}
 
 # Cleanup on shutdown
 @app.on_event("shutdown")

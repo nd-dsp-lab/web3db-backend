@@ -40,7 +40,7 @@ def create_four_panel_figure():
     
     ax1.bar(x1, with_index_vanilla, width, label='Vanilla', color='#98FB98', 
             edgecolor='black', linewidth=0.5)  # Light green
-    ax1.bar(x2, with_index_sgx, width, label='SGX', color='#ADD8E6', 
+    ax1.bar(x2, with_index_sgx, width, label='SGX (MtDB)', color='#ADD8E6', 
             edgecolor='black', linewidth=0.5)  # Light blue
     
     ax1.set_xlabel('Database Size (Rows)', fontsize=11)

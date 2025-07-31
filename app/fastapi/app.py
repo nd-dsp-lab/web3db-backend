@@ -12,6 +12,7 @@ import pyarrow.parquet as pq
 import duckdb
 from typing import List, Tuple, Optional
 from fastapi import FastAPI, UploadFile, File
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import concurrent.futures
 from cidindex import CIDIndex
@@ -30,6 +31,15 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 app = FastAPI()
+
+# Add CORS middleware to allow all origins
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allows all origins
+    allow_credentials=True,
+    allow_methods=["*"],  # Allows all methods
+    allow_headers=["*"],  # Allows all headers
+)
 
 # Directory to store Parquet files from IPFS
 SHARED_TMP_DIR = "/tmp/ipfs_parquet"

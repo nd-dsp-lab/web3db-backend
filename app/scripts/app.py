@@ -1,39 +1,103 @@
-import pandas as pd
-import os
+from math import inf
 import re
-import time
-import requests
+import os
 import io
+import gc
+import time
+import logging
+import requests
+import pandas as pd
+import pyarrow as pa
 import pyarrow.parquet as pq
 import duckdb
+from typing import List, Tuple, Optional
+from fastapi import FastAPI, UploadFile, File
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+import concurrent.futures
 from cidindex import CIDIndex
-from typing import List
-from math import inf
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives import padding
 from cryptography.hazmat.backends import default_backend
+import secrets
 import base64
-from concurrent.futures import ThreadPoolExecutor, as_completed
-import tempfile
 
-# Encryption key - should match the one used for encryption
-# In production, this should be securely provisioned to the SGX enclave
-ENCRYPTION_KEY = base64.b64decode(os.getenv("ENCRYPTION_KEY", "AlmbEPmAR2M4o+ohmFb2oyUV1/JqdNnlG1mG9/JbUBs="))
-# Get the script's directory
-script_dir = os.path.dirname(os.path.abspath(__file__))
-query = "SELECT count(*) FROM read_parquet('/tmp/temp_data.parquet') WHERE PatientID = '10100'"
-index_cid = "QmU5HubxmbjMhhz9ScFhSKLv4UAMHs12xqPGVVFzYAX1NR"  # This should be the encrypted index CID
-# Create DuckDB connection with single-threaded mode
-duckdb_time_start = time.time()
-conn = duckdb.connect(':memory:', config={'threads': 1})
-print(f"DuckDB connection established in {time.time() - duckdb_time_start:.6f} seconds")
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+logger = logging.getLogger(__name__)
 
-# --- Decryption Helper Functions ---
+app = FastAPI()
+
+# Add CORS middleware to allow all origins
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allows all origins
+    allow_credentials=True,
+    allow_methods=["*"],  # Allows all methods
+    allow_headers=["*"],  # Allows all headers
+)
+
+# Directory to store Parquet files from IPFS
+SHARED_TMP_DIR = "/tmp/ipfs_parquet"
+os.makedirs(SHARED_TMP_DIR, exist_ok=True)
+
+# Global index tracking
+app.state.index_cids = {
+    'PatientID': None,
+    'HospitalID': None,
+    'Age': None,
+}
+app.state.index_sizes = {}
+
+# Encryption key management
+# In production, use a proper key management service
+# For now, we'll generate a key on startup and store it in app state
+# app.state.encryption_key = secrets.token_bytes(32)  # 256-bit key for AES-256
+app.state.encryption_key = base64.b64decode(os.getenv("ENCRYPTION_KEY", "AlmbEPmAR2M4o+ohmFb2oyUV1/JqdNnlG1mG9/JbUBs="))  # Default key for testing
+logger.info("Generated AES-256 encryption key")
+
+# Initialize DuckDB connection
+logger.info("Initializing DuckDB Connection")
+# Use in-memory database for better performance
+duckdb_conn = duckdb.connect(':memory:')
+logger.info("DuckDB Connection created")
+
+# --- Encryption/Decryption Helper Functions ---
+
+def encrypt_data(data: bytes, key: bytes) -> tuple[bytes, bytes]:
+    """
+    Encrypt data using AES-256-CBC.
+    Returns: (encrypted_data, iv)
+    """
+    # Generate a random IV (Initialization Vector)
+    iv = secrets.token_bytes(16)  # 128-bit IV for AES
+
+    # Create cipher
+    cipher = Cipher(
+        algorithms.AES(key),
+        modes.CBC(iv),
+        backend=default_backend()
+    )
+    encryptor = cipher.encryptor()
+
+    # Pad the data to be a multiple of 16 bytes (AES block size)
+    padder = padding.PKCS7(128).padder()
+    padded_data = padder.update(data) + padder.finalize()
+
+    # Encrypt the data
+    encrypted_data = encryptor.update(padded_data) + encryptor.finalize()
+
+    return encrypted_data, iv
 
 def decrypt_data(encrypted_data: bytes, key: bytes, iv: bytes) -> bytes:
     """
     Decrypt data using AES-256-CBC.
     """
+    # Create cipher
     cipher = Cipher(
         algorithms.AES(key),
         modes.CBC(iv),
@@ -50,52 +114,307 @@ def decrypt_data(encrypted_data: bytes, key: bytes, iv: bytes) -> bytes:
 
     return decrypted_data
 
+def create_encrypted_package(data: bytes, key: bytes) -> bytes:
+    """
+    Create an encrypted package with IV prepended to encrypted data.
+    Format: [IV (16 bytes)][Encrypted Data]
+    """
+    encrypted_data, iv = encrypt_data(data, key)
+    # Prepend IV to encrypted data for storage
+    return iv + encrypted_data
+
 def extract_and_decrypt_package(package: bytes, key: bytes) -> bytes:
     """
     Extract IV and decrypt the package.
-    Format: [IV (16 bytes)][Encrypted Data]
     """
     # First 16 bytes are the IV
     iv = package[:16]
     encrypted_data = package[16:]
     return decrypt_data(encrypted_data, key, iv)
 
-# --- Modified Helper functions ---
+# --- Separate fetch and decrypt functions ---
 
-def retrieve_and_decrypt_index(cid):
+def fetch_from_ipfs(cid: str) -> Optional[bytes]:
     """
-    Retrieve and decrypt an index from IPFS.
+    Fetch encrypted data from IPFS.
+    Returns encrypted data bytes or None on failure.
+    """
+    try:
+        resp = requests.post("http://localhost:5001/api/v0/cat", params={"arg": cid}, timeout=30)
+        if resp.status_code != 200:
+            logger.warning(f"Failed to fetch {cid} from IPFS: Status {resp.status_code}")
+            return None
+        return resp.content
+    except Exception as e:
+        logger.error(f"Error fetching CID {cid}: {e}")
+        return None
+
+def decrypt_to_file(encrypted_data: bytes, cid: str, key: bytes) -> Optional[str]:
+    """
+    Decrypt data and save to a file.
+    Returns file path or None on failure.
+    """
+    try:
+        decrypted_data = extract_and_decrypt_package(encrypted_data, key)
+        path = os.path.join(SHARED_TMP_DIR, f"{cid}.parquet")
+        with open(path, "wb") as f:
+            f.write(decrypted_data)
+        return path
+    except Exception as e:
+        logger.error(f"Failed to decrypt CID {cid}: {e}")
+        return None
+
+@app.post("/upload/patient-data")
+async def upload_patient_data(file: UploadFile = File(...)):
+    logger.info("POST /upload/patient-data - Processing patient data upload")
+    try:
+        content = await file.read()
+        df = pd.read_csv(io.BytesIO(content), dtype={"PatientID": str, "HospitalID": str, "Age": int})
+        indexed_values = {k: set(df[k].values) for k in app.state.index_cids if k in df.columns}
+
+        time_start = time.time()
+        # Convert to Parquet
+        parquet_time_start = time.time()
+        buffer = io.BytesIO()
+        pq.write_table(pa.Table.from_pandas(df), buffer)
+        buffer.seek(0)
+        parquet_data = buffer.read()
+        parquet_time_end = time.time()
+
+        # Encrypt the Parquet data
+        encryption_start = time.time()
+        encrypted_package = create_encrypted_package(parquet_data, app.state.encryption_key)
+        encryption_end = time.time()
+
+        # Upload encrypted data to IPFS
+        ipfs_api = "http://localhost:5001/api/v0/add"
+        ipfs_upload_start = time.time()
+        resp = requests.post(ipfs_api, files={"file": ("patient_data.enc", encrypted_package)})
+        ipfs_upload_end = time.time()
+        resp.raise_for_status()
+        data_cid = resp.json()["Hash"]
+        buffer.close()
+        del df 
+
+        # Build/update encrypted indexes with timing
+        idx_start = time.time()
+        total_index_encrypt_time = 0
+        total_index_upload_time = 0
+
+        for attr, values in indexed_values.items():
+            data_to_add = [(v, data_cid) for v in values]
+            existing_index = retrieve_index(attr)  # This now handles decryption
+            if existing_index:
+                existing_index.update(data_to_add)
+                index = existing_index
+            else:
+                index = CIDIndex(data=data_to_add)
+
+            # Upload encrypted index with timing
+            index_cid, encrypt_time, upload_time = upload_encrypted_index(index, attr)
+            app.state.index_cids[attr] = index_cid
+            total_index_encrypt_time += encrypt_time
+            total_index_upload_time += upload_time
+            logger.info(f"Uploaded encrypted index for {attr}: {index_cid}")
+
+        idx_end = time.time()
+        time_end = time.time()
+        gc.collect()
+        return {
+            "data_cid": data_cid,
+            "index_cids": app.state.index_cids,
+            "index_sizes": app.state.index_sizes,
+            "parquet_time_seconds": parquet_time_end - parquet_time_start,
+            "data_encryption_time_seconds": encryption_end - encryption_start,
+            "ipfs_upload_time_seconds": ipfs_upload_end - ipfs_upload_start,
+            "index_encryption_time_seconds": total_index_encrypt_time,
+            "index_upload_time_seconds": total_index_upload_time,
+            "index_build_time_seconds": idx_end - idx_start,
+            "total_time_seconds": time_end - time_start
+        }
+
+    except Exception as e:
+        logger.error(f"Upload error: {e}")
+        gc.collect()
+        return {"error": str(e)}
+
+
+class QueryRequest(BaseModel):
+    index_attribute: str = 'PatientID'
+    query: str = "select * from patient_data where PatientID = 'X'"
+
+@app.post("/query")
+async def query(request: QueryRequest):
+    logger.info("POST /query - Processing query")
+    query_start_time = time.time()
+
+    # Retrieve and decrypt index with timing
+    index, idx_fetch_time, idx_decrypt_time = retrieve_index_with_timing(request.index_attribute)
+
+    if not index:
+        return {"error": f"Index for {request.index_attribute} not found"}
+
+    idx_query_time_start = time.time()
+    cids = query_index(index, request.query, request.index_attribute)
+    idx_query_time_end = time.time()
+
+    if not cids:
+        return {"message": "No matching CIDs found"}
+
+    # Fetch all CIDs in parallel
+    fetch_start = time.time()
+    with concurrent.futures.ThreadPoolExecutor(max_workers=64) as executor:
+        encrypted_data_list = list(executor.map(fetch_from_ipfs, cids))
+    fetch_end = time.time()
+    total_fetch_time = fetch_end - fetch_start
+
+    # Decrypt all data sequentially (or in parallel if needed)
+    decrypt_start = time.time()
+    paths = []
+    for cid, encrypted_data in zip(cids, encrypted_data_list):
+        if encrypted_data:
+            path = decrypt_to_file(encrypted_data, cid, app.state.encryption_key)
+            if path:
+                paths.append(path)
+    decrypt_end = time.time()
+    total_decrypt_time = decrypt_end - decrypt_start
+
+    if not paths:
+        return {"error": "No valid Parquet files retrieved"}
+
+    duckdb_query_start = time.time()
+    # Apply DuckDB SQL directly on those Parquet files
+    try:
+        # For large number of files, use glob pattern or process in batches
+        if len(paths) == 1:
+            query_with_table = request.query.replace("patient_data", f"'{paths[0]}'")
+            result = duckdb_conn.execute(query_with_table)
+        else:
+            # Method 1: Use glob pattern if files are in same directory
+            # This is more efficient for many files
+            glob_pattern = os.path.join(SHARED_TMP_DIR, "*.parquet")
+            query_with_table = request.query.replace("patient_data", f"read_parquet('{glob_pattern}')")
+            result = duckdb_conn.execute(query_with_table)
+
+        # Fetch all results and convert to list of dictionaries
+        columns = [desc[0] for desc in result.description]
+        rows = result.fetchall()
+        results = [dict(zip(columns, row)) for row in rows]
+    except Exception as e:
+        logger.error(f"Query error: {e}")
+        return {"error": str(e)}
+    finally:
+        # Delete temporary files
+        for p in paths:
+            try:
+                os.remove(p)
+            except Exception as e:
+                logger.warning(f"Failed to delete {p}: {e}")
+    duckdb_query_end = time.time()
+    query_end_time = time.time()
+    return {
+        "cids": len(cids),
+        "records": len(results),
+        "results": results,
+        "idx_fetch_time_seconds": idx_fetch_time,
+        "idx_decrypt_time_seconds": idx_decrypt_time,
+        "idx_lookup_time_seconds": idx_query_time_end - idx_query_time_start,
+        "cid_fetch_time_seconds": total_fetch_time,
+        "cid_decrypt_time_seconds": total_decrypt_time,
+        "duckdb_query_time_seconds": duckdb_query_end - duckdb_query_start,
+        "total_query_execution_time_seconds": query_end_time - query_start_time
+    }
+
+
+@app.get("/ipfs/fetch/{cid}")
+async def fetch_from_ipfs_endpoint(cid: str):
+    logger.info(f"GET /ipfs/fetch/{cid}")
+    try:
+        start = time.time()
+        resp = requests.post("http://localhost:5001/api/v0/cat", params={"arg": cid}, timeout=30)
+        elapsed = time.time() - start
+        if resp.status_code != 200:
+            return {"status": "error", "message": resp.text, "time": elapsed}
+        return {"status": "success", "size_bytes": len(resp.content), "time": elapsed}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+# --- Helper functions ---
+
+def retrieve_index_with_timing(name):
+    """
+    Retrieve and decrypt an index from IPFS with timing information.
     Returns: (index, fetch_time, decrypt_time) or (None, 0, 0) on failure
     """
+    cid = app.state.index_cids.get(name)
     if not cid:
         return None, 0, 0
+
+    # Fetch encrypted index from IPFS
+    fetch_start = time.time()
+    encrypted_data = fetch_from_ipfs(cid)
+    fetch_end = time.time()
+    fetch_time = fetch_end - fetch_start
+
+    if not encrypted_data:
+        return None, fetch_time, 0
+
+    # Decrypt the index data
+    decrypt_start = time.time()
     try:
-        # Fetch encrypted index from IPFS
-        fetch_start = time.time()
-        resp = requests.post("http://localhost:5001/api/v0/cat", params={"arg": cid}, timeout=30)
-        fetch_end = time.time()
-        fetch_time = fetch_end - fetch_start
-
-        if resp.status_code != 200:
-            return None, fetch_time, 0
-
-        # Decrypt the index data
-        decrypt_start = time.time()
-        try:
-            decrypted_data = extract_and_decrypt_package(resp.content, ENCRYPTION_KEY)
-        except Exception as e:
-            print(f"Failed to decrypt index: {e}")
-            return None, fetch_time, 0
-        decrypt_end = time.time()
-        decrypt_time = decrypt_end - decrypt_start
-
+        decrypted_data = extract_and_decrypt_package(encrypted_data, app.state.encryption_key)
         # Load the decrypted index
         index = CIDIndex()
         index.load(io.BytesIO(decrypted_data))
+        decrypt_end = time.time()
+        decrypt_time = decrypt_end - decrypt_start
         return index, fetch_time, decrypt_time
     except Exception as e:
-        print(f"Error retrieving index: {e}")
-        return None, 0, 0
+        logger.error(f"Failed to decrypt index {name}: {e}")
+        return None, fetch_time, 0
+
+def retrieve_index(name):
+    """
+    Retrieve and decrypt an index from IPFS (wrapper for backward compatibility).
+    """
+    index, _, _ = retrieve_index_with_timing(name)
+    return index
+
+def upload_encrypted_index(index, attr):
+    """
+    Serialize, encrypt, and upload an index to IPFS with timing.
+    Returns: (cid, encryption_time, upload_time)
+    """
+    try:
+        # Serialize the index
+        serialized = index.dump()
+        serialized.seek(0)
+        index_data = serialized.read()
+
+        # Get size before encryption
+        index_size_bytes = len(index_data)
+        app.state.index_sizes[attr] = index_size_bytes
+
+        # Encrypt the index data
+        encrypt_start = time.time()
+        encrypted_index = create_encrypted_package(index_data, app.state.encryption_key)
+        encrypt_end = time.time()
+        encryption_time = encrypt_end - encrypt_start
+
+        # Upload encrypted index to IPFS
+        upload_start = time.time()
+        ipfs_api = "http://localhost:5001/api/v0/add"
+        resp = requests.post(ipfs_api, files={"file": (f"{attr}_index.enc", encrypted_index)})
+        resp.raise_for_status()
+        upload_end = time.time()
+        upload_time = upload_end - upload_start
+
+        serialized.close()
+        return resp.json()["Hash"], encryption_time, upload_time
+
+    except Exception as e:
+        logger.error(f"Failed to upload encrypted index for {attr}: {e}")
+        raise
 
 def query_index(index, query, attr) -> List[str]:
     where = re.search(r"where\s+(.*)", query, re.IGNORECASE)
@@ -117,179 +436,109 @@ def query_index(index, query, attr) -> List[str]:
         elif op == "!=": out.update(set(index.query_range()) - set(index.query(key)))
     return list(out)
 
-def fetch_and_decrypt_data(cid):
+# Legacy function for backward compatibility
+def fetch_and_decrypt_cid(cid):
     """
-    Fetch encrypted data from IPFS and decrypt it.
-    Returns: (decrypted_data, fetch_time, decrypt_time) or (None, 0, 0) on failure
+    Legacy function - fetch and decrypt in one go
     """
-    try:
-        # Fetch encrypted data from IPFS
-        ipfs_api_url = "http://localhost:5001/api/v0/cat"
-        fetch_start = time.time()
-        resp = requests.post(ipfs_api_url, params={"arg": cid}, timeout=30)
-        fetch_end = time.time()
-        fetch_time = fetch_end - fetch_start
-
-        if resp.status_code != 200:
-            print(f"Failed to fetch {cid} from IPFS: Status {resp.status_code}")
-            return None, fetch_time, 0
-
-        # Decrypt the data
-        decrypt_start = time.time()
-        try:
-            decrypted_data = extract_and_decrypt_package(resp.content, ENCRYPTION_KEY)
-        except Exception as e:
-            print(f"Failed to decrypt data from CID {cid}: {e}")
-            return None, fetch_time, 0
-        decrypt_end = time.time()
-        decrypt_time = decrypt_end - decrypt_start
-
-        return decrypted_data, fetch_time, decrypt_time
-
-    except Exception as e:
-        print(f"Error fetching/decrypting CID {cid}: {e}")
+    encrypted_data = fetch_from_ipfs(cid)
+    if not encrypted_data:
         return None, 0, 0
 
-def fetch_and_decrypt_data_with_path(cid, temp_dir):
+    path = decrypt_to_file(encrypted_data, cid, app.state.encryption_key)
+    return path, 0, 0
+
+def fetch_cid(cid):
     """
-    Fetch, decrypt and save data to a temporary file.
-    Returns: (temp_file_path, fetch_time, decrypt_time, write_time) or (None, 0, 0, 0) on failure
+    Legacy function - now redirects to fetch_and_decrypt_cid
     """
-    decrypted_data, fetch_time, decrypt_time = fetch_and_decrypt_data(cid)
-    if not decrypted_data:
-        return None, fetch_time, decrypt_time, 0
+    path, _, _ = fetch_and_decrypt_cid(cid)
+    return path
+
+
+class UpdateIndexCIDsRequest(BaseModel):
+    index_cids: dict
+
+
+@app.get("/health")
+async def health_check():
+    """Health check endpoint"""
+    return {
+        "status": "healthy",
+        "message": "FastAPI server running inside SGX enclave",
+        "timestamp": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()),
+        "sgx_enabled": True
+    }
+
+@app.get("/")
+async def root():
+    """Root endpoint"""
+    return {
+        "name": "Web3DB SGX API",
+        "description": "Decentralized Database with Privacy-Preserving Query Processing using Intel SGX",
+        "version": "1.0.0",
+        "endpoints": {
+            "health": "GET /health",
+            "query": "POST /query", 
+            "upload": "POST /upload/patient-data",
+            "index-cids": "GET /index-cids",
+            "docs": "GET /docs"
+        }
+    }
+
+
+@app.get("/index-cids")
+async def get_index_cids():
+    """
+    Get the current index CIDs mapping along with index sizes if available.
+
+    Returns:
+    {
+        "index_cids": {
+            "PatientID": "QmXxxxx..." or null,
+            "HospitalID": "QmYyyyy..." or null,
+            "Age": "QmZzzzz..." or null
+        },
+        "index_sizes": {
+            "PatientID": 12345,
+            "HospitalID": 23456,
+            "Age": 34567
+        }
+    }
+    """
+    logger.info("GET /index-cids - Retrieving current index CIDs")
+    try:
+        return {
+            "status": "success",
+            "index_cids": app.state.index_cids,
+            "index_sizes": app.state.index_sizes,
+            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+        }
+    except Exception as e:
+        logger.error(f"Error retrieving index CIDs: {e}")
+        return {"status": "error", "message": str(e)}
+
+# Cleanup on shutdown
+@app.on_event("shutdown")
+def shutdown_event():
+    logger.info("Closing DuckDB connection")
+    duckdb_conn.close()
+
+# Main execution block to start the FastAPI server
+if __name__ == "__main__":
+    import uvicorn
     
-    # Write to a temporary file and measure time
-    write_start = time.time()
-    temp_file = tempfile.NamedTemporaryFile(mode='wb', dir=temp_dir, delete=False, suffix='.parquet')
-    temp_file.write(decrypted_data)
-    temp_file.close()
-    write_time = time.time() - write_start
+    logger.info("Starting FastAPI server inside SGX enclave...")
+    logger.info("Server will be available at http://0.0.0.0:8000")
+    logger.info("API documentation available at http://0.0.0.0:8000/docs")
     
-    return temp_file.name, fetch_time, decrypt_time, write_time
-
-def printtime(message):
-    print(message)
-
-start_time = time.time()
-# Retrieve and decrypt index
-idx_retrieve_start = time.time()
-index, idx_fetch_time, idx_decrypt_time = retrieve_and_decrypt_index(index_cid)
-idx_retrieve_end = time.time()
-if not index:
-    printtime("Index retrieval/decryption failed, exiting.")
-    exit(1)
-printtime(f"Index retrieved and decrypted in {idx_retrieve_end - idx_retrieve_start:.6f} seconds")
-printtime(f"  - Index fetch time: {idx_fetch_time:.6f} seconds")
-printtime(f"  - Index decrypt time: {idx_decrypt_time:.6f} seconds")
-
-# Query the index
-idx_query_time_start = time.time()
-cids = query_index(index, query, "Age")
-idx_query_time_end = time.time()
-printtime(f"Index query took {idx_query_time_end - idx_query_time_start:.6f} seconds")
-print(f"{len(cids)} CIDs found for query")
-
-if not cids:
-    printtime("No CIDs found, exiting.")
-    exit(1)
-
-# Create a temporary directory for parquet files
-temp_dir = tempfile.mkdtemp()
-printtime(f"Using temporary directory: {temp_dir}")
-
-# Fetch and decrypt all data from IPFS
-data_retrieve_start = time.time()
-total_fetch_time = 0
-total_decrypt_time = 0
-total_write_time = 0
-parquet_files = []
-
-# Configure parallelism (adjust based on your system)
-max_workers = min(2, len(cids))  # Limit concurrent fetches
-
-printtime(f"Fetching and decrypting {len(cids)} files from IPFS using {max_workers} workers...")
-
-with ThreadPoolExecutor(max_workers=max_workers) as executor:
-    # Submit all tasks
-    future_to_cid = {executor.submit(fetch_and_decrypt_data_with_path, cid, temp_dir): cid 
-                     for cid in cids}
-    
-    # Process completed tasks
-    completed = 0
-    for future in as_completed(future_to_cid):
-        cid = future_to_cid[future]
-        try:
-            file_path, fetch_time, decrypt_time, write_time = future.result()
-            if file_path:
-                parquet_files.append(file_path)
-                total_fetch_time += fetch_time
-                total_decrypt_time += decrypt_time
-                total_write_time += write_time
-                completed += 1
-                # if completed % 10 == 0:  # Progress update every 10 files
-                #     printtime(f"  Progress: {completed}/{len(cids)} files processed")
-            else:
-                print(f"  Failed to process CID: {cid}")
-        except Exception as e:
-            print(f"  Exception processing CID {cid}: {e}")
-
-data_retrieve_end = time.time()
-
-printtime(f"\nSuccessfully fetched and decrypted {len(parquet_files)}/{len(cids)} files")
-printtime(f"Data processing completed in {data_retrieve_end - data_retrieve_start:.6f} seconds")
-
-if not parquet_files:
-    printtime("No files were successfully fetched/decrypted, exiting.")
-    exit(1)
-
-# Modify the query to use glob pattern for all parquet files
-glob_pattern = os.path.join(temp_dir, "*.parquet")
-# Replace the entire read_parquet('/tmp/temp_data.parquet') with read_parquet('glob_pattern')
-modified_query = query.replace("read_parquet('/tmp/temp_data.parquet')", f"read_parquet('{glob_pattern}')")
-
-printtime(f"\nExecuting query on {len(parquet_files)} parquet files using glob pattern...")
-printtime(f"Query: {modified_query}")
-
-# Execute query on all parquet files
-query_start = time.time()
-result = conn.execute(modified_query).fetchdf()
-duckdb_query_time = time.time() - query_start
-printtime(f"Query executed in {duckdb_query_time:.6f} seconds")
-
-total_execution_time = time.time() - start_time
-
-# Calculate timing components
-idx_lookup_time_seconds = idx_query_time_end - idx_query_time_start
-total_index_time_seconds = idx_retrieve_end - idx_retrieve_start  # Complete index operation
-data_processing_wall_time_seconds = data_retrieve_end - data_retrieve_start
-
-# Query execution time without index overhead = index lookup + data processing (wall time) + duckdb query
-# wall clock time for data processing, not cumulative time
-query_execution_time_without_index_overhead = idx_lookup_time_seconds + data_processing_wall_time_seconds + duckdb_query_time
-
-# Clean timing summary
-print("\n=== Timing Summary ===")
-print(f"1. Index fetch time: {idx_fetch_time:.6f} seconds")
-print(f"2. Index decrypt time: {idx_decrypt_time:.6f} seconds")
-print(f"3. Index lookup time: {idx_lookup_time_seconds:.6f} seconds")
-print(f"4. Data (CIDs) fetch time: {total_fetch_time:.6f} seconds")
-print(f"5. Data (CIDs) decrypt time: {total_decrypt_time:.6f} seconds")
-print(f"6. DuckDB Query execution time: {duckdb_query_time:.6f} seconds")
-print(f"7. Query execution time without index overhead: {idx_lookup_time_seconds + total_fetch_time + total_decrypt_time + duckdb_query_time:.6f} seconds")
-print(f"8. Query execution time without index overhead (Wall time): {query_execution_time_without_index_overhead:.6f} seconds")
-print(f"9. Total execution time: {total_execution_time:.6f} seconds")
-
-# Write output
-output_dir = "/output"
-os.makedirs(output_dir, exist_ok=True)
-output_file = os.path.join(output_dir, "result.csv")
-result.to_csv(output_file, index=False)
-print(f"\nResult written to {output_file}")
-print(f"Result shape: {result.shape}")
-
-# Cleanup
-import shutil
-shutil.rmtree(temp_dir)
-conn.close()
-printtime(f"\nTemporary files cleaned up")
+    # Start the uvicorn server
+    uvicorn.run(
+        app,
+        host="0.0.0.0",
+        port=8000,
+        reload=False,  # Disable reload in SGX environment
+        access_log=True,
+        log_level="info",
+        loop="asyncio"  # Explicitly specify event loop
+    )

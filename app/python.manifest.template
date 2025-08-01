@@ -23,6 +23,7 @@ loader.insecure__use_cmdline_argv = true
 # Reduced crypto threads for better SGX performance
 loader.env.GRAMINE_CRYPTO_THREADS = "1"
 sys.enable_sigterm_injection = true
+sys.insecure__allow_eventfd = true
 
 fs.mounts = [
   { path = "/lib", uri = "file:{{ gramine.runtimedir() }}" },

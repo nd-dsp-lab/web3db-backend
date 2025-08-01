@@ -486,6 +486,49 @@ async def root():
         }
     }
 
+@app.put("/index-cids")
+async def update_index_cids(request: UpdateIndexCIDsRequest):
+    """
+    Update the index CIDs mapping.
+
+    Example request body:
+    {
+        "index_cids": {
+            "PatientID": "QmXxxxx...",
+            "HospitalID": "QmYyyyy...",
+            "Age": "QmZzzzz..."
+        }
+    }
+    """
+    logger.info("PUT /index-cids - Updating index CIDs")
+    try:
+        # Validate that the keys match expected index attributes
+        valid_keys = set(app.state.index_cids.keys())
+        provided_keys = set(request.index_cids.keys())
+
+        # Check for invalid keys
+        invalid_keys = provided_keys - valid_keys
+        if invalid_keys:
+            return {
+                "status": "error",
+                "message": f"Invalid index attributes: {invalid_keys}. Valid attributes are: {valid_keys}"
+            }
+
+        # Update the index CIDs
+        for key, value in request.index_cids.items():
+            app.state.index_cids[key] = value
+            logger.info(f"Updated index CID for {key}: {value}")
+
+        return {
+            "status": "success",
+            "message": "Index CIDs updated successfully",
+            "updated_cids": request.index_cids,
+            "current_cids": app.state.index_cids
+        }
+
+    except Exception as e:
+        logger.error(f"Error updating index CIDs: {e}")
+        return {"status": "error", "message": str(e)}
 
 @app.get("/index-cids")
 async def get_index_cids():

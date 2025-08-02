@@ -43,9 +43,9 @@ def create_four_panel_figure():
     ax1.bar(x2, with_index_sgx, width, label='SGX (MtDB)', color='#ADD8E6', 
             edgecolor='black', linewidth=0.5)  # Light blue
     
-    ax1.set_xlabel('Database Size (Rows)', fontsize=11)
-    ax1.set_ylabel('Query Time (seconds)', fontsize=11)
-    ax1.set_title('(a) With Index', fontsize=12, fontweight='bold')
+    ax1.set_xlabel('Database size (rows)', fontsize=11)
+    ax1.set_ylabel('Query time (seconds)', fontsize=11)
+#     ax1.set_title('(a) With index', fontsize=12, fontweight='bold')
     ax1.set_xticks(x)
     ax1.set_xticklabels(x_labels)
     ax1.legend(fontsize=7, loc='upper left')
@@ -61,9 +61,9 @@ def create_four_panel_figure():
     ax2.bar(x2, without_index_sgx, width, label='SGX', color='#FFB6C1', 
             edgecolor='black', linewidth=0.5)
     
-    ax2.set_xlabel('Database Size (Rows)', fontsize=11)
-    ax2.set_ylabel('Query Time (seconds)', fontsize=11)
-    ax2.set_title('(b) Without Index', fontsize=12, fontweight='bold')
+    ax2.set_xlabel('Database size (rows)', fontsize=11)
+    ax2.set_ylabel('Query time (seconds)', fontsize=11)
+#     ax2.set_title('(b) Without index', fontsize=12, fontweight='bold')
     ax2.set_xticks(x)
     ax2.set_xticklabels(x_labels)
     ax2.legend(fontsize=7, loc='upper left')
@@ -75,13 +75,13 @@ def create_four_panel_figure():
     query_times = [0.87, 1.52, 2.04, 2.56]
     
     ax3.plot(cids, query_times, marker='o', linewidth=3, markersize=6,
-             color='#87CEEB', label='Query Time',
+             color='#87CEEB', label='Query time',
              markerfacecolor='white', markeredgecolor='#87CEEB', markeredgewidth=1.5)  # Hollow circles
     ax3.fill_between(cids, query_times, alpha=0.3, color='#B0E0E6')  # Light blue fill
     
-    ax3.set_xlabel('Number of CIDs Retrieved', fontsize=11)
-    ax3.set_ylabel('Query Time (seconds)', fontsize=11)
-    ax3.set_title('(c) Scalability vs CIDs', fontsize=12, fontweight='bold')
+    ax3.set_xlabel('Number of CIDs retrieved', fontsize=11)
+    ax3.set_ylabel('Query time (seconds)', fontsize=11)
+#     ax3.set_title('(c) Scalability vs CIDs', fontsize=12, fontweight='bold')
     ax3.grid(True, alpha=0.3)
     ax3.legend(fontsize=7, loc='upper left')
     ax3.set_ylim(0, 2.8)
@@ -102,9 +102,9 @@ def create_four_panel_figure():
              color='#FFB6C1', label='WAN', linestyle='-',
              markerfacecolor='white', markeredgecolor='#FFB6C1', markeredgewidth=1.5)  # Hollow triangles
     
-    ax4.set_xlabel('Distribution (Local-Remote)', fontsize=11)
-    ax4.set_ylabel('Query Time (seconds)', fontsize=11)
-    ax4.set_title('(d) Network Distribution', fontsize=12, fontweight='bold')
+    ax4.set_xlabel('Distribution (local-remote)', fontsize=11)
+    ax4.set_ylabel('Query time (seconds)', fontsize=11)
+#     ax4.set_title('(d) Network distribution', fontsize=12, fontweight='bold')
     ax4.set_xticks(x_dist)
     ax4.set_xticklabels(distributions, rotation=45, fontsize=10)
     ax4.grid(True, alpha=0.3)
@@ -140,8 +140,8 @@ def create_individual_panels():
             edgecolor='black', linewidth=0.5)
     ax1.bar(x2, with_index_sgx, width, label='SGX (MtDB)', color='#ADD8E6', 
             edgecolor='black', linewidth=0.5)
-    ax1.set_xlabel('Database Size (Rows)', fontsize=11)
-    ax1.set_ylabel('Query Time (seconds)', fontsize=11)
+    ax1.set_xlabel('Database size (rows)', fontsize=12)
+    ax1.set_ylabel('Query time (seconds)', fontsize=12)
     ax1.set_xticks(x)
     ax1.set_xticklabels(x_labels)
     ax1.legend(fontsize=7, loc='upper left')
@@ -164,8 +164,8 @@ def create_individual_panels():
             edgecolor='black', linewidth=0.5)
     ax2.bar(x2, without_index_sgx, width, label='SGX', color='#FFB6C1', 
             edgecolor='black', linewidth=0.5)
-    ax2.set_xlabel('Database Size (Rows)', fontsize=11)
-    ax2.set_ylabel('Query Time (seconds)', fontsize=11)
+    ax2.set_xlabel('Database size (rows)', fontsize=12)
+    ax2.set_ylabel('Query time (seconds)', fontsize=12)
     ax2.set_xticks(x)
     ax2.set_xticklabels(x_labels)
     ax2.legend(fontsize=7, loc='upper left')
@@ -185,11 +185,11 @@ def create_individual_panels():
     query_times = [0.87, 1.52, 2.04, 2.56]
     
     ax3.plot(cids, query_times, marker='o', linewidth=3, markersize=6,
-             color='#87CEEB', label='Query Time',
+             color='#87CEEB', label='Query time',
              markerfacecolor='white', markeredgecolor='#87CEEB', markeredgewidth=1.5)
     ax3.fill_between(cids, query_times, alpha=0.3, color='#B0E0E6')
-    ax3.set_xlabel('Number of CIDs Retrieved', fontsize=11)
-    ax3.set_ylabel('Query Time (seconds)', fontsize=11)
+    ax3.set_xlabel('Number of CIDs retrieved', fontsize=12)
+    ax3.set_ylabel('Query time (seconds)', fontsize=12)
     ax3.grid(True, alpha=0.3)
     ax3.legend(fontsize=7, loc='upper left')
     ax3.set_ylim(0, 2.8)
@@ -216,8 +216,8 @@ def create_individual_panels():
     ax4.plot(x_dist, wan_times, marker='^', linewidth=3, markersize=5,
              color='#FFB6C1', label='WAN', linestyle='-',
              markerfacecolor='white', markeredgecolor='#FFB6C1', markeredgewidth=1.5)
-    ax4.set_xlabel('Distribution (Local-Remote)', fontsize=11)
-    ax4.set_ylabel('Query Time (seconds)', fontsize=11)
+    ax4.set_xlabel('Distribution (local-remote)', fontsize=12)
+    ax4.set_ylabel('Query time (seconds)', fontsize=12)
     ax4.set_xticks(x_dist)
     ax4.set_xticklabels(distributions, rotation=45, fontsize=10)
     ax4.grid(True, alpha=0.3)

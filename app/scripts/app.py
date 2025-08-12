@@ -68,7 +68,7 @@ logger.info("DuckDB Connection created")
 
 # --- Encryption/Decryption Helper Functions ---
 
-def encrypt_data(data: bytes, key: bytes) -> tuple[bytes, bytes]:
+def encrypt_data(data: bytes, key: bytes) -> "Tuple[bytes, bytes]":
     """
     Encrypt data using AES-256-CBC.
     Returns: (encrypted_data, iv)

@@ -1,6 +1,7 @@
 import bisect
 import pickle
 import io
+from typing import Tuple
 '''
 2024-02-24
 
@@ -45,7 +46,7 @@ class BPlusTree:
         for timestamp, cid in data:
             self.insert((timestamp, cid))
 
-    def insert_inorder(self, node: Node, key, child):        
+    def insert_inorder(self, node: 'BPlusTree.Node', key, child):        
         if node.leaf:
             # In the case of leaf: find where key should be indexed, insert key and child there
             index = bisect.bisect_right(node.keys, key)
@@ -61,7 +62,7 @@ class BPlusTree:
             node.children.insert(index+1, child)
 
 
-    def split_node(self, node: Node) -> tuple[Node, Node, int]:
+    def split_node(self, node: 'BPlusTree.Node') -> "Tuple[BPlusTree.Node, BPlusTree.Node, int]":
         # turn node into left node, create new right node, split up info. if internal node lift up the middle node to be divider
         keys = node.keys
         children = node.children

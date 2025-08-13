@@ -225,6 +225,9 @@ async def upload_patient_data(file: UploadFile = File(...)):
         idx_start = time.time()
         total_index_encrypt_time = 0
         total_index_upload_time = 0
+        
+        # Collect all index CIDs for batch update
+        index_cids_to_update = {}
 
         for attr, values in indexed_values.items():
             data_to_add = [(v, data_cid) for v in values]
@@ -237,11 +240,19 @@ async def upload_patient_data(file: UploadFile = File(...)):
 
             # Upload encrypted index with timing
             index_cid, encrypt_time, upload_time = upload_encrypted_index(index, attr)
-            # Store index CID using helper function (smart contract or in-memory)
-            set_index_cid(attr, index_cid)
+            # Collect index CID for batch update
+            index_cids_to_update[attr] = index_cid
             total_index_encrypt_time += encrypt_time
             total_index_upload_time += upload_time
             logger.info(f"Uploaded encrypted index for {attr}: {index_cid}")
+
+        # Batch update all index CIDs in smart contract (single call instead of multiple)
+        if index_cids_to_update:
+            batch_update_success = set_all_index_cids(index_cids_to_update)
+            if batch_update_success:
+                logger.info(f"Batch updated {len(index_cids_to_update)} index CIDs in smart contract")
+            else:
+                logger.warning("Batch update to smart contract failed, using fallback storage")
 
         idx_end = time.time()
         time_end = time.time()

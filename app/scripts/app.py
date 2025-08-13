@@ -197,6 +197,10 @@ async def upload_patient_data(file: UploadFile = File(...)):
         df = pd.read_csv(io.BytesIO(content), dtype={"PatientID": str, "HospitalID": str, "Age": int})
         indexed_values = {k: set(df[k].values) for k in app.state.index_cids if k in df.columns}
 
+        # Schema auto-detection disabled - use POST /schemas endpoint to manage schemas separately
+        # schema = auto_detect_and_store_schema(df, "patient_data")
+        schema = None
+        
         time_start = time.time()
         # Convert to Parquet
         parquet_time_start = time.time()
@@ -261,6 +265,7 @@ async def upload_patient_data(file: UploadFile = File(...)):
             "data_cid": data_cid,
             "index_cids": get_all_index_cids(),  # Get from smart contract or in-memory
             "index_sizes": app.state.index_sizes,
+            "message": "Data uploaded successfully. Use POST /schemas to manage table schemas separately.",
             "parquet_time_seconds": parquet_time_end - parquet_time_start,
             "data_encryption_time_seconds": encryption_end - encryption_start,
             "ipfs_upload_time_seconds": ipfs_upload_end - ipfs_upload_start,
@@ -378,6 +383,86 @@ async def fetch_from_ipfs_endpoint(cid: str):
 
 # --- Helper functions ---
 
+def auto_detect_and_store_schema(df, table_name):
+    """
+    Auto-detect schema from a pandas DataFrame and store it in the smart contract.
+    
+    Args:
+        df (pd.DataFrame): The DataFrame to analyze
+        table_name (str): The name of the table
+        
+    Returns:
+        dict: The detected schema
+    """
+    try:
+        import json
+        
+        # Detect schema from DataFrame
+        schema = {
+            "table_name": table_name,
+            "columns": [],
+            "indexes": list(app.state.index_cids.keys()),  # Use the configured index attributes
+            "row_count": len(df),
+            "created_at": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+        }
+        
+        # Analyze each column
+        for col_name in df.columns:
+            col_info = {
+                "name": col_name,
+                "type": str(df[col_name].dtype),
+                "nullable": bool(df[col_name].isnull().any()),  # Convert numpy.bool_ to Python bool
+                "unique_values": int(df[col_name].nunique()),   # Convert numpy.int64 to Python int
+                "sample_values": df[col_name].dropna().head(3).tolist() if not df[col_name].empty else []
+            }
+            
+            # Convert numpy types to JSON-serializable types
+            if col_info["type"] == "object":
+                col_info["type"] = "string"
+            elif "int" in col_info["type"]:
+                col_info["type"] = "integer"
+            elif "float" in col_info["type"]:
+                col_info["type"] = "float"
+            elif "bool" in col_info["type"]:
+                col_info["type"] = "boolean"
+            elif "datetime" in col_info["type"]:
+                col_info["type"] = "datetime"
+                
+            schema["columns"].append(col_info)
+        
+        # Determine primary key (assuming PatientID if present)
+        if "PatientID" in df.columns:
+            schema["primary_key"] = ["PatientID"]
+        else:
+            schema["primary_key"] = [df.columns[0]]  # Use first column as default
+        
+        # Store schema in smart contract or in-memory
+        schema_json = json.dumps(schema)
+        
+        global USE_SMART_CONTRACT
+        if USE_SMART_CONTRACT and app.state.index_storage:
+            success = app.state.index_storage.update_table_schema(table_name, schema_json)
+            if success:
+                logger.info(f"Schema for table '{table_name}' stored in smart contract")
+            else:
+                logger.warning(f"Failed to store schema in smart contract, using in-memory storage")
+                # Fallback to in-memory storage
+                if not hasattr(app.state, 'table_schemas'):
+                    app.state.table_schemas = {}
+                app.state.table_schemas[table_name] = schema_json
+        else:
+            # Store in-memory
+            if not hasattr(app.state, 'table_schemas'):
+                app.state.table_schemas = {}
+            app.state.table_schemas[table_name] = schema_json
+            logger.info(f"Schema for table '{table_name}' stored in memory")
+        
+        return schema
+        
+    except Exception as e:
+        logger.error(f"Failed to auto-detect and store schema: {e}")
+        return None
+
 def retrieve_index_with_timing(name):
     """
     Retrieve and decrypt an index from IPFS with timing information.
@@ -473,6 +558,140 @@ def query_index(index, query, attr) -> List[str]:
         elif op == "!=": out.update(set(index.query_range()) - set(index.query(key)))
     return list(out)
 
+# --- Smart Contract Integration Helper Functions ---
+
+def get_index_cid(attribute_name):
+    """
+    Get the CID for a specific index attribute.
+    Uses smart contract if available, otherwise falls back to in-memory storage.
+    
+    Args:
+        attribute_name (str): Name of the attribute (e.g., 'PatientID', 'HospitalID', 'Age')
+        
+    Returns:
+        str or None: The CID if found, None otherwise
+    """
+    global USE_SMART_CONTRACT
+    try:
+        if USE_SMART_CONTRACT and app.state.index_storage:
+            # Get from smart contract
+            success, cid = app.state.index_storage.get_index(attribute_name)
+            if success:
+                return cid if cid else None  # Return None for empty strings
+            else:
+                # Fallback to in-memory
+                return app.state.index_cids.get(attribute_name)
+        else:
+            # Get from in-memory storage
+            return app.state.index_cids.get(attribute_name)
+    except Exception as e:
+        logger.warning(f"Error getting index CID for {attribute_name}: {e}")
+        return app.state.index_cids.get(attribute_name)
+
+def set_index_cid(attribute_name, cid):
+    """
+    Set the CID for a specific index attribute.
+    Uses smart contract if available, otherwise stores in-memory.
+    
+    Args:
+        attribute_name (str): Name of the attribute
+        cid (str): The CID to store
+        
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    global USE_SMART_CONTRACT
+    try:
+        if USE_SMART_CONTRACT and app.state.index_storage:
+            # Store in smart contract
+            success = app.state.index_storage.update_index(attribute_name, cid)
+            if success:
+                # Also update in-memory cache
+                app.state.index_cids[attribute_name] = cid
+                return True
+            else:
+                # Fallback to in-memory storage
+                app.state.index_cids[attribute_name] = cid
+                logger.warning(f"Smart contract update failed for {attribute_name}, using in-memory storage")
+                return True
+        else:
+            # Store in-memory only
+            app.state.index_cids[attribute_name] = cid
+            return True
+    except Exception as e:
+        logger.error(f"Error setting index CID for {attribute_name}: {e}")
+        # Fallback to in-memory storage
+        app.state.index_cids[attribute_name] = cid
+        return False
+
+def get_all_index_cids():
+    """
+    Get all index CIDs as a dictionary.
+    Uses smart contract if available, otherwise returns in-memory storage.
+    
+    Returns:
+        dict: Dictionary mapping attribute names to CIDs
+    """
+    global USE_SMART_CONTRACT
+    try:
+        if USE_SMART_CONTRACT and app.state.index_storage:
+            # Get from smart contract
+            attribute_names = list(app.state.index_cids.keys())
+            success, cid_dict = app.state.index_storage.batch_get_indices(attribute_names)
+            if success:
+                # Update in-memory cache and return
+                for attr, cid in cid_dict.items():
+                    app.state.index_cids[attr] = cid if cid else None
+                return app.state.index_cids
+            else:
+                # Fallback to in-memory
+                logger.warning("Failed to get index CIDs from smart contract, using in-memory storage")
+                return app.state.index_cids
+        else:
+            # Return in-memory storage
+            return app.state.index_cids
+    except Exception as e:
+        logger.warning(f"Error getting all index CIDs: {e}")
+        return app.state.index_cids
+
+def set_all_index_cids(cid_dict):
+    """
+    Set multiple index CIDs at once.
+    Uses smart contract batch update if available, otherwise updates in-memory.
+    
+    Args:
+        cid_dict (dict): Dictionary mapping attribute names to CIDs
+        
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    global USE_SMART_CONTRACT
+    try:
+        if USE_SMART_CONTRACT and app.state.index_storage:
+            # Use smart contract batch update
+            # Convert dictionary to separate lists for the smart contract method
+            attributes = list(cid_dict.keys())
+            new_cids = list(cid_dict.values())
+            success = app.state.index_storage.batch_update_indices(attributes, new_cids)
+            if success:
+                # Update in-memory cache
+                app.state.index_cids.update(cid_dict)
+                return True
+            else:
+                # Fallback to in-memory storage
+                app.state.index_cids.update(cid_dict)
+                logger.warning("Smart contract batch update failed, using in-memory storage")
+                return True
+        else:
+            # Update in-memory only
+            app.state.index_cids.update(cid_dict)
+            return True
+    except Exception as e:
+        logger.error(f"Error setting all index CIDs: {e}")
+        # Fallback to in-memory storage
+        app.state.index_cids.update(cid_dict)
+        return False
+
 # Legacy function for backward compatibility
 def fetch_and_decrypt_cid(cid):
     """
@@ -497,6 +716,15 @@ class UpdateIndexCIDsRequest(BaseModel):
     index_cids: dict
 
 
+class UpdateTableSchemaRequest(BaseModel):
+    table_name: str
+    table_schema: dict  # The schema as a dictionary (renamed to avoid shadowing BaseModel.schema)
+
+
+class BatchUpdateTableSchemasRequest(BaseModel):
+    schemas: dict  # Dictionary mapping table names to schemas
+
+
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
@@ -519,6 +747,8 @@ async def root():
             "query": "POST /query", 
             "upload": "POST /upload/patient-data",
             "index-cids": "GET /index-cids",
+            "schemas": "GET /schemas, POST /schemas",
+            "schema-by-table": "GET /schemas/{table_name}, DELETE /schemas/{table_name}",
             "docs": "GET /docs"
         }
     }
@@ -612,232 +842,240 @@ async def get_index_cids():
         logger.error(f"Error retrieving index CIDs: {e}")
         return {"status": "error", "message": str(e)}
 
-@app.get("/smart-contract-status")
-async def get_smart_contract_status():
+@app.post("/schemas")
+async def create_or_update_table_schema(request: UpdateTableSchemaRequest):
     """
-    Get the current smart contract integration status.
+    Create or update a table schema in the smart contract.
     
-    Returns:
+    Example request body:
     {
-        "smart_contract_enabled": true/false,
-        "connection_status": "connected"/"disconnected"/"error",
-        "contract_address": "0x...",
-        "message": "Status message"
+        "table_name": "patient_data",
+        "table_schema": {
+            "columns": [
+                {"name": "PatientID", "type": "string", "nullable": false},
+                {"name": "HospitalID", "type": "string", "nullable": false},
+                {"name": "Age", "type": "integer", "nullable": true}
+            ],
+            "primary_key": ["PatientID"],
+            "indexes": ["PatientID", "HospitalID", "Age"]
+        }
     }
     """
     global USE_SMART_CONTRACT
-    logger.info("GET /smart-contract-status - Checking smart contract status")
+    logger.info(f"POST /schemas - Creating/updating schema for table: {request.table_name}")
     
     try:
-        if not USE_SMART_CONTRACT:
-            return {
-                "smart_contract_enabled": False,
-                "connection_status": "disabled",
-                "contract_address": None,
-                "message": "Smart contract integration is disabled in configuration"
-            }
+        import json
+        schema_json = json.dumps(request.table_schema)
+        logger.info(f"Schema JSON length: {len(schema_json)} characters")
         
-        if not app.state.index_storage:
-            return {
-                "smart_contract_enabled": True,
-                "connection_status": "error",
-                "contract_address": os.getenv("CONTRACT_ADDRESS"),
-                "message": "Smart contract connection failed during initialization"
-            }
-        
-        # Test connection by checking if we're connected to the network
-        try:
-            is_connected = app.state.index_storage.w3.is_connected()
-            if is_connected:
-                return {
-                    "smart_contract_enabled": True,
-                    "connection_status": "connected",
-                    "contract_address": os.getenv("CONTRACT_ADDRESS"),
-                    "account_address": app.state.index_storage.address,
-                    "network": "Sepolia",
-                    "message": "Smart contract connection is active"
-                }
-            else:
-                return {
-                    "smart_contract_enabled": True,
-                    "connection_status": "disconnected",
-                    "contract_address": os.getenv("CONTRACT_ADDRESS"),
-                    "message": "Smart contract connection is not active"
-                }
-        except Exception as connection_error:
-            return {
-                "smart_contract_enabled": True,
-                "connection_status": "error",
-                "contract_address": os.getenv("CONTRACT_ADDRESS"),
-                "message": f"Error checking connection: {str(connection_error)}"
-            }
-    
-    except Exception as e:
-        logger.error(f"Error checking smart contract status: {e}")
-        return {
-            "smart_contract_enabled": USE_SMART_CONTRACT,
-            "connection_status": "error",
-            "contract_address": os.getenv("CONTRACT_ADDRESS"),
-            "message": f"Error: {str(e)}"
-        }
-
-# --- Index CID Management Helper Functions ---
-
-def get_index_cid(attribute: str) -> Optional[str]:
-    """
-    Get index CID for an attribute from smart contract or in-memory storage.
-    
-    Args:
-        attribute (str): The attribute name
-        
-    Returns:
-        Optional[str]: The CID or None if not found
-    """
-    global USE_SMART_CONTRACT
-    if USE_SMART_CONTRACT and app.state.index_storage:
-        try:
-            success, cid = app.state.index_storage.get_index(attribute)
-            if success and cid:  # Make sure it's not an empty string
-                return cid
-            return None
-        except Exception as e:
-            logger.error(f"Failed to get index CID for {attribute} from smart contract: {e}")
-            # Fall back to in-memory storage
-            return app.state.index_cids.get(attribute)
-    else:
-        return app.state.index_cids.get(attribute)
-
-def get_all_index_cids() -> dict:
-    """
-    Get all index CIDs from smart contract or in-memory storage.
-    
-    Returns:
-        dict: Dictionary mapping attribute names to CIDs
-    """
-    global USE_SMART_CONTRACT
-    if USE_SMART_CONTRACT and app.state.index_storage:
-        try:
-            attributes = list(app.state.index_cids.keys())  # Get known attributes
-            success, cid_dict = app.state.index_storage.batch_get_indices(attributes)
-            if success:
-                # Filter out empty CIDs
-                return {attr: cid for attr, cid in cid_dict.items() if cid}
-            else:
-                logger.error("Failed to get batch index CIDs from smart contract")
-                return app.state.index_cids
-        except Exception as e:
-            logger.error(f"Failed to get all index CIDs from smart contract: {e}")
-            # Fall back to in-memory storage
-            return app.state.index_cids
-    else:
-        return app.state.index_cids
-
-def set_index_cid(attribute: str, cid: str) -> bool:
-    """
-    Set index CID for an attribute in smart contract or in-memory storage.
-    
-    Args:
-        attribute (str): The attribute name
-        cid (str): The CID value
-        
-    Returns:
-        bool: True if successful, False otherwise
-    """
-    global USE_SMART_CONTRACT
-    if USE_SMART_CONTRACT and app.state.index_storage:
-        try:
-            success = app.state.index_storage.update_index(attribute, cid)
-            if success:
-                # Also update in-memory storage as backup
-                app.state.index_cids[attribute] = cid
-                logger.info(f"Updated index CID for {attribute} in smart contract: {cid}")
-                return True
-            else:
-                logger.error(f"Failed to update index CID for {attribute} in smart contract")
-                # Fall back to in-memory storage
-                app.state.index_cids[attribute] = cid
-                return False
-        except Exception as e:
-            logger.error(f"Failed to set index CID for {attribute} in smart contract: {e}")
-            # Fall back to in-memory storage
-            app.state.index_cids[attribute] = cid
-            return False
-    else:
-        app.state.index_cids[attribute] = cid
-        return True
-
-def set_all_index_cids(cid_dict: dict) -> bool:
-    """
-    Set multiple index CIDs in smart contract or in-memory storage.
-    
-    Args:
-        cid_dict (dict): Dictionary mapping attribute names to CIDs
-        
-    Returns:
-        bool: True if successful, False otherwise
-    """
-    global USE_SMART_CONTRACT
-    if USE_SMART_CONTRACT and app.state.index_storage:
-        try:
-            attributes = list(cid_dict.keys())
-            cids = list(cid_dict.values())
-            success = app.state.index_storage.batch_update_indices(attributes, cids)
-            if success:
-                # Also update in-memory storage as backup
-                app.state.index_cids.update(cid_dict)
-                logger.info(f"Updated {len(cid_dict)} index CIDs in smart contract")
-                return True
-            else:
-                logger.error("Failed to batch update index CIDs in smart contract")
-                # Fall back to in-memory storage
-                app.state.index_cids.update(cid_dict)
-                return False
-        except Exception as e:
-            logger.error(f"Failed to set batch index CIDs in smart contract: {e}")
-            # Fall back to in-memory storage
-            app.state.index_cids.update(cid_dict)
-            return False
-    else:
-        app.state.index_cids.update(cid_dict)
-        return True
-
-# Load initial index CIDs from smart contract if enabled
-if USE_SMART_CONTRACT and app.state.index_storage:
-    try:
-        attributes = list(app.state.index_cids.keys())
-        success, cid_dict = app.state.index_storage.batch_get_indices(attributes)
-        if success:
-            # Update in-memory storage with smart contract data
-            for attr, cid in cid_dict.items():
-                if cid:  # Only update if CID is not empty
-                    app.state.index_cids[attr] = cid
-            logger.info(f"Loaded initial index CIDs from smart contract: {cid_dict}")
+        if USE_SMART_CONTRACT and app.state.index_storage:
+            # Store in smart contract
+            logger.info(f"Attempting to store schema in smart contract for table: {request.table_name}")
+            success = app.state.index_storage.update_table_schema(request.table_name, schema_json)
+            storage_type = "smart contract"
+            logger.info(f"Smart contract update result: {success}")
         else:
-            logger.warning("Failed to load initial index CIDs from smart contract")
+            # Store in memory as fallback
+            logger.info(f"Storing schema in memory for table: {request.table_name}")
+            if not hasattr(app.state, 'table_schemas'):
+                app.state.table_schemas = {}
+            app.state.table_schemas[request.table_name] = schema_json
+            success = True
+            storage_type = "in-memory"
+        
+        if success:
+            return {
+                "status": "success",
+                "message": f"Schema for table '{request.table_name}' updated successfully in {storage_type}",
+                "table_name": request.table_name,
+                "table_schema": request.table_schema,
+                "smart_contract_enabled": USE_SMART_CONTRACT
+            }
+        else:
+            return {
+                "status": "error",
+                "message": f"Failed to update schema for table '{request.table_name}' in smart contract"
+            }
+    
     except Exception as e:
-        logger.error(f"Failed to load initial index CIDs from smart contract: {e}")
+        logger.error(f"Error updating table schema: {e}")
+        return {"status": "error", "message": str(e)}
+
+@app.get("/schemas")
+async def get_all_table_schemas():
+    """
+    Get all table schemas stored in the smart contract or in-memory storage.
+    
+    Returns:
+    {
+        "status": "success",
+        "schemas": {
+            "patient_data": {
+                "columns": [...],
+                "primary_key": [...],
+                "indexes": [...]
+            },
+            ...
+        },
+        "smart_contract_enabled": true
+    }
+    """
+    global USE_SMART_CONTRACT
+    logger.info("GET /schemas - Retrieving all table schemas")
+    
+    try:
+        schemas = {}
+        
+        if USE_SMART_CONTRACT and app.state.index_storage:
+            # Get known table names (you may want to maintain a list or discover them)
+            # For now, we'll assume patient_data is the main table
+            known_tables = ["patient_data"]  # You can extend this or make it dynamic
+            
+            success, schema_dict = app.state.index_storage.batch_get_table_schemas(known_tables)
+            if success:
+                import json
+                for table_name, schema_json in schema_dict.items():
+                    if schema_json:  # Only include non-empty schemas
+                        try:
+                            schemas[table_name] = json.loads(schema_json)
+                        except json.JSONDecodeError:
+                            logger.warning(f"Invalid JSON schema for table {table_name}")
+            storage_type = "smart contract"
+        else:
+            # Get from in-memory storage
+            if hasattr(app.state, 'table_schemas'):
+                import json
+                for table_name, schema_json in app.state.table_schemas.items():
+                    try:
+                        schemas[table_name] = json.loads(schema_json)
+                    except json.JSONDecodeError:
+                        logger.warning(f"Invalid JSON schema for table {table_name}")
+            storage_type = "in-memory"
+        
+        return {
+            "status": "success",
+            "schemas": schemas,
+            "smart_contract_enabled": USE_SMART_CONTRACT,
+            "storage_type": storage_type,
+            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+        }
+    
+    except Exception as e:
+        logger.error(f"Error retrieving table schemas: {e}")
+        return {"status": "error", "message": str(e)}
+
+@app.get("/schemas/{table_name}")
+async def get_table_schema(table_name: str):
+    """
+    Get the schema for a specific table.
+    
+    Returns:
+    {
+        "status": "success",
+        "table_name": "patient_data",
+        "schema": {
+            "columns": [...],
+            "primary_key": [...],
+            "indexes": [...]
+        },
+        "smart_contract_enabled": true
+    }
+    """
+    global USE_SMART_CONTRACT
+    logger.info(f"GET /schemas/{table_name} - Retrieving schema for table: {table_name}")
+    
+    try:
+        schema = None
+        
+        if USE_SMART_CONTRACT and app.state.index_storage:
+            # Get from smart contract
+            success, schema_json = app.state.index_storage.get_table_schema(table_name)
+            if success and schema_json:
+                import json
+                try:
+                    schema = json.loads(schema_json)
+                except json.JSONDecodeError:
+                    logger.warning(f"Invalid JSON schema for table {table_name}")
+            storage_type = "smart contract"
+        else:
+            # Get from in-memory storage
+            if hasattr(app.state, 'table_schemas') and table_name in app.state.table_schemas:
+                import json
+                try:
+                    schema = json.loads(app.state.table_schemas[table_name])
+                except json.JSONDecodeError:
+                    logger.warning(f"Invalid JSON schema for table {table_name}")
+            storage_type = "in-memory"
+        
+        if schema:
+            return {
+                "status": "success",
+                "table_name": table_name,
+                "schema": schema,
+                "smart_contract_enabled": USE_SMART_CONTRACT,
+                "storage_type": storage_type
+            }
+        else:
+            return {
+                "status": "not_found",
+                "message": f"Schema for table '{table_name}' not found",
+                "table_name": table_name,
+                "smart_contract_enabled": USE_SMART_CONTRACT
+            }
+    
+    except Exception as e:
+        logger.error(f"Error retrieving schema for table {table_name}: {e}")
+        return {"status": "error", "message": str(e)}
+
+@app.delete("/schemas/{table_name}")
+async def delete_table_schema(table_name: str):
+    """
+    Delete the schema for a specific table.
+    """
+    global USE_SMART_CONTRACT
+    logger.info(f"DELETE /schemas/{table_name} - Deleting schema for table: {table_name}")
+    
+    try:
+        if USE_SMART_CONTRACT and app.state.index_storage:
+            # Remove from smart contract
+            success = app.state.index_storage.remove_table_schema(table_name)
+            storage_type = "smart contract"
+        else:
+            # Remove from in-memory storage
+            if hasattr(app.state, 'table_schemas') and table_name in app.state.table_schemas:
+                del app.state.table_schemas[table_name]
+                success = True
+            else:
+                success = False
+            storage_type = "in-memory"
+        
+        if success:
+            return {
+                "status": "success",
+                "message": f"Schema for table '{table_name}' deleted successfully from {storage_type}",
+                "table_name": table_name,
+                "smart_contract_enabled": USE_SMART_CONTRACT
+            }
+        else:
+            return {
+                "status": "error",
+                "message": f"Failed to delete schema for table '{table_name}' or schema not found"
+            }
+    
+    except Exception as e:
+        logger.error(f"Error deleting schema for table {table_name}: {e}")
+        return {"status": "error", "message": str(e)}
 
 # Cleanup on shutdown
 @app.on_event("shutdown")
 def shutdown_event():
-    logger.info("Closing DuckDB connection")
-    duckdb_conn.close()
+    logger.info("Application shutting down...")
+    if hasattr(app.state, 'index_storage'):
+        logger.info("Cleaning up smart contract connections...")
 
 # Main execution block to start the FastAPI server
 if __name__ == "__main__":
     import uvicorn
-    
-    logger.info("Starting FastAPI server inside SGX enclave...")
-    logger.info("Server will be available at http://0.0.0.0:8000")
-    logger.info("API documentation available at http://0.0.0.0:8000/docs")
-    
-    # Start the uvicorn server
-    uvicorn.run(
-        app,
-        host="0.0.0.0",
-        port=8000,
-        reload=False,  # Disable reload in SGX environment
-        access_log=True,
-        log_level="info",
-        loop="asyncio"  # Explicitly specify event loop
-    )
+    logger.info("Starting FastAPI server...")
+    uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info")

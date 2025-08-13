@@ -240,4 +240,86 @@ describe("IndexState", function () {
             expect(isBatchMoreEfficient).to.be.true;
         });
     });
+
+    describe("Schema Management", function () {
+        it("Should return empty string for non-existent table schema", async function () {
+            const schema = await contract.getTableSchema("NonExistentTable");
+            expect(schema).to.equal("");
+        });
+
+        it("Should update and retrieve a table schema", async function () {
+            const tableName = "patient_data";
+            const testSchema = JSON.stringify({
+                columns: [
+                    { name: "PatientID", type: "string", nullable: false },
+                    { name: "Age", type: "integer", nullable: true }
+                ],
+                primary_key: ["PatientID"]
+            });
+
+            // Update schema
+            await contract.updateTableSchema(tableName, testSchema);
+
+            // Retrieve and verify
+            const retrievedSchema = await contract.getTableSchema(tableName);
+            expect(retrievedSchema).to.equal(testSchema);
+        });
+
+        it("Should emit SchemaUpdated event on schema update", async function () {
+            const tableName = "test_table";
+            const testSchema = JSON.stringify({ columns: [], primary_key: [] });
+
+            await expect(contract.updateTableSchema(tableName, testSchema))
+                .to.emit(contract, "SchemaUpdated")
+                .withArgs(tableName, "", testSchema);
+        });
+
+        it("Should batch retrieve multiple table schemas", async function () {
+            const tableNames = ["table1", "table2", "table3"];
+            const schemas = [
+                JSON.stringify({ table: "table1", columns: ["id", "name"] }),
+                JSON.stringify({ table: "table2", columns: ["id", "value"] }),
+                JSON.stringify({ table: "table3", columns: ["id", "data"] })
+            ];
+
+            // Set up test data
+            for (let i = 0; i < tableNames.length; i++) {
+                await contract.updateTableSchema(tableNames[i], schemas[i]);
+            }
+
+            // Batch retrieve
+            const retrievedSchemas = await contract.batchGetTableSchemas(tableNames);
+
+            // Verify all schemas
+            for (let i = 0; i < tableNames.length; i++) {
+                expect(retrievedSchemas[i]).to.equal(schemas[i]);
+            }
+        });
+
+        it("Should remove a table schema", async function () {
+            const tableName = "temp_table";
+            const testSchema = JSON.stringify({ columns: ["id"], primary_key: ["id"] });
+
+            // Set initial schema
+            await contract.updateTableSchema(tableName, testSchema);
+            expect(await contract.getTableSchema(tableName)).to.equal(testSchema);
+
+            // Remove schema
+            await contract.removeTableSchema(tableName);
+            expect(await contract.getTableSchema(tableName)).to.equal("");
+        });
+
+        it("Should emit SchemaUpdated event when removing schema", async function () {
+            const tableName = "remove_test_table";
+            const testSchema = JSON.stringify({ columns: ["test"], primary_key: ["test"] });
+
+            // Set initial schema
+            await contract.updateTableSchema(tableName, testSchema);
+
+            // Remove and check event
+            await expect(contract.removeTableSchema(tableName))
+                .to.emit(contract, "SchemaUpdated")
+                .withArgs(tableName, testSchema, "");
+        });
+    });
 });

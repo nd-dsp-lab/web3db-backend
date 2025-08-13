@@ -4,12 +4,18 @@ pragma solidity ^0.8.0;
 contract IndexState {
     // Mapping from attribute name (like "PatientID") to its current index CID
     mapping(string => string) private indexCIDs;
+    
+    // Mapping from table name to its schema (stored as JSON string)
+    mapping(string => string) private tableSchemas;
 
     // Event to log index updates
     event IndexUpdated(string attribute, string oldCID, string newCID);
 
     // Event to log batch updates
     event BatchIndexUpdated(string[] attributes, string[] newCIDs);
+    
+    // Event to log schema updates
+    event SchemaUpdated(string tableName, string oldSchema, string newSchema);
 
     // Function to update the index CID for an attribute
     function updateIndexCID(
@@ -65,5 +71,44 @@ contract IndexState {
         string memory oldCID = indexCIDs[attribute];
         delete indexCIDs[attribute];
         emit IndexUpdated(attribute, oldCID, "");
+    }
+    
+    // Schema management functions
+    
+    // Function to store/update a table schema
+    function updateTableSchema(
+        string memory tableName,
+        string memory schemaJson
+    ) public {
+        string memory oldSchema = tableSchemas[tableName];
+        tableSchemas[tableName] = schemaJson;
+        emit SchemaUpdated(tableName, oldSchema, schemaJson);
+    }
+    
+    // Function to get a table schema
+    function getTableSchema(
+        string memory tableName
+    ) public view returns (string memory) {
+        return tableSchemas[tableName];
+    }
+    
+    // Function to get multiple table schemas in one call
+    function batchGetTableSchemas(
+        string[] memory tableNames
+    ) public view returns (string[] memory) {
+        string[] memory results = new string[](tableNames.length);
+        
+        for (uint i = 0; i < tableNames.length; i++) {
+            results[i] = tableSchemas[tableNames[i]];
+        }
+        
+        return results;
+    }
+    
+    // Function to remove a table schema
+    function removeTableSchema(string memory tableName) public {
+        string memory oldSchema = tableSchemas[tableName];
+        delete tableSchemas[tableName];
+        emit SchemaUpdated(tableName, oldSchema, "");
     }
 }

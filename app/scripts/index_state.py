@@ -23,7 +23,7 @@ class IndexState:
         self.address = self.account.address
         print(f"Connected with address: {self.address}")
         
-        # Updated Contract ABI with batch operations
+        # Updated Contract ABI with batch operations and schema management
         self.abi = [
             {
                 "anonymous": False,
@@ -48,6 +48,50 @@ class IndexState:
                     }
                 ],
                 "name": "IndexUpdated",
+                "type": "event"
+            },
+            {
+                "anonymous": False,
+                "inputs": [
+                    {
+                        "indexed": False,
+                        "internalType": "string[]",
+                        "name": "attributes",
+                        "type": "string[]"
+                    },
+                    {
+                        "indexed": False,
+                        "internalType": "string[]",
+                        "name": "newCIDs",
+                        "type": "string[]"
+                    }
+                ],
+                "name": "BatchIndexUpdated",
+                "type": "event"
+            },
+            {
+                "anonymous": False,
+                "inputs": [
+                    {
+                        "indexed": False,
+                        "internalType": "string",
+                        "name": "tableName",
+                        "type": "string"
+                    },
+                    {
+                        "indexed": False,
+                        "internalType": "string",
+                        "name": "oldSchema",
+                        "type": "string"
+                    },
+                    {
+                        "indexed": False,
+                        "internalType": "string",
+                        "name": "newSchema",
+                        "type": "string"
+                    }
+                ],
+                "name": "SchemaUpdated",
                 "type": "event"
             },
             {
@@ -152,6 +196,75 @@ class IndexState:
                     }
                 ],
                 "name": "removeIndex",
+                "outputs": [],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {
+                        "internalType": "string",
+                        "name": "tableName",
+                        "type": "string"
+                    },
+                    {
+                        "internalType": "string",
+                        "name": "schemaJson",
+                        "type": "string"
+                    }
+                ],
+                "name": "updateTableSchema",
+                "outputs": [],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {
+                        "internalType": "string",
+                        "name": "tableName",
+                        "type": "string"
+                    }
+                ],
+                "name": "getTableSchema",
+                "outputs": [
+                    {
+                        "internalType": "string",
+                        "name": "",
+                        "type": "string"
+                    }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {
+                        "internalType": "string[]",
+                        "name": "tableNames",
+                        "type": "string[]"
+                    }
+                ],
+                "name": "batchGetTableSchemas",
+                "outputs": [
+                    {
+                        "internalType": "string[]",
+                        "name": "",
+                        "type": "string[]"
+                    }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {
+                        "internalType": "string",
+                        "name": "tableName",
+                        "type": "string"
+                    }
+                ],
+                "name": "removeTableSchema",
                 "outputs": [],
                 "stateMutability": "nonpayable",
                 "type": "function"
@@ -351,6 +464,140 @@ class IndexState:
                 
         except Exception as e:
             print(f"Failed to remove index: {e}")
+            return False
+    
+    def update_table_schema(self, table_name, schema_json):
+        """
+        Update a table schema in the smart contract
+        
+        Args:
+            table_name (str): The table name
+            schema_json (str): The schema as JSON string
+            
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        try:
+            # Build transaction
+            nonce = self.w3.eth.get_transaction_count(self.address)
+            
+            tx = self.contract.functions.updateTableSchema(
+                table_name,
+                schema_json
+            ).build_transaction({
+                'from': self.address,
+                'gas': 2000000,
+                'gasPrice': self.w3.eth.gas_price,
+                'nonce': nonce,
+            })
+            
+            # Sign and send transaction
+            signed_tx = self.w3.eth.account.sign_transaction(tx, self.private_key)
+            tx_hash = self.w3.eth.send_raw_transaction(signed_tx.raw_transaction)
+            
+            # Wait for transaction receipt
+            print(f"Schema update transaction sent: {tx_hash.hex()}")
+            tx_receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash)
+            print(f"Schema update transaction confirmed in block {tx_receipt['blockNumber']}")
+            
+            # Process events (but don't fail if event parsing fails)
+            try:
+                logs = self.contract.events.SchemaUpdated().process_receipt(tx_receipt)
+                if logs:
+                    print(f"Schema updated: table={logs[0]['args']['tableName']}")
+                else:
+                    print("SchemaUpdated event not found in transaction receipt")
+            except Exception as event_error:
+                print(f"Warning: Could not process SchemaUpdated event: {event_error}")
+            
+            # Consider transaction successful if it was mined (status = 1)
+            if tx_receipt.get('status') == 1:
+                print(f"Schema update transaction successful (status: {tx_receipt.get('status')})")
+                return True
+            else:
+                print(f"Schema update transaction failed (status: {tx_receipt.get('status')})")
+                return False
+                
+        except Exception as e:
+            print(f"Failed to update table schema: {e}")
+            return False
+
+    def get_table_schema(self, table_name):
+        """
+        Get a table schema from the smart contract
+        
+        Args:
+            table_name (str): The table name
+            
+        Returns:
+            tuple: (success, schema_json) where success is bool and schema_json is str
+        """
+        try:
+            schema = self.contract.functions.getTableSchema(table_name).call()
+            return True, schema
+        except Exception as e:
+            print(f"Failed to get table schema for {table_name}: {e}")
+            return False, None
+
+    def batch_get_table_schemas(self, table_names):
+        """
+        Get multiple table schemas in one call
+        
+        Args:
+            table_names (list): List of table names
+            
+        Returns:
+            tuple: (success, schemas_dict) where success is bool and schemas_dict maps table names to schemas
+        """
+        try:
+            schemas = self.contract.functions.batchGetTableSchemas(table_names).call()
+            schema_dict = {table_names[i]: schemas[i] for i in range(len(table_names))}
+            return True, schema_dict
+        except Exception as e:
+            print(f"Failed to get batch table schemas: {e}")
+            return False, {}
+
+    def remove_table_schema(self, table_name):
+        """
+        Remove a table schema from the smart contract
+        
+        Args:
+            table_name (str): The table name to remove
+            
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        try:
+            # Build transaction
+            nonce = self.w3.eth.get_transaction_count(self.address)
+            
+            tx = self.contract.functions.removeTableSchema(table_name).build_transaction({
+                'from': self.address,
+                'gas': 2000000,
+                'gasPrice': self.w3.eth.gas_price,
+                'nonce': nonce,
+            })
+            
+            # Sign and send transaction
+            signed_tx = self.w3.eth.account.sign_transaction(tx, self.private_key)
+            tx_hash = self.w3.eth.send_raw_transaction(signed_tx.raw_transaction)
+            
+            # Wait for transaction receipt
+            print(f"Schema removal transaction sent: {tx_hash.hex()}")
+            tx_receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash)
+            print(f"Schema removal transaction confirmed in block {tx_receipt['blockNumber']}")
+            
+            # Process events
+            logs = self.contract.events.SchemaUpdated().process_receipt(tx_receipt)
+            if logs:
+                print(f"Schema removed: table={logs[0]['args']['tableName']}")
+                return True
+            else:
+                print("SchemaUpdated event not found in transaction receipt")
+                return False
+                
+        except Exception as e:
+            print(f"Failed to remove table schema: {e}")
             return False
     
 

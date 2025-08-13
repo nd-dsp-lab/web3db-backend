@@ -15,10 +15,12 @@ This smart contract manages index CIDs for the Web3DB system. It provides functi
 
 ### Prerequisites
 
-- Node.js (v16 or higher)
+- Node.js (v18 or higher recommended, v16.20.2+ minimum)
 - npm or yarn
 - Metamask or similar wallet
 - Sepolia testnet ETH for gas fees
+
+**Note**: Hardhat recommends Node.js v18+. If using v16, you may see warnings but functionality should work.
 
 ### Install Dependencies
 
@@ -172,6 +174,8 @@ When querying data:
 
 ### Local Testing
 
+Run the comprehensive test suite:
+
 ```bash
 cd contracts
 npx hardhat test
@@ -179,10 +183,38 @@ npx hardhat test
 
 ### Network Testing
 
+#### Check Account Balance and Network Status
+
 ```bash
-# Test on Sepolia
-npx hardhat run scripts/test.js --network sepolia
+npx hardhat run scripts/check-balance.js --network sepolia
 ```
+
+This script will:
+- Display your account address and balance
+- Check if you're connected to Sepolia testnet
+- Show current gas prices
+- Estimate transaction costs
+- Warn if balance is too low
+
+#### Test Contract Functions on Sepolia
+
+```bash
+npx hardhat run scripts/test-contract.js --network sepolia
+```
+
+This script will:
+- Test single index updates
+- Test batch index updates
+- Compare gas usage between single vs batch operations
+- Verify event emissions
+- Show gas savings from batch operations
+
+### Available Test Scripts
+
+1. **`test/IndexCIDContract.test.js`** - Comprehensive unit tests
+2. **`scripts/check-balance.js`** - Account and network status check
+3. **`scripts/test-contract.js`** - Live contract testing on Sepolia
+4. **`scripts/deploy.js`** - Contract deployment script
 
 ## Troubleshooting
 
@@ -203,17 +235,31 @@ npx hardhat run scripts/test.js --network sepolia
    - Check for contract function errors
    - Verify input parameters are valid
 
+4. **Node.js version warnings**
+   - Hardhat recommends Node.js v18+
+   - Warnings with v16 are generally safe to ignore
+   - Consider upgrading to Node.js v18+ for best experience
+
 ### Debug Commands
 
+#### Check Contract Deployment Status
 ```bash
-# Check contract deployment
 npx hardhat verify --network sepolia <CONTRACT_ADDRESS>
+```
 
-# Check account balance
+#### Check Account Balance and Network
+```bash
 npx hardhat run scripts/check-balance.js --network sepolia
+```
 
-# Test contract functions
+#### Test Contract Functions
+```bash
 npx hardhat run scripts/test-contract.js --network sepolia
+```
+
+#### Run Local Tests
+```bash
+npx hardhat test
 ```
 
 ## Security Considerations

@@ -16,5 +16,8 @@
   },
   "directories": {
     "test": "test"
+  },
+  "dependencies": {
+    "ethers": "^6.15.0"
   }
 }

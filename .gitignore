@@ -55,7 +55,7 @@ spark-events/
 # Docker
 .docker/
 docker-compose.override.yml
-# *.env
+*.env
 
 # Database
 *.db

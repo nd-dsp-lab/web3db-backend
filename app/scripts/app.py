@@ -21,6 +21,11 @@ from cryptography.hazmat.primitives import padding
 from cryptography.hazmat.backends import default_backend
 import secrets
 import base64
+from dotenv import load_dotenv
+from index_state import IndexState
+
+# Load environment variables
+load_dotenv()
 
 # Configure logging
 logging.basicConfig(
@@ -44,6 +49,26 @@ app.add_middleware(
 # Directory to store Parquet files from IPFS
 SHARED_TMP_DIR = "/tmp/ipfs_parquet"
 os.makedirs(SHARED_TMP_DIR, exist_ok=True)
+
+# Smart contract integration configuration
+USE_SMART_CONTRACT = os.getenv("USE_SMART_CONTRACT", "false").lower() == "true"
+logger.info(f"Smart contract integration: {'ENABLED' if USE_SMART_CONTRACT else 'DISABLED'}")
+
+# Initialize smart contract connection if enabled
+app.state.index_storage = None
+if USE_SMART_CONTRACT:
+    try:
+        app.state.index_storage = IndexState(
+            contract_address=os.getenv("CONTRACT_ADDRESS"),
+            infura_api_key=os.getenv("INFURA_API_KEY"),
+            private_key=os.getenv("PRIVATE_KEY")
+        )
+        logger.info("Smart contract connection initialized successfully")
+    except Exception as e:
+        logger.error(f"Failed to initialize smart contract connection: {e}")
+        logger.info("Falling back to in-memory storage")
+        USE_SMART_CONTRACT = False
+        app.state.index_storage = None
 
 # Global index tracking
 app.state.index_cids = {
@@ -212,7 +237,8 @@ async def upload_patient_data(file: UploadFile = File(...)):
 
             # Upload encrypted index with timing
             index_cid, encrypt_time, upload_time = upload_encrypted_index(index, attr)
-            app.state.index_cids[attr] = index_cid
+            # Store index CID using helper function (smart contract or in-memory)
+            set_index_cid(attr, index_cid)
             total_index_encrypt_time += encrypt_time
             total_index_upload_time += upload_time
             logger.info(f"Uploaded encrypted index for {attr}: {index_cid}")
@@ -222,7 +248,7 @@ async def upload_patient_data(file: UploadFile = File(...)):
         gc.collect()
         return {
             "data_cid": data_cid,
-            "index_cids": app.state.index_cids,
+            "index_cids": get_all_index_cids(),  # Get from smart contract or in-memory
             "index_sizes": app.state.index_sizes,
             "parquet_time_seconds": parquet_time_end - parquet_time_start,
             "data_encryption_time_seconds": encryption_end - encryption_start,
@@ -346,7 +372,7 @@ def retrieve_index_with_timing(name):
     Retrieve and decrypt an index from IPFS with timing information.
     Returns: (index, fetch_time, decrypt_time) or (None, 0, 0) on failure
     """
-    cid = app.state.index_cids.get(name)
+    cid = get_index_cid(name)
     if not cid:
         return None, 0, 0
 
@@ -500,6 +526,7 @@ async def update_index_cids(request: UpdateIndexCIDsRequest):
         }
     }
     """
+    global USE_SMART_CONTRACT
     logger.info("PUT /index-cids - Updating index CIDs")
     try:
         # Validate that the keys match expected index attributes
@@ -514,17 +541,28 @@ async def update_index_cids(request: UpdateIndexCIDsRequest):
                 "message": f"Invalid index attributes: {invalid_keys}. Valid attributes are: {valid_keys}"
             }
 
-        # Update the index CIDs
-        for key, value in request.index_cids.items():
-            app.state.index_cids[key] = value
-            logger.info(f"Updated index CID for {key}: {value}")
-
-        return {
-            "status": "success",
-            "message": "Index CIDs updated successfully",
-            "updated_cids": request.index_cids,
-            "current_cids": app.state.index_cids
-        }
+        # Update the index CIDs using helper function (smart contract or in-memory)
+        success = set_all_index_cids(request.index_cids)
+        
+        storage_type = "smart contract" if USE_SMART_CONTRACT else "in-memory"
+        
+        if success:
+            logger.info(f"Updated index CIDs in {storage_type}")
+            return {
+                "status": "success",
+                "message": f"Index CIDs updated successfully in {storage_type}",
+                "updated_cids": request.index_cids,
+                "current_cids": get_all_index_cids(),
+                "smart_contract_enabled": USE_SMART_CONTRACT
+            }
+        else:
+            return {
+                "status": "warning",
+                "message": f"Index CIDs updated in fallback storage (smart contract update failed)",
+                "updated_cids": request.index_cids,
+                "current_cids": get_all_index_cids(),
+                "smart_contract_enabled": USE_SMART_CONTRACT
+            }
 
     except Exception as e:
         logger.error(f"Error updating index CIDs: {e}")
@@ -549,17 +587,224 @@ async def get_index_cids():
         }
     }
     """
+    global USE_SMART_CONTRACT
     logger.info("GET /index-cids - Retrieving current index CIDs")
     try:
         return {
             "status": "success",
-            "index_cids": app.state.index_cids,
+            "index_cids": get_all_index_cids(),  # Get from smart contract or in-memory
             "index_sizes": app.state.index_sizes,
+            "smart_contract_enabled": USE_SMART_CONTRACT,
             "timestamp": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
         }
     except Exception as e:
         logger.error(f"Error retrieving index CIDs: {e}")
         return {"status": "error", "message": str(e)}
+
+@app.get("/smart-contract-status")
+async def get_smart_contract_status():
+    """
+    Get the current smart contract integration status.
+    
+    Returns:
+    {
+        "smart_contract_enabled": true/false,
+        "connection_status": "connected"/"disconnected"/"error",
+        "contract_address": "0x...",
+        "message": "Status message"
+    }
+    """
+    global USE_SMART_CONTRACT
+    logger.info("GET /smart-contract-status - Checking smart contract status")
+    
+    try:
+        if not USE_SMART_CONTRACT:
+            return {
+                "smart_contract_enabled": False,
+                "connection_status": "disabled",
+                "contract_address": None,
+                "message": "Smart contract integration is disabled in configuration"
+            }
+        
+        if not app.state.index_storage:
+            return {
+                "smart_contract_enabled": True,
+                "connection_status": "error",
+                "contract_address": os.getenv("CONTRACT_ADDRESS"),
+                "message": "Smart contract connection failed during initialization"
+            }
+        
+        # Test connection by checking if we're connected to the network
+        try:
+            is_connected = app.state.index_storage.w3.is_connected()
+            if is_connected:
+                return {
+                    "smart_contract_enabled": True,
+                    "connection_status": "connected",
+                    "contract_address": os.getenv("CONTRACT_ADDRESS"),
+                    "account_address": app.state.index_storage.address,
+                    "network": "Sepolia",
+                    "message": "Smart contract connection is active"
+                }
+            else:
+                return {
+                    "smart_contract_enabled": True,
+                    "connection_status": "disconnected",
+                    "contract_address": os.getenv("CONTRACT_ADDRESS"),
+                    "message": "Smart contract connection is not active"
+                }
+        except Exception as connection_error:
+            return {
+                "smart_contract_enabled": True,
+                "connection_status": "error",
+                "contract_address": os.getenv("CONTRACT_ADDRESS"),
+                "message": f"Error checking connection: {str(connection_error)}"
+            }
+    
+    except Exception as e:
+        logger.error(f"Error checking smart contract status: {e}")
+        return {
+            "smart_contract_enabled": USE_SMART_CONTRACT,
+            "connection_status": "error",
+            "contract_address": os.getenv("CONTRACT_ADDRESS"),
+            "message": f"Error: {str(e)}"
+        }
+
+# --- Index CID Management Helper Functions ---
+
+def get_index_cid(attribute: str) -> Optional[str]:
+    """
+    Get index CID for an attribute from smart contract or in-memory storage.
+    
+    Args:
+        attribute (str): The attribute name
+        
+    Returns:
+        Optional[str]: The CID or None if not found
+    """
+    global USE_SMART_CONTRACT
+    if USE_SMART_CONTRACT and app.state.index_storage:
+        try:
+            success, cid = app.state.index_storage.get_index(attribute)
+            if success and cid:  # Make sure it's not an empty string
+                return cid
+            return None
+        except Exception as e:
+            logger.error(f"Failed to get index CID for {attribute} from smart contract: {e}")
+            # Fall back to in-memory storage
+            return app.state.index_cids.get(attribute)
+    else:
+        return app.state.index_cids.get(attribute)
+
+def get_all_index_cids() -> dict:
+    """
+    Get all index CIDs from smart contract or in-memory storage.
+    
+    Returns:
+        dict: Dictionary mapping attribute names to CIDs
+    """
+    global USE_SMART_CONTRACT
+    if USE_SMART_CONTRACT and app.state.index_storage:
+        try:
+            attributes = list(app.state.index_cids.keys())  # Get known attributes
+            success, cid_dict = app.state.index_storage.batch_get_indices(attributes)
+            if success:
+                # Filter out empty CIDs
+                return {attr: cid for attr, cid in cid_dict.items() if cid}
+            else:
+                logger.error("Failed to get batch index CIDs from smart contract")
+                return app.state.index_cids
+        except Exception as e:
+            logger.error(f"Failed to get all index CIDs from smart contract: {e}")
+            # Fall back to in-memory storage
+            return app.state.index_cids
+    else:
+        return app.state.index_cids
+
+def set_index_cid(attribute: str, cid: str) -> bool:
+    """
+    Set index CID for an attribute in smart contract or in-memory storage.
+    
+    Args:
+        attribute (str): The attribute name
+        cid (str): The CID value
+        
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    global USE_SMART_CONTRACT
+    if USE_SMART_CONTRACT and app.state.index_storage:
+        try:
+            success = app.state.index_storage.update_index(attribute, cid)
+            if success:
+                # Also update in-memory storage as backup
+                app.state.index_cids[attribute] = cid
+                logger.info(f"Updated index CID for {attribute} in smart contract: {cid}")
+                return True
+            else:
+                logger.error(f"Failed to update index CID for {attribute} in smart contract")
+                # Fall back to in-memory storage
+                app.state.index_cids[attribute] = cid
+                return False
+        except Exception as e:
+            logger.error(f"Failed to set index CID for {attribute} in smart contract: {e}")
+            # Fall back to in-memory storage
+            app.state.index_cids[attribute] = cid
+            return False
+    else:
+        app.state.index_cids[attribute] = cid
+        return True
+
+def set_all_index_cids(cid_dict: dict) -> bool:
+    """
+    Set multiple index CIDs in smart contract or in-memory storage.
+    
+    Args:
+        cid_dict (dict): Dictionary mapping attribute names to CIDs
+        
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    global USE_SMART_CONTRACT
+    if USE_SMART_CONTRACT and app.state.index_storage:
+        try:
+            attributes = list(cid_dict.keys())
+            cids = list(cid_dict.values())
+            success = app.state.index_storage.batch_update_indices(attributes, cids)
+            if success:
+                # Also update in-memory storage as backup
+                app.state.index_cids.update(cid_dict)
+                logger.info(f"Updated {len(cid_dict)} index CIDs in smart contract")
+                return True
+            else:
+                logger.error("Failed to batch update index CIDs in smart contract")
+                # Fall back to in-memory storage
+                app.state.index_cids.update(cid_dict)
+                return False
+        except Exception as e:
+            logger.error(f"Failed to set batch index CIDs in smart contract: {e}")
+            # Fall back to in-memory storage
+            app.state.index_cids.update(cid_dict)
+            return False
+    else:
+        app.state.index_cids.update(cid_dict)
+        return True
+
+# Load initial index CIDs from smart contract if enabled
+if USE_SMART_CONTRACT and app.state.index_storage:
+    try:
+        attributes = list(app.state.index_cids.keys())
+        success, cid_dict = app.state.index_storage.batch_get_indices(attributes)
+        if success:
+            # Update in-memory storage with smart contract data
+            for attr, cid in cid_dict.items():
+                if cid:  # Only update if CID is not empty
+                    app.state.index_cids[attr] = cid
+            logger.info(f"Loaded initial index CIDs from smart contract: {cid_dict}")
+        else:
+            logger.warning("Failed to load initial index CIDs from smart contract")
+    except Exception as e:
+        logger.error(f"Failed to load initial index CIDs from smart contract: {e}")
 
 # Cleanup on shutdown
 @app.on_event("shutdown")

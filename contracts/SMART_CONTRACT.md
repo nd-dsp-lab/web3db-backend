@@ -2,7 +2,7 @@
 
 ## Overview
 
-This smart contract manages index CIDs for the Web3DB system. It provides functions to store, retrieve, update, and batch-manage index CIDs on the Ethereum Sepolia testnet.
+This smart contract (Web3dbContract) manages index CIDs and access policies for the Web3DB system. It provides functions to store, retrieve, update, and batch-manage index CIDs, table schemas, and access policies on the Ethereum Sepolia testnet.
 
 ## Contract Features
 
@@ -271,4 +271,4 @@ npx hardhat test
 
 ## Contract Address
 
-**Sepolia Testnet**: `0xe4B4B17AA1Fe9f90fA1521ed87FfcC0f85452F91`
+**Sepolia Testnet**: `0x041da68BD3F1bf13C5d75E3bA80ab6bB8B136BFd`

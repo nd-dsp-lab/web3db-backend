@@ -22,7 +22,7 @@ from cryptography.hazmat.backends import default_backend
 import secrets
 import base64
 from dotenv import load_dotenv
-from index_state import IndexState
+from web3db_contract import Web3dbContract
 
 # Load environment variables
 load_dotenv()
@@ -52,13 +52,14 @@ os.makedirs(SHARED_TMP_DIR, exist_ok=True)
 
 # Smart contract integration configuration
 USE_SMART_CONTRACT = os.getenv("USE_SMART_CONTRACT", "false").lower() == "true"
-logger.info(f"Smart contract integration: {'ENABLED' if USE_SMART_CONTRACT else 'DISABLED'}")
+status = "ENABLED" if USE_SMART_CONTRACT else "DISABLED"
+logger.info(f"Smart contract integration: {status}")
 
 # Initialize smart contract connection if enabled
 app.state.index_storage = None
 if USE_SMART_CONTRACT:
     try:
-        app.state.index_storage = IndexState(
+        app.state.index_storage = Web3dbContract(
             contract_address=os.getenv("CONTRACT_ADDRESS"),
             infura_api_key=os.getenv("INFURA_API_KEY"),
             private_key=os.getenv("PRIVATE_KEY")
@@ -725,6 +726,17 @@ class BatchUpdateTableSchemasRequest(BaseModel):
     schemas: dict  # Dictionary mapping table names to schemas
 
 
+class AddAccessPolicyRequest(BaseModel):
+    wallet_address: str
+    table_name: str
+    policy_sql: str
+
+
+class RemoveAccessPolicyRequest(BaseModel):
+    wallet_address: str
+    policy_index: int
+
+
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
@@ -749,6 +761,9 @@ async def root():
             "index-cids": "GET /index-cids",
             "schemas": "GET /schemas, POST /schemas",
             "schema-by-table": "GET /schemas/{table_name}, DELETE /schemas/{table_name}",
+            "access-policies": "POST /access-policies, GET /access-policies/{wallet_address}, DELETE /access-policies",
+            "policy-count": "GET /access-policies/{wallet_address}/count",
+            "remove-all-policies": "DELETE /access-policies/{wallet_address}/all",
             "docs": "GET /docs"
         }
     }
@@ -1065,6 +1080,262 @@ async def delete_table_schema(table_name: str):
     
     except Exception as e:
         logger.error(f"Error deleting schema for table {table_name}: {e}")
+        return {"status": "error", "message": str(e)}
+
+# Access Policy Management Endpoints
+
+@app.post("/access-policies")
+async def add_access_policy(request: AddAccessPolicyRequest):
+    """
+    Add an access policy for a wallet address.
+    
+    Example request body:
+    {
+        "wallet_address": "0x68ef100cC9dAdE0bb67a0aE99A02CDd1eaE54A2f",
+        "table_name": "patient_data",
+        "policy_sql": "SELECT * FROM patient_data WHERE PatientID = '38'"
+    }
+    """
+    global USE_SMART_CONTRACT
+    logger.info(f"POST /access-policies - Adding access policy for wallet: {request.wallet_address}")
+    
+    try:
+        if USE_SMART_CONTRACT and app.state.index_storage:
+            # Store in smart contract
+            success = app.state.index_storage.add_access_policy(
+                request.wallet_address, 
+                request.table_name, 
+                request.policy_sql
+            )
+            storage_type = "smart contract"
+        else:
+            # Store in memory as fallback
+            if not hasattr(app.state, 'access_policies'):
+                app.state.access_policies = {}
+            
+            if request.wallet_address not in app.state.access_policies:
+                app.state.access_policies[request.wallet_address] = []
+            
+            policy = {
+                'ownerAddress': '0x0000000000000000000000000000000000000000',  # Placeholder for in-memory
+                'tableName': request.table_name,
+                'policySql': request.policy_sql
+            }
+            app.state.access_policies[request.wallet_address].append(policy)
+            success = True
+            storage_type = "in-memory"
+        
+        if success:
+            return {
+                "status": "success",
+                "message": f"Access policy added successfully in {storage_type}",
+                "wallet_address": request.wallet_address,
+                "table_name": request.table_name,
+                "policy_sql": request.policy_sql,
+                "smart_contract_enabled": USE_SMART_CONTRACT
+            }
+        else:
+            return {
+                "status": "error",
+                "message": f"Failed to add access policy in smart contract"
+            }
+    
+    except Exception as e:
+        logger.error(f"Error adding access policy: {e}")
+        return {"status": "error", "message": str(e)}
+
+@app.get("/access-policies/{wallet_address}")
+async def get_access_policies(wallet_address: str):
+    """
+    Get all access policies for a wallet address.
+    
+    Returns:
+    {
+        "status": "success",
+        "wallet_address": "0x68ef100cC9dAdE0bb67a0aE99A02CDd1eaE54A2f",
+        "policies": [
+            {
+                "ownerAddress": "0x123...",
+                "tableName": "patient_data",
+                "policySql": "SELECT * FROM patient_data WHERE PatientID = '38'"
+            }
+        ],
+        "smart_contract_enabled": true
+    }
+    """
+    global USE_SMART_CONTRACT
+    logger.info(f"GET /access-policies/{wallet_address} - Retrieving access policies")
+    
+    try:
+        policies = []
+        
+        if USE_SMART_CONTRACT and app.state.index_storage:
+            # Get from smart contract
+            success, policies = app.state.index_storage.get_access_policies(wallet_address)
+            storage_type = "smart contract"
+        else:
+            # Get from in-memory storage
+            if hasattr(app.state, 'access_policies') and wallet_address in app.state.access_policies:
+                policies = app.state.access_policies[wallet_address]
+                success = True
+            else:
+                success = True  # Empty list is still a success
+            storage_type = "in-memory"
+        
+        if success:
+            return {
+                "status": "success",
+                "wallet_address": wallet_address,
+                "policies": policies,
+                "policy_count": len(policies),
+                "smart_contract_enabled": USE_SMART_CONTRACT,
+                "storage_type": storage_type,
+                "timestamp": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+            }
+        else:
+            return {
+                "status": "error",
+                "message": f"Failed to retrieve access policies from smart contract"
+            }
+    
+    except Exception as e:
+        logger.error(f"Error retrieving access policies for {wallet_address}: {e}")
+        return {"status": "error", "message": str(e)}
+
+@app.get("/access-policies/{wallet_address}/count")
+async def get_policy_count(wallet_address: str):
+    """
+    Get the count of policies for a wallet address.
+    
+    Returns:
+    {
+        "status": "success",
+        "wallet_address": "0x68ef100cC9dAdE0bb67a0aE99A02CDd1eaE54A2f",
+        "count": 3
+    }
+    """
+    global USE_SMART_CONTRACT
+    logger.info(f"GET /access-policies/{wallet_address}/count - Getting policy count")
+    
+    try:
+        count = 0
+        
+        if USE_SMART_CONTRACT and app.state.index_storage:
+            # Get from smart contract
+            success, count = app.state.index_storage.get_policy_count(wallet_address)
+            storage_type = "smart contract"
+        else:
+            # Get from in-memory storage
+            if hasattr(app.state, 'access_policies') and wallet_address in app.state.access_policies:
+                count = len(app.state.access_policies[wallet_address])
+            success = True
+            storage_type = "in-memory"
+        
+        if success:
+            return {
+                "status": "success",
+                "wallet_address": wallet_address,
+                "count": count,
+                "smart_contract_enabled": USE_SMART_CONTRACT,
+                "storage_type": storage_type
+            }
+        else:
+            return {
+                "status": "error",
+                "message": f"Failed to retrieve policy count from smart contract"
+            }
+    
+    except Exception as e:
+        logger.error(f"Error getting policy count for {wallet_address}: {e}")
+        return {"status": "error", "message": str(e)}
+
+@app.delete("/access-policies")
+async def remove_access_policy(request: RemoveAccessPolicyRequest):
+    """
+    Remove a specific access policy by index.
+    
+    Example request body:
+    {
+        "wallet_address": "0x68ef100cC9dAdE0bb67a0aE99A02CDd1eaE54A2f",
+        "policy_index": 0
+    }
+    """
+    global USE_SMART_CONTRACT
+    logger.info(f"DELETE /access-policies - Removing policy index {request.policy_index} for wallet: {request.wallet_address}")
+    
+    try:
+        if USE_SMART_CONTRACT and app.state.index_storage:
+            # Remove from smart contract
+            success = app.state.index_storage.remove_access_policy(
+                request.wallet_address, 
+                request.policy_index
+            )
+            storage_type = "smart contract"
+        else:
+            # Remove from in-memory storage
+            if (hasattr(app.state, 'access_policies') and 
+                request.wallet_address in app.state.access_policies and
+                0 <= request.policy_index < len(app.state.access_policies[request.wallet_address])):
+                
+                app.state.access_policies[request.wallet_address].pop(request.policy_index)
+                success = True
+            else:
+                success = False
+            storage_type = "in-memory"
+        
+        if success:
+            return {
+                "status": "success",
+                "message": f"Access policy removed successfully from {storage_type}",
+                "wallet_address": request.wallet_address,
+                "policy_index": request.policy_index,
+                "smart_contract_enabled": USE_SMART_CONTRACT
+            }
+        else:
+            return {
+                "status": "error",
+                "message": f"Failed to remove access policy or invalid policy index"
+            }
+    
+    except Exception as e:
+        logger.error(f"Error removing access policy: {e}")
+        return {"status": "error", "message": str(e)}
+
+@app.delete("/access-policies/{wallet_address}/all")
+async def remove_all_access_policies(wallet_address: str):
+    """
+    Remove all access policies for a wallet address.
+    """
+    global USE_SMART_CONTRACT
+    logger.info(f"DELETE /access-policies/{wallet_address}/all - Removing all policies for wallet")
+    
+    try:
+        if USE_SMART_CONTRACT and app.state.index_storage:
+            # Remove from smart contract
+            success = app.state.index_storage.remove_all_access_policies(wallet_address)
+            storage_type = "smart contract"
+        else:
+            # Remove from in-memory storage
+            if hasattr(app.state, 'access_policies') and wallet_address in app.state.access_policies:
+                del app.state.access_policies[wallet_address]
+            success = True
+            storage_type = "in-memory"
+        
+        if success:
+            return {
+                "status": "success",
+                "message": f"All access policies removed successfully from {storage_type}",
+                "wallet_address": wallet_address,
+                "smart_contract_enabled": USE_SMART_CONTRACT
+            }
+        else:
+            return {
+                "status": "error",
+                "message": f"Failed to remove all access policies from smart contract"
+            }
+    
+    except Exception as e:
+        logger.error(f"Error removing all access policies for {wallet_address}: {e}")
         return {"status": "error", "message": str(e)}
 
 # Cleanup on shutdown

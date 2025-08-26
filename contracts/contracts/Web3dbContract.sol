@@ -1,12 +1,22 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-contract IndexState {
+contract Web3dbContract {
+    // Struct to store access policies
+    struct AccessPolicy {
+        address ownerAddress;
+        string tableName;
+        string policySql;
+    }
+    
     // Mapping from attribute name (like "PatientID") to its current index CID
     mapping(string => string) private indexCIDs;
     
     // Mapping from table name to its schema (stored as JSON string)
     mapping(string => string) private tableSchemas;
+    
+    // Mapping from wallet address to their access policies
+    mapping(address => AccessPolicy[]) private accessPolicies;
 
     // Event to log index updates
     event IndexUpdated(string attribute, string oldCID, string newCID);
@@ -16,6 +26,10 @@ contract IndexState {
     
     // Event to log schema updates
     event SchemaUpdated(string tableName, string oldSchema, string newSchema);
+    
+    // Event to log access policy updates
+    event AccessPolicyAdded(address indexed walletAddress, string tableName, string policySql);
+    event AccessPolicyRemoved(address indexed walletAddress, string tableName);
 
     // Function to update the index CID for an attribute
     function updateIndexCID(
@@ -110,5 +124,52 @@ contract IndexState {
         string memory oldSchema = tableSchemas[tableName];
         delete tableSchemas[tableName];
         emit SchemaUpdated(tableName, oldSchema, "");
+    }
+    
+    // Access policy management functions
+    
+    // Function to add an access policy for a wallet address
+    function addAccessPolicy(
+        address walletAddress,
+        string memory tableName,
+        string memory policySql
+    ) public {
+        accessPolicies[walletAddress].push(AccessPolicy({
+            ownerAddress: msg.sender,
+            tableName: tableName,
+            policySql: policySql
+        }));
+        emit AccessPolicyAdded(walletAddress, tableName, policySql);
+    }
+    
+    // Function to get all access policies for a wallet address
+    function getAccessPolicies(
+        address walletAddress
+    ) public view returns (AccessPolicy[] memory) {
+        return accessPolicies[walletAddress];
+    }
+    
+    // Function to get the count of policies for a wallet address
+    function getPolicyCount(address walletAddress) public view returns (uint) {
+        return accessPolicies[walletAddress].length;
+    }
+    
+    // Function to remove a specific policy by index
+    function removeAccessPolicy(address walletAddress, uint policyIndex) public {
+        require(policyIndex < accessPolicies[walletAddress].length, "Invalid policy index");
+        
+        AccessPolicy memory removedPolicy = accessPolicies[walletAddress][policyIndex];
+        
+        // Move the last element to the deleted spot and remove the last element
+        accessPolicies[walletAddress][policyIndex] = accessPolicies[walletAddress][accessPolicies[walletAddress].length - 1];
+        accessPolicies[walletAddress].pop();
+        
+        emit AccessPolicyRemoved(walletAddress, removedPolicy.tableName);
+    }
+    
+    // Function to remove all policies for a wallet address
+    function removeAllAccessPolicies(address walletAddress) public {
+        delete accessPolicies[walletAddress];
+        emit AccessPolicyRemoved(walletAddress, "ALL");
     }
 }

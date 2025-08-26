@@ -2,7 +2,7 @@ import os
 from web3 import Web3
 from dotenv import load_dotenv
 
-class IndexState:
+class Web3dbContract:
     def __init__(self, contract_address=None, infura_api_key=None, private_key=None):
         self.infura_api_key = infura_api_key
         self.private_key = private_key
@@ -268,11 +268,173 @@ class IndexState:
                 "outputs": [],
                 "stateMutability": "nonpayable",
                 "type": "function"
+            },
+            {
+                "anonymous": False,
+                "inputs": [
+                    {
+                        "indexed": True,
+                        "internalType": "address",
+                        "name": "walletAddress",
+                        "type": "address"
+                    },
+                    {
+                        "indexed": False,
+                        "internalType": "string",
+                        "name": "tableName",
+                        "type": "string"
+                    },
+                    {
+                        "indexed": False,
+                        "internalType": "string",
+                        "name": "policySql",
+                        "type": "string"
+                    }
+                ],
+                "name": "AccessPolicyAdded",
+                "type": "event"
+            },
+            {
+                "anonymous": False,
+                "inputs": [
+                    {
+                        "indexed": True,
+                        "internalType": "address",
+                        "name": "walletAddress",
+                        "type": "address"
+                    },
+                    {
+                        "indexed": False,
+                        "internalType": "string",
+                        "name": "tableName",
+                        "type": "string"
+                    }
+                ],
+                "name": "AccessPolicyRemoved",
+                "type": "event"
+            },
+            {
+                "inputs": [
+                    {
+                        "internalType": "address",
+                        "name": "walletAddress",
+                        "type": "address"
+                    },
+                    {
+                        "internalType": "string",
+                        "name": "tableName",
+                        "type": "string"
+                    },
+                    {
+                        "internalType": "string",
+                        "name": "policySql",
+                        "type": "string"
+                    }
+                ],
+                "name": "addAccessPolicy",
+                "outputs": [],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {
+                        "internalType": "address",
+                        "name": "walletAddress",
+                        "type": "address"
+                    }
+                ],
+                "name": "getAccessPolicies",
+                "outputs": [
+                    {
+                        "components": [
+                            {
+                                "internalType": "address",
+                                "name": "ownerAddress",
+                                "type": "address"
+                            },
+                            {
+                                "internalType": "string",
+                                "name": "tableName",
+                                "type": "string"
+                            },
+                            {
+                                "internalType": "string",
+                                "name": "policySql",
+                                "type": "string"
+                            }
+                        ],
+                        "internalType": "struct Web3dbContract.AccessPolicy[]",
+                        "name": "",
+                        "type": "tuple[]"
+                    }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {
+                        "internalType": "address",
+                        "name": "walletAddress",
+                        "type": "address"
+                    }
+                ],
+                "name": "getPolicyCount",
+                "outputs": [
+                    {
+                        "internalType": "uint256",
+                        "name": "",
+                        "type": "uint256"
+                    }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {
+                        "internalType": "address",
+                        "name": "walletAddress",
+                        "type": "address"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "policyIndex",
+                        "type": "uint256"
+                    }
+                ],
+                "name": "removeAccessPolicy",
+                "outputs": [],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {
+                        "internalType": "address",
+                        "name": "walletAddress",
+                        "type": "address"
+                    }
+                ],
+                "name": "removeAllAccessPolicies",
+                "outputs": [],
+                "stateMutability": "nonpayable",
+                "type": "function"
             }
         ]
         
         # Create contract instance
         self.contract = self.w3.eth.contract(address=self.contract_address, abi=self.abi)
+    
+    def _get_gas_price(self):
+        """
+        Get a reasonable gas price for transactions.
+        Returns at least 2 gwei to ensure transactions are mined.
+        """
+        current_gas_price = self.w3.eth.gas_price
+        min_gas_price = self.w3.to_wei('2', 'gwei')  # 2 gwei minimum
+        return max(current_gas_price, min_gas_price)
         
     def update_index(self, attribute, new_cid):
         """
@@ -295,7 +457,7 @@ class IndexState:
             ).build_transaction({
                 'from': self.address,
                 'gas': 2000000,
-                'gasPrice': self.w3.eth.gas_price,
+                'gasPrice': self._get_gas_price(),
                 'nonce': nonce,
             })
             
@@ -348,7 +510,7 @@ class IndexState:
             ).build_transaction({
                 'from': self.address,
                 'gas': 3000000,  # Increased gas limit for batch operation
-                'gasPrice': self.w3.eth.gas_price,
+                'gasPrice': self._get_gas_price(),
                 'nonce': nonce,
             })
             
@@ -439,7 +601,7 @@ class IndexState:
             tx = self.contract.functions.removeIndex(attribute).build_transaction({
                 'from': self.address,
                 'gas': 2000000,
-                'gasPrice': self.w3.eth.gas_price,
+                'gasPrice': self._get_gas_price(),
                 'nonce': nonce,
             })
             
@@ -487,7 +649,7 @@ class IndexState:
             ).build_transaction({
                 'from': self.address,
                 'gas': 2000000,
-                'gasPrice': self.w3.eth.gas_price,
+                'gasPrice': self._get_gas_price(),
                 'nonce': nonce,
             })
             
@@ -574,7 +736,7 @@ class IndexState:
             tx = self.contract.functions.removeTableSchema(table_name).build_transaction({
                 'from': self.address,
                 'gas': 2000000,
-                'gasPrice': self.w3.eth.gas_price,
+                'gasPrice': self._get_gas_price(),
                 'nonce': nonce,
             })
             
@@ -600,13 +762,243 @@ class IndexState:
             print(f"Failed to remove table schema: {e}")
             return False
     
+    # Access Policy Management Methods
+    
+    def add_access_policy(self, wallet_address, table_name, policy_sql):
+        """
+        Add an access policy for a wallet address
+        
+        Args:
+            wallet_address (str): The wallet address (e.g., "0x123...")
+            table_name (str): The table name
+            policy_sql (str): The SQL policy string
+            
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        try:
+            # Convert string address to checksum address
+            wallet_address = Web3.to_checksum_address(wallet_address)
+            
+            # Build transaction
+            nonce = self.w3.eth.get_transaction_count(self.address)
+            
+            tx = self.contract.functions.addAccessPolicy(
+                wallet_address,
+                table_name,
+                policy_sql
+            ).build_transaction({
+                'from': self.address,
+                'gas': 2000000,
+                'gasPrice': self._get_gas_price(),
+                'nonce': nonce,
+            })
+            
+            # Sign and send transaction
+            signed_tx = self.w3.eth.account.sign_transaction(tx, self.private_key)
+            tx_hash = self.w3.eth.send_raw_transaction(signed_tx.raw_transaction)
+            
+            # Wait for transaction receipt
+            print(f"Add access policy transaction sent: {tx_hash.hex()}")
+            tx_receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash)
+            print(f"Add access policy transaction confirmed in block {tx_receipt['blockNumber']}")
+            
+            # Process events
+            try:
+                logs = self.contract.events.AccessPolicyAdded().process_receipt(tx_receipt)
+                if logs:
+                    print(f"Access policy added: wallet={logs[0]['args']['walletAddress']}, "
+                          f"table={logs[0]['args']['tableName']}")
+                else:
+                    print("AccessPolicyAdded event not found in transaction receipt")
+            except Exception as event_error:
+                print(f"Warning: Could not process AccessPolicyAdded event: {event_error}")
+            
+            # Consider transaction successful if it was mined (status = 1)
+            if tx_receipt.get('status') == 1:
+                return True
+            else:
+                print(f"Add access policy transaction failed (status: {tx_receipt.get('status')})")
+                return False
+                
+        except Exception as e:
+            print(f"Failed to add access policy: {e}")
+            return False
+    
+    def get_access_policies(self, wallet_address):
+        """
+        Get all access policies for a wallet address
+        
+        Args:
+            wallet_address (str): The wallet address (e.g., "0x123...")
+            
+        Returns:
+            tuple: (success, policies_list) where success is bool and policies_list is list of dicts
+        """
+        try:
+            # Convert string address to checksum address
+            wallet_address = Web3.to_checksum_address(wallet_address)
+            
+            # Call the smart contract function
+            policies = self.contract.functions.getAccessPolicies(wallet_address).call()
+            
+            # Convert tuple results to list of dictionaries
+            policy_list = []
+            for policy in policies:
+                policy_dict = {
+                    'ownerAddress': policy[0],
+                    'tableName': policy[1],
+                    'policySql': policy[2]
+                }
+                policy_list.append(policy_dict)
+                
+            return True, policy_list
+        except Exception as e:
+            print(f"Failed to get access policies for {wallet_address}: {e}")
+            return False, []
+    
+    def get_policy_count(self, wallet_address):
+        """
+        Get the count of policies for a wallet address
+        
+        Args:
+            wallet_address (str): The wallet address
+            
+        Returns:
+            tuple: (success, count) where success is bool and count is int
+        """
+        try:
+            # Convert string address to checksum address
+            wallet_address = Web3.to_checksum_address(wallet_address)
+            
+            # Call the smart contract function
+            count = self.contract.functions.getPolicyCount(wallet_address).call()
+            return True, count
+        except Exception as e:
+            print(f"Failed to get policy count for {wallet_address}: {e}")
+            return False, 0
+    
+    def remove_access_policy(self, wallet_address, policy_index):
+        """
+        Remove a specific access policy by index
+        
+        Args:
+            wallet_address (str): The wallet address
+            policy_index (int): The index of the policy to remove
+            
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        try:
+            # Convert string address to checksum address
+            wallet_address = Web3.to_checksum_address(wallet_address)
+            
+            # Build transaction
+            nonce = self.w3.eth.get_transaction_count(self.address)
+            
+            tx = self.contract.functions.removeAccessPolicy(
+                wallet_address,
+                policy_index
+            ).build_transaction({
+                'from': self.address,
+                'gas': 2000000,
+                'gasPrice': self._get_gas_price(),
+                'nonce': nonce,
+            })
+            
+            # Sign and send transaction
+            signed_tx = self.w3.eth.account.sign_transaction(tx, self.private_key)
+            tx_hash = self.w3.eth.send_raw_transaction(signed_tx.raw_transaction)
+            
+            # Wait for transaction receipt
+            print(f"Remove access policy transaction sent: {tx_hash.hex()}")
+            tx_receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash)
+            print(f"Remove access policy transaction confirmed in block {tx_receipt['blockNumber']}")
+            
+            # Process events
+            try:
+                logs = self.contract.events.AccessPolicyRemoved().process_receipt(tx_receipt)
+                if logs:
+                    print(f"Access policy removed: wallet={logs[0]['args']['walletAddress']}, "
+                          f"table={logs[0]['args']['tableName']}")
+                else:
+                    print("AccessPolicyRemoved event not found in transaction receipt")
+            except Exception as event_error:
+                print(f"Warning: Could not process AccessPolicyRemoved event: {event_error}")
+            
+            # Consider transaction successful if it was mined (status = 1)
+            if tx_receipt.get('status') == 1:
+                return True
+            else:
+                print(f"Remove access policy transaction failed (status: {tx_receipt.get('status')})")
+                return False
+                
+        except Exception as e:
+            print(f"Failed to remove access policy: {e}")
+            return False
+    
+    def remove_all_access_policies(self, wallet_address):
+        """
+        Remove all access policies for a wallet address
+        
+        Args:
+            wallet_address (str): The wallet address
+            
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        try:
+            # Convert string address to checksum address
+            wallet_address = Web3.to_checksum_address(wallet_address)
+            
+            # Build transaction
+            nonce = self.w3.eth.get_transaction_count(self.address)
+            
+            tx = self.contract.functions.removeAllAccessPolicies(
+                wallet_address
+            ).build_transaction({
+                'from': self.address,
+                'gas': 2000000,
+                'gasPrice': self._get_gas_price(),
+                'nonce': nonce,
+            })
+            
+            # Sign and send transaction
+            signed_tx = self.w3.eth.account.sign_transaction(tx, self.private_key)
+            tx_hash = self.w3.eth.send_raw_transaction(signed_tx.raw_transaction)
+            
+            # Wait for transaction receipt
+            print(f"Remove all access policies transaction sent: {tx_hash.hex()}")
+            tx_receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash)
+            print(f"Remove all access policies transaction confirmed in block {tx_receipt['blockNumber']}")
+            
+            # Process events
+            try:
+                logs = self.contract.events.AccessPolicyRemoved().process_receipt(tx_receipt)
+                if logs:
+                    print(f"All access policies removed: wallet={logs[0]['args']['walletAddress']}")
+                else:
+                    print("AccessPolicyRemoved event not found in transaction receipt")
+            except Exception as event_error:
+                print(f"Warning: Could not process AccessPolicyRemoved event: {event_error}")
+            
+            # Consider transaction successful if it was mined (status = 1)
+            if tx_receipt.get('status') == 1:
+                return True
+            else:
+                print(f"Remove all access policies transaction failed (status: {tx_receipt.get('status')})")
+                return False
+                
+        except Exception as e:
+            print(f"Failed to remove all access policies: {e}")
+            return False
 
 
 if __name__ == "__main__":
     try:
-        # Initialize the IndexState instance
-        index_storage = IndexState(
-            contract_address="0xe4B4B17AA1Fe9f90fA1521ed87FfcC0f85452F91",
+        # Initialize the Web3dbContract instance
+        index_storage = Web3dbContract(
+            contract_address="0x041da68BD3F1bf13C5d75E3bA80ab6bB8B136BFd",
             infura_api_key="eb1d43f1429e49fba50e18fbf5ebd4ab",
             private_key="34cf59aaa5ef0a24e65b4e4dbe6fb23c2bd23a4d9a6b584d7995a141de719d53"
         )
@@ -655,6 +1047,41 @@ if __name__ == "__main__":
                     print(f"  {attr}: {cid}")
             else:
                 print("Failed to retrieve updated batch indices")
+        
+        # Test access policy management
+        print("\n--- Testing Access Policy Management ---")
+        test_wallet = "0x68ef100cC9dAdE0bb67a0aE99A02CDd1eaE54A2f"
+        test_table = "patient_data"
+        test_policy = "SELECT * FROM patient_data WHERE PatientID = '38'"
+        
+        # Add an access policy
+        print(f"Adding access policy for wallet: {test_wallet}")
+        print(f"Table: {test_table}")
+        print(f"Policy: {test_policy}")
+        
+        success = index_storage.add_access_policy(test_wallet, test_table, test_policy)
+        if success:
+            print("Access policy added successfully!")
+            
+            # Get policy count
+            success, count = index_storage.get_policy_count(test_wallet)
+            if success:
+                print(f"Policy count for wallet: {count}")
+            
+            # Get all policies
+            success, policies = index_storage.get_access_policies(test_wallet)
+            if success:
+                print("Retrieved access policies:")
+                for i, policy in enumerate(policies):
+                    print(f"  Policy {i}:")
+                    print(f"    Owner: {policy['ownerAddress']}")
+                    print(f"    Table: {policy['tableName']}")
+                    print(f"    SQL: {policy['policySql']}")
+            else:
+                print("Failed to retrieve access policies")
+                
+        else:
+            print("Failed to add access policy")
         
         # Optional: test remove index
         # print("\n--- Testing Remove Index ---")

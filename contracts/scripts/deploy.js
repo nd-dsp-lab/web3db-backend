@@ -1,7 +1,7 @@
 async function main() {
-  console.log("Deploying Index State Management...");
+  console.log("Deploying Web3DB Contract...");
 
-  const Contract = await ethers.getContractFactory("IndexState");
+  const Contract = await ethers.getContractFactory("Web3dbContract");
   const contract = await Contract.deploy();
 
   // Wait for deployment to complete

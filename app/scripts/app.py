@@ -25,9 +25,8 @@ from dotenv import load_dotenv
 from web3db_contract import Web3dbContract
 
 # Load environment variables
-# First try to load from current directory, then fallback to SGX mount path
-load_dotenv('.env')  # Load from current directory first
-load_dotenv('/scripts/.env')  # Fallback to SGX mount path if it exists
+# First try to load from current directory
+load_dotenv('.env')
 
 # Configure logging
 logging.basicConfig(

@@ -993,8 +993,16 @@ async def create_or_update_table_schema(request: UpdateTableSchemaRequest):
         "table_schema": {
             "columns": [
                 {"name": "PatientID", "type": "string", "nullable": false},
+                {"name": "Name", "type": "string", "nullable": false},
+                {"name": "Age", "type": "integer", "nullable": true},
+                {"name": "Gender", "type": "string", "nullable": true},
+                {"name": "BloodType", "type": "string", "nullable": true},
+                {"name": "Condition", "type": "string", "nullable": true},
+                {"name": "VisitDate", "type": "string", "nullable": true},
+                {"name": "Doctor", "type": "string", "nullable": true},
                 {"name": "HospitalID", "type": "string", "nullable": false},
-                {"name": "Age", "type": "integer", "nullable": true}
+                {"name": "Prescription", "type": "string", "nullable": true},
+                {"name": "DiagnosisReport", "type": "string", "nullable": true}
             ],
             "primary_key": ["PatientID"],
             "indexes": ["PatientID", "HospitalID", "Age"]

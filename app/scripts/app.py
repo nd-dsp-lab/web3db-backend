@@ -285,12 +285,125 @@ async def upload_patient_data(file: UploadFile = File(...)):
 class QueryRequest(BaseModel):
     index_attribute: str = 'PatientID'
     query: str = "select * from patient_data where PatientID = 'X'"
+    wallet_address: str  # Required wallet address for access control
+
+def rewrite_query_with_access_policies(original_query: str, policies: List[dict], table_name: str = "patient_data") -> str:
+    """
+    Rewrite the original query to incorporate access control policies.
+    
+    For multiple policies, this creates a more complex CTE that combines the conditions 
+    using OR logic rather than UNION to avoid column compatibility issues.
+    
+    Args:
+        original_query (str): The original SQL query
+        policies (List[dict]): List of access policies with 'policySql' field
+        table_name (str): The table name to apply policies to
+        
+    Returns:
+        str: The rewritten query with access control
+    """
+    if not policies:
+        return ""  # Return empty query if no policies
+    
+    # Extract valid policy SQLs and analyze them
+    policy_conditions = []
+    
+    for policy in policies:
+        policy_sql = policy.get('policySql', '').strip()
+        if policy_sql:
+            # Extract the WHERE clause from each policy SQL
+            # This is a simple approach - we'll extract conditions from WHERE clauses
+            policy_sql_lower = policy_sql.lower()
+            
+            if 'where' in policy_sql_lower:
+                # Find the WHERE clause
+                where_index = policy_sql_lower.find('where')
+                condition = policy_sql[where_index + 5:].strip()  # +5 for "where"
+                policy_conditions.append(f"({condition})")
+            else:
+                # If no WHERE clause, this policy allows all data
+                # We'll treat this as a catch-all condition
+                policy_conditions.append("(1=1)")  # Always true condition
+    
+    if not policy_conditions:
+        return ""  # Return empty query if no valid policies
+    
+    # Combine all conditions with OR
+    combined_condition = " OR ".join(policy_conditions)
+    
+    # Create the accessible_part CTE with all columns from original table
+    # and the combined WHERE condition
+    accessible_part_definition = f"SELECT * FROM {table_name} WHERE {combined_condition}"
+    
+    # Rewrite the original query to use the accessible_part CTE
+    modified_query = original_query.replace(table_name, "accessible_part")
+    
+    # Construct the final query with CTE
+    final_query = f"WITH accessible_part AS ({accessible_part_definition}) {modified_query}"
+    
+    return final_query
 
 @app.post("/query")
 async def query(request: QueryRequest):
-    logger.info("POST /query - Processing query")
+    logger.info("POST /query - Processing query with access control")
     query_start_time = time.time()
 
+    # Step 1: Fetch access policies for the wallet address
+    access_control_start = time.time()
+    policies = []
+    global USE_SMART_CONTRACT
+    
+    if USE_SMART_CONTRACT and app.state.index_storage:
+        try:
+            success, policies = app.state.index_storage.get_access_policies(request.wallet_address)
+            if not success:
+                logger.warning(f"Failed to fetch access policies from smart contract for {request.wallet_address}")
+                policies = []
+        except Exception as e:
+            logger.error(f"Error fetching access policies: {e}")
+            policies = []
+    else:
+        # Get from in-memory storage
+        if hasattr(app.state, 'access_policies') and request.wallet_address in app.state.access_policies:
+            policies = app.state.access_policies[request.wallet_address]
+        else:
+            policies = []
+    
+    access_control_end = time.time()
+    access_control_time = access_control_end - access_control_start
+    
+    # Step 2: If no policies found, return no data
+    if not policies:
+        logger.info(f"No access policies found for wallet {request.wallet_address}, returning no data")
+        return {
+            "message": "No access policies found for this wallet address",
+            "wallet_address": request.wallet_address,
+            "policy_count": 0,
+            "records": 0,
+            "results": [],
+            "access_control_time_seconds": access_control_time,
+            "total_query_execution_time_seconds": time.time() - query_start_time
+        }
+    
+    # Step 3: Rewrite query with access policies
+    rewrite_start = time.time()
+    rewritten_query = rewrite_query_with_access_policies(request.query, policies, "patient_data")
+    
+    if not rewritten_query:
+        logger.warning(f"Failed to rewrite query with access policies for wallet {request.wallet_address}")
+        return {
+            "error": "Failed to create access-controlled query",
+            "wallet_address": request.wallet_address,
+            "policy_count": len(policies),
+            "access_control_time_seconds": access_control_time
+        }
+    
+    rewrite_end = time.time()
+    rewrite_time = rewrite_end - rewrite_start
+    
+    logger.info(f"Rewritten query for wallet {request.wallet_address}: {rewritten_query}")
+
+    # Step 4: Continue with normal query processing using the rewritten query
     # Retrieve and decrypt index with timing
     index, idx_fetch_time, idx_decrypt_time = retrieve_index_with_timing(request.index_attribute)
 
@@ -298,7 +411,7 @@ async def query(request: QueryRequest):
         return {"error": f"Index for {request.index_attribute} not found"}
 
     idx_query_time_start = time.time()
-    cids = query_index(index, request.query, request.index_attribute)
+    cids = query_index(index, request.query, request.index_attribute)  # Use original query for index lookup
     idx_query_time_end = time.time()
 
     if not cids:
@@ -326,17 +439,17 @@ async def query(request: QueryRequest):
         return {"error": "No valid Parquet files retrieved"}
 
     duckdb_query_start = time.time()
-    # Apply DuckDB SQL directly on those Parquet files
+    # Apply DuckDB SQL using the rewritten query with access control
     try:
         # For large number of files, use glob pattern or process in batches
         if len(paths) == 1:
-            query_with_table = request.query.replace("patient_data", f"'{paths[0]}'")
+            query_with_table = rewritten_query.replace("patient_data", f"'{paths[0]}'")
             result = duckdb_conn.execute(query_with_table)
         else:
             # Method 1: Use glob pattern if files are in same directory
             # This is more efficient for many files
             glob_pattern = os.path.join(SHARED_TMP_DIR, "*.parquet")
-            query_with_table = request.query.replace("patient_data", f"read_parquet('{glob_pattern}')")
+            query_with_table = rewritten_query.replace("patient_data", f"read_parquet('{glob_pattern}')")
             result = duckdb_conn.execute(query_with_table)
 
         # Fetch all results and convert to list of dictionaries
@@ -344,8 +457,9 @@ async def query(request: QueryRequest):
         rows = result.fetchall()
         results = [dict(zip(columns, row)) for row in rows]
     except Exception as e:
-        logger.error(f"Query error: {e}")
-        return {"error": str(e)}
+        logger.error(f"Query error with rewritten query: {e}")
+        logger.error(f"Rewritten query was: {rewritten_query}")
+        return {"error": f"Query execution failed: {str(e)}"}
     finally:
         # Delete temporary files
         for p in paths:
@@ -356,9 +470,15 @@ async def query(request: QueryRequest):
     duckdb_query_end = time.time()
     query_end_time = time.time()
     return {
+        "wallet_address": request.wallet_address,
+        "policy_count": len(policies),
+        "policies_applied": [{"table": p.get('tableName'), "sql": p.get('policySql')} for p in policies],
+        "rewritten_query": rewritten_query,
         "cids": len(cids),
         "records": len(results),
         "results": results,
+        "access_control_time_seconds": access_control_time,
+        "query_rewrite_time_seconds": rewrite_time,
         "idx_fetch_time_seconds": idx_fetch_time,
         "idx_decrypt_time_seconds": idx_decrypt_time,
         "idx_lookup_time_seconds": idx_query_time_end - idx_query_time_start,
@@ -752,11 +872,11 @@ async def root():
     """Root endpoint"""
     return {
         "name": "Web3DB SGX API",
-        "description": "Decentralized Database with Privacy-Preserving Query Processing using Intel SGX",
+        "description": "Decentralized Database with Privacy-Preserving Query Processing using Intel SGX and Access Control",
         "version": "1.0.0",
         "endpoints": {
             "health": "GET /health",
-            "query": "POST /query", 
+            "query": "POST /query (requires wallet_address for access control)", 
             "upload": "POST /upload/patient-data",
             "index-cids": "GET /index-cids",
             "schemas": "GET /schemas, POST /schemas",
@@ -765,6 +885,10 @@ async def root():
             "policy-count": "GET /access-policies/{wallet_address}/count",
             "remove-all-policies": "DELETE /access-policies/{wallet_address}/all",
             "docs": "GET /docs"
+        },
+        "access_control": {
+            "enabled": True,
+            "description": "All queries require a wallet_address parameter and are filtered based on access policies stored in the smart contract"
         }
     }
 

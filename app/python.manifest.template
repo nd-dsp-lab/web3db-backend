@@ -9,6 +9,12 @@ loader.log_level = "{{ log_level }}"
 
 loader.env.LD_LIBRARY_PATH = "/lib:/lib:{{ arch_libdir }}:/usr/{{ arch_libdir }}"
 
+# SSL/TLS configuration
+loader.env.SSL_CERT_FILE = "/etc/ssl/certs/ca-certificates.crt"
+loader.env.SSL_CERT_DIR = "/etc/ssl/certs"
+loader.env.REQUESTS_CA_BUNDLE = "/etc/ssl/certs/ca-certificates.crt"
+loader.env.CURL_CA_BUNDLE = "/etc/ssl/certs/ca-certificates.crt"
+
 # Python's NumPy spawns as many threads as there are CPU cores, and each thread
 # consumes a chunk of memory, so on large machines 1G enclave size may be not enough.
 # We limit the number of spawned threads via OMP_NUM_THREADS env variable.
@@ -37,7 +43,10 @@ fs.mounts = [
   { type = "tmpfs", path = "/tmp" },
   {path = "/output", uri = "file:/home/shossain/web3db-backend/app/output"},
   {path = "/dataset", uri = "file:/home/shossain/web3db-backend/app/dataset"},
-  {path = "/query", uri = "file:/home/shossain/web3db-backend/app/query"}
+  {path = "/query", uri = "file:/home/shossain/web3db-backend/app/query"},
+  {path = "/scripts/.env", uri = "file:/home/shossain/web3db-backend/app/scripts/.env"},
+  { path = "/etc/ssl/certs", uri = "file:/etc/ssl/certs" },
+  { path = "/etc/ssl/openssl.cnf", uri = "file:/etc/ssl/openssl.cnf" }
 ]
 
 # Optimized stack size for SGX performance
@@ -72,6 +81,9 @@ sgx.allowed_files = [
   "file:/home/shossain/web3db-backend/app/output/",
   "file:/home/shossain/web3db-backend/app/dataset/",
   "file:/home/shossain/web3db-backend/app/query/",
+  "file:/home/shossain/web3db-backend/app/scripts/.env",
+  "file:/etc/ssl/certs/",
+  "file:/etc/ssl/openssl.cnf",
   #"file:/usr/lib/x86_64-linux-gnu/*",
   #"file:/lib/x86_64-linux-gnu/*"
 ]

@@ -25,7 +25,9 @@ from dotenv import load_dotenv
 from web3db_contract import Web3dbContract
 
 # Load environment variables
-load_dotenv()
+# Use the mounted .env file path inside SGX
+env_path = '/scripts/.env'
+load_dotenv(env_path)
 
 # Configure logging
 logging.basicConfig(

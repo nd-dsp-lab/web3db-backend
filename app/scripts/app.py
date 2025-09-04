@@ -880,6 +880,7 @@ async def root():
         "endpoints": {
             "health": "GET /health",
             "query": "POST /query (requires wallet_address for access control)", 
+            "query-count": "GET /query/count",
             "upload": "POST /upload/patient-data",
             "index-cids": "GET /index-cids",
             "schemas": "GET /schemas, POST /schemas",
@@ -1473,6 +1474,128 @@ async def remove_all_access_policies(wallet_address: str):
         logger.error(f"Error removing all access policies for {wallet_address}: {e}")
         return {"status": "error", "message": str(e)}
 
+@app.get("/query/count")
+async def get_row_count():
+    """
+    Get the total number of rows in the patient_data table by fetching all CIDs 
+    and performing a COUNT(*) query.
+    
+    Returns:
+    {
+        "status": "success",
+        "total_rows": 123456,
+        "cids_processed": 25,
+        "execution_time_seconds": 1.234
+    }
+    """
+    logger.info("GET /query/count - Getting total row count from database")
+    count_start_time = time.time()
+    
+    try:
+        # Get all available index CIDs to find all data
+        all_index_cids = get_all_index_cids()
+        
+        # Use PatientID index to get all CIDs (since PatientID should cover all data)
+        # If PatientID index is not available, try other indexes
+        index_attr = None
+        for attr in ['PatientID', 'HospitalID', 'Age']:
+            if all_index_cids.get(attr):
+                index_attr = attr
+                break
+        
+        if not index_attr:
+            return {
+                "status": "error", 
+                "message": "No indexes available to retrieve data CIDs"
+            }
+        
+        # Retrieve and decrypt index with timing
+        index, idx_fetch_time, idx_decrypt_time = retrieve_index_with_timing(index_attr)
+        
+        if not index:
+            return {
+                "status": "error", 
+                "message": f"Index for {index_attr} not found"
+            }
+        
+        # Get all CIDs from the index (no WHERE clause filtering)
+        idx_query_time_start = time.time()
+        all_cids = index.query_range()  # Get all CIDs without any filtering
+        idx_query_time_end = time.time()
+        
+        if not all_cids:
+            return {
+                "status": "success",
+                "total_rows": 0,
+                "cids_processed": 0,
+                "message": "No data found in database"
+            }
+        
+        # Fetch all CIDs in parallel
+        fetch_start = time.time()
+        with concurrent.futures.ThreadPoolExecutor(max_workers=64) as executor:
+            encrypted_data_list = list(executor.map(fetch_from_ipfs, all_cids))
+        fetch_end = time.time()
+        total_fetch_time = fetch_end - fetch_start
+        
+        # Decrypt all data sequentially
+        decrypt_start = time.time()
+        paths = []
+        for cid, encrypted_data in zip(all_cids, encrypted_data_list):
+            if encrypted_data:
+                path = decrypt_to_file(encrypted_data, cid, app.state.encryption_key)
+                if path:
+                    paths.append(path)
+        decrypt_end = time.time()
+        total_decrypt_time = decrypt_end - decrypt_start
+        
+        if not paths:
+            return {
+                "status": "error", 
+                "message": "No valid Parquet files retrieved"
+            }
+        
+        # Execute COUNT(*) query using DuckDB
+        duckdb_query_start = time.time()
+        try:
+            if len(paths) == 1:
+                count_query = f"SELECT COUNT(*) as total_rows FROM '{paths[0]}'"
+                result = duckdb_conn.execute(count_query)
+            else:
+                # Use glob pattern for multiple files
+                glob_pattern = os.path.join(SHARED_TMP_DIR, "*.parquet")
+                count_query = f"SELECT COUNT(*) as total_rows FROM read_parquet('{glob_pattern}')"
+                result = duckdb_conn.execute(count_query)
+            
+            # Get the count result
+            row = result.fetchone()
+            total_rows = row[0] if row else 0
+            
+        except Exception as e:
+            logger.error(f"Count query error: {e}")
+            return {"status": "error", "message": f"Count query execution failed: {str(e)}"}
+        finally:
+            # Delete temporary files
+            for p in paths:
+                try:
+                    os.remove(p)
+                except Exception as e:
+                    logger.warning(f"Failed to delete {p}: {e}")
+        
+        duckdb_query_end = time.time()
+        count_end_time = time.time()
+        
+        return {
+            "status": "success",
+            "total_rows": total_rows,
+            "cids_processed": len(all_cids),
+            "index_used": index_attr
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting row count: {e}")
+        return {"status": "error", "message": str(e)}
+
 # Cleanup on shutdown
 @app.on_event("shutdown")
 def shutdown_event():
@@ -1484,4 +1607,4 @@ def shutdown_event():
 if __name__ == "__main__":
     import uvicorn
     logger.info("Starting FastAPI server...")
-    uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info")
+    uvicorn.run(app, host="0.0.0.0", port=8001, log_level="info")

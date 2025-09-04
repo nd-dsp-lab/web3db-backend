@@ -53,26 +53,20 @@ app.add_middleware(
 SHARED_TMP_DIR = "/tmp/ipfs_parquet"
 os.makedirs(SHARED_TMP_DIR, exist_ok=True)
 
-# Smart contract integration configuration
-USE_SMART_CONTRACT = os.getenv("USE_SMART_CONTRACT", "false").lower() == "true"
-status = "ENABLED" if USE_SMART_CONTRACT else "DISABLED"
-logger.info(f"Smart contract integration: {status}")
 
-# Initialize smart contract connection if enabled
+
+# Initialize smart contract connection
 app.state.index_storage = None
-if USE_SMART_CONTRACT:
-    try:
-        app.state.index_storage = Web3dbContract(
-            contract_address=os.getenv("CONTRACT_ADDRESS"),
-            infura_api_key=os.getenv("INFURA_API_KEY"),
-            private_key=os.getenv("PRIVATE_KEY")
-        )
-        logger.info("Smart contract connection initialized successfully")
-    except Exception as e:
-        logger.error(f"Failed to initialize smart contract connection: {e}")
-        logger.info("Falling back to in-memory storage")
-        USE_SMART_CONTRACT = False
-        app.state.index_storage = None
+try:
+    app.state.index_storage = Web3dbContract(
+        contract_address=os.getenv("CONTRACT_ADDRESS"),
+        infura_api_key=os.getenv("INFURA_API_KEY"),
+        private_key=os.getenv("PRIVATE_KEY")
+    )
+    logger.info("Smart contract connection initialized successfully")
+except Exception as e:
+    logger.error(f"Failed to initialize smart contract connection: {e}")
+    raise Exception("Smart contract connection is required but failed to initialize")
 
 # Global index tracking
 app.state.index_cids = {
@@ -247,7 +241,8 @@ async def upload_patient_data(file: UploadFile = File(...)):
             if batch_update_success:
                 logger.info(f"Batch updated {len(index_cids_to_update)} index CIDs in smart contract")
             else:
-                logger.warning("Batch update to smart contract failed, using fallback storage")
+                logger.error("Batch update to smart contract failed")
+                return {"error": "Failed to update index CIDs in smart contract"}
 
         gc.collect()
         return {
@@ -329,24 +324,14 @@ async def query(request: QueryRequest):
     logger.info("POST /query - Processing query with access control")
 
     # Step 1: Fetch access policies for the wallet address
-    policies = []
-    global USE_SMART_CONTRACT
-    
-    if USE_SMART_CONTRACT and app.state.index_storage:
-        try:
-            success, policies = app.state.index_storage.get_access_policies(request.wallet_address)
-            if not success:
-                logger.warning(f"Failed to fetch access policies from smart contract for {request.wallet_address}")
-                policies = []
-        except Exception as e:
-            logger.error(f"Error fetching access policies: {e}")
-            policies = []
-    else:
-        # Get from in-memory storage
-        if hasattr(app.state, 'access_policies') and request.wallet_address in app.state.access_policies:
-            policies = app.state.access_policies[request.wallet_address]
-        else:
-            policies = []
+    try:
+        success, policies = app.state.index_storage.get_access_policies(request.wallet_address)
+        if not success:
+            logger.error(f"Failed to fetch access policies from smart contract for {request.wallet_address}")
+            return {"error": "Failed to fetch access policies from smart contract"}
+    except Exception as e:
+        logger.error(f"Error fetching access policies: {e}")
+        return {"error": f"Error fetching access policies: {str(e)}"}
     
     # Step 2: If no policies found, return no data
     if not policies:
@@ -505,26 +490,15 @@ def auto_detect_and_store_schema(df, table_name):
         else:
             schema["primary_key"] = [df.columns[0]]  # Use first column as default
         
-        # Store schema in smart contract or in-memory
+        # Store schema in smart contract
         schema_json = json.dumps(schema)
         
-        global USE_SMART_CONTRACT
-        if USE_SMART_CONTRACT and app.state.index_storage:
-            success = app.state.index_storage.update_table_schema(table_name, schema_json)
-            if success:
-                logger.info(f"Schema for table '{table_name}' stored in smart contract")
-            else:
-                logger.warning(f"Failed to store schema in smart contract, using in-memory storage")
-                # Fallback to in-memory storage
-                if not hasattr(app.state, 'table_schemas'):
-                    app.state.table_schemas = {}
-                app.state.table_schemas[table_name] = schema_json
+        success = app.state.index_storage.update_table_schema(table_name, schema_json)
+        if success:
+            logger.info(f"Schema for table '{table_name}' stored in smart contract")
         else:
-            # Store in-memory
-            if not hasattr(app.state, 'table_schemas'):
-                app.state.table_schemas = {}
-            app.state.table_schemas[table_name] = schema_json
-            logger.info(f"Schema for table '{table_name}' stored in memory")
+            logger.error(f"Failed to store schema in smart contract")
+            return None
         
         return schema
         
@@ -611,8 +585,7 @@ def query_index(index, query, attr) -> List[str]:
 
 def get_index_cid(attribute_name):
     """
-    Get the CID for a specific index attribute.
-    Uses smart contract if available, otherwise falls back to in-memory storage.
+    Get the CID for a specific index attribute from smart contract.
     
     Args:
         attribute_name (str): Name of the attribute (e.g., 'PatientID', 'HospitalID', 'Age')
@@ -620,27 +593,20 @@ def get_index_cid(attribute_name):
     Returns:
         str or None: The CID if found, None otherwise
     """
-    global USE_SMART_CONTRACT
     try:
-        if USE_SMART_CONTRACT and app.state.index_storage:
-            # Get from smart contract
-            success, cid = app.state.index_storage.get_index(attribute_name)
-            if success:
-                return cid if cid else None  # Return None for empty strings
-            else:
-                # Fallback to in-memory
-                return app.state.index_cids.get(attribute_name)
+        success, cid = app.state.index_storage.get_index(attribute_name)
+        if success:
+            return cid if cid else None  # Return None for empty strings
         else:
-            # Get from in-memory storage
-            return app.state.index_cids.get(attribute_name)
+            logger.error(f"Failed to get index CID for {attribute_name} from smart contract")
+            return None
     except Exception as e:
-        logger.warning(f"Error getting index CID for {attribute_name}: {e}")
-        return app.state.index_cids.get(attribute_name)
+        logger.error(f"Error getting index CID for {attribute_name}: {e}")
+        return None
 
 def set_index_cid(attribute_name, cid):
     """
-    Set the CID for a specific index attribute.
-    Uses smart contract if available, otherwise stores in-memory.
+    Set the CID for a specific index attribute in smart contract.
     
     Args:
         attribute_name (str): Name of the attribute
@@ -649,64 +615,44 @@ def set_index_cid(attribute_name, cid):
     Returns:
         bool: True if successful, False otherwise
     """
-    global USE_SMART_CONTRACT
     try:
-        if USE_SMART_CONTRACT and app.state.index_storage:
-            # Store in smart contract
-            success = app.state.index_storage.update_index(attribute_name, cid)
-            if success:
-                # Also update in-memory cache
-                app.state.index_cids[attribute_name] = cid
-                return True
-            else:
-                # Fallback to in-memory storage
-                app.state.index_cids[attribute_name] = cid
-                logger.warning(f"Smart contract update failed for {attribute_name}, using in-memory storage")
-                return True
-        else:
-            # Store in-memory only
+        success = app.state.index_storage.update_index(attribute_name, cid)
+        if success:
+            # Also update in-memory cache
             app.state.index_cids[attribute_name] = cid
             return True
+        else:
+            logger.error(f"Smart contract update failed for {attribute_name}")
+            return False
     except Exception as e:
         logger.error(f"Error setting index CID for {attribute_name}: {e}")
-        # Fallback to in-memory storage
-        app.state.index_cids[attribute_name] = cid
         return False
 
 def get_all_index_cids():
     """
-    Get all index CIDs as a dictionary.
-    Uses smart contract if available, otherwise returns in-memory storage.
+    Get all index CIDs as a dictionary from smart contract.
     
     Returns:
         dict: Dictionary mapping attribute names to CIDs
     """
-    global USE_SMART_CONTRACT
     try:
-        if USE_SMART_CONTRACT and app.state.index_storage:
-            # Get from smart contract
-            attribute_names = list(app.state.index_cids.keys())
-            success, cid_dict = app.state.index_storage.batch_get_indices(attribute_names)
-            if success:
-                # Update in-memory cache and return
-                for attr, cid in cid_dict.items():
-                    app.state.index_cids[attr] = cid if cid else None
-                return app.state.index_cids
-            else:
-                # Fallback to in-memory
-                logger.warning("Failed to get index CIDs from smart contract, using in-memory storage")
-                return app.state.index_cids
-        else:
-            # Return in-memory storage
+        attribute_names = list(app.state.index_cids.keys())
+        success, cid_dict = app.state.index_storage.batch_get_indices(attribute_names)
+        if success:
+            # Update in-memory cache and return
+            for attr, cid in cid_dict.items():
+                app.state.index_cids[attr] = cid if cid else None
             return app.state.index_cids
+        else:
+            logger.error("Failed to get index CIDs from smart contract")
+            return {}
     except Exception as e:
-        logger.warning(f"Error getting all index CIDs: {e}")
-        return app.state.index_cids
+        logger.error(f"Error getting all index CIDs: {e}")
+        return {}
 
 def set_all_index_cids(cid_dict):
     """
-    Set multiple index CIDs at once.
-    Uses smart contract batch update if available, otherwise updates in-memory.
+    Set multiple index CIDs at once in smart contract.
     
     Args:
         cid_dict (dict): Dictionary mapping attribute names to CIDs
@@ -714,31 +660,20 @@ def set_all_index_cids(cid_dict):
     Returns:
         bool: True if successful, False otherwise
     """
-    global USE_SMART_CONTRACT
     try:
-        if USE_SMART_CONTRACT and app.state.index_storage:
-            # Use smart contract batch update
-            # Convert dictionary to separate lists for the smart contract method
-            attributes = list(cid_dict.keys())
-            new_cids = list(cid_dict.values())
-            success = app.state.index_storage.batch_update_indices(attributes, new_cids)
-            if success:
-                # Update in-memory cache
-                app.state.index_cids.update(cid_dict)
-                return True
-            else:
-                # Fallback to in-memory storage
-                app.state.index_cids.update(cid_dict)
-                logger.warning("Smart contract batch update failed, using in-memory storage")
-                return True
-        else:
-            # Update in-memory only
+        # Convert dictionary to separate lists for the smart contract method
+        attributes = list(cid_dict.keys())
+        new_cids = list(cid_dict.values())
+        success = app.state.index_storage.batch_update_indices(attributes, new_cids)
+        if success:
+            # Update in-memory cache
             app.state.index_cids.update(cid_dict)
             return True
+        else:
+            logger.error("Smart contract batch update failed")
+            return False
     except Exception as e:
         logger.error(f"Error setting all index CIDs: {e}")
-        # Fallback to in-memory storage
-        app.state.index_cids.update(cid_dict)
         return False
 
 # Legacy function for backward compatibility
@@ -824,7 +759,7 @@ async def root():
 @app.put("/index-cids")
 async def update_index_cids(request: UpdateIndexCIDsRequest):
     """
-    Update the index CIDs mapping.
+    Update the index CIDs mapping in smart contract.
 
     Example request body:
     {
@@ -835,7 +770,6 @@ async def update_index_cids(request: UpdateIndexCIDsRequest):
         }
     }
     """
-    global USE_SMART_CONTRACT
     logger.info("PUT /index-cids - Updating index CIDs")
     try:
         # Validate that the keys match expected index attributes
@@ -850,26 +784,22 @@ async def update_index_cids(request: UpdateIndexCIDsRequest):
                 "message": f"Invalid index attributes: {invalid_keys}. Valid attributes are: {valid_keys}"
             }
 
-        # Update the index CIDs using helper function (smart contract or in-memory)
+        # Update the index CIDs using helper function (smart contract)
         success = set_all_index_cids(request.index_cids)
         
-        storage_type = "smart contract" if USE_SMART_CONTRACT else "in-memory"
-        
         if success:
-            logger.info(f"Updated index CIDs in {storage_type}")
+            logger.info(f"Updated index CIDs in smart contract")
             return {
                 "status": "success",
-                "message": f"Index CIDs updated successfully in {storage_type}",
+                "message": f"Index CIDs updated successfully in smart contract",
                 "updated_cids": request.index_cids,
                 "current_cids": get_all_index_cids(),
                 "smart_contract_enabled": USE_SMART_CONTRACT
             }
         else:
             return {
-                "status": "warning",
-                "message": f"Index CIDs updated in fallback storage (smart contract update failed)",
-                "updated_cids": request.index_cids,
-                "current_cids": get_all_index_cids(),
+                "status": "error",
+                "message": f"Index CIDs update failed in smart contract",
                 "smart_contract_enabled": USE_SMART_CONTRACT
             }
 
@@ -880,7 +810,7 @@ async def update_index_cids(request: UpdateIndexCIDsRequest):
 @app.get("/index-cids")
 async def get_index_cids():
     """
-    Get the current index CIDs mapping along with index sizes if available.
+    Get the current index CIDs mapping along with index sizes from smart contract.
 
     Returns:
     {
@@ -896,12 +826,11 @@ async def get_index_cids():
         }
     }
     """
-    global USE_SMART_CONTRACT
     logger.info("GET /index-cids - Retrieving current index CIDs")
     try:
         return {
             "status": "success",
-            "index_cids": get_all_index_cids(),  # Get from smart contract or in-memory
+            "index_cids": get_all_index_cids(),  # Get from smart contract
             "index_sizes": app.state.index_sizes,
             "smart_contract_enabled": USE_SMART_CONTRACT,
             "timestamp": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
@@ -937,7 +866,6 @@ async def create_or_update_table_schema(request: UpdateTableSchemaRequest):
         }
     }
     """
-    global USE_SMART_CONTRACT
     logger.info(f"POST /schemas - Creating/updating schema for table: {request.table_name}")
     
     try:
@@ -945,25 +873,15 @@ async def create_or_update_table_schema(request: UpdateTableSchemaRequest):
         schema_json = json.dumps(request.table_schema)
         logger.info(f"Schema JSON length: {len(schema_json)} characters")
         
-        if USE_SMART_CONTRACT and app.state.index_storage:
-            # Store in smart contract
-            logger.info(f"Attempting to store schema in smart contract for table: {request.table_name}")
-            success = app.state.index_storage.update_table_schema(request.table_name, schema_json)
-            storage_type = "smart contract"
-            logger.info(f"Smart contract update result: {success}")
-        else:
-            # Store in memory as fallback
-            logger.info(f"Storing schema in memory for table: {request.table_name}")
-            if not hasattr(app.state, 'table_schemas'):
-                app.state.table_schemas = {}
-            app.state.table_schemas[request.table_name] = schema_json
-            success = True
-            storage_type = "in-memory"
+        # Store in smart contract
+        logger.info(f"Attempting to store schema in smart contract for table: {request.table_name}")
+        success = app.state.index_storage.update_table_schema(request.table_name, schema_json)
+        logger.info(f"Smart contract update result: {success}")
         
         if success:
             return {
                 "status": "success",
-                "message": f"Schema for table '{request.table_name}' updated successfully in {storage_type}",
+                "message": f"Schema for table '{request.table_name}' updated successfully in smart contract",
                 "table_name": request.table_name,
                 "table_schema": request.table_schema,
                 "smart_contract_enabled": USE_SMART_CONTRACT
@@ -981,7 +899,7 @@ async def create_or_update_table_schema(request: UpdateTableSchemaRequest):
 @app.get("/schemas")
 async def get_all_table_schemas():
     """
-    Get all table schemas stored in the smart contract or in-memory storage.
+    Get all table schemas stored in the smart contract.
     
     Returns:
     {
@@ -997,43 +915,35 @@ async def get_all_table_schemas():
         "smart_contract_enabled": true
     }
     """
-    global USE_SMART_CONTRACT
     logger.info("GET /schemas - Retrieving all table schemas")
     
     try:
         schemas = {}
         
-        if USE_SMART_CONTRACT and app.state.index_storage:
-            # Get known table names (you may want to maintain a list or discover them)
-            # For now, we'll assume patient_data is the main table
-            known_tables = ["patient_data"]  # You can extend this or make it dynamic
-            
-            success, schema_dict = app.state.index_storage.batch_get_table_schemas(known_tables)
-            if success:
-                import json
-                for table_name, schema_json in schema_dict.items():
-                    if schema_json:  # Only include non-empty schemas
-                        try:
-                            schemas[table_name] = json.loads(schema_json)
-                        except json.JSONDecodeError:
-                            logger.warning(f"Invalid JSON schema for table {table_name}")
-            storage_type = "smart contract"
-        else:
-            # Get from in-memory storage
-            if hasattr(app.state, 'table_schemas'):
-                import json
-                for table_name, schema_json in app.state.table_schemas.items():
+        # Get known table names (you may want to maintain a list or discover them)
+        # For now, we'll assume patient_data is the main table
+        known_tables = ["patient_data"]  # You can extend this or make it dynamic
+        
+        success, schema_dict = app.state.index_storage.batch_get_table_schemas(known_tables)
+        if success:
+            import json
+            for table_name, schema_json in schema_dict.items():
+                if schema_json:  # Only include non-empty schemas
                     try:
                         schemas[table_name] = json.loads(schema_json)
                     except json.JSONDecodeError:
                         logger.warning(f"Invalid JSON schema for table {table_name}")
-            storage_type = "in-memory"
+        else:
+            return {
+                "status": "error",
+                "message": "Failed to retrieve schemas from smart contract"
+            }
         
         return {
             "status": "success",
             "schemas": schemas,
             "smart_contract_enabled": USE_SMART_CONTRACT,
-            "storage_type": storage_type,
+            "storage_type": "smart contract",
             "timestamp": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
         }
     
@@ -1044,7 +954,7 @@ async def get_all_table_schemas():
 @app.get("/schemas/{table_name}")
 async def get_table_schema(table_name: str):
     """
-    Get the schema for a specific table.
+    Get the schema for a specific table from smart contract.
     
     Returns:
     {
@@ -1058,31 +968,24 @@ async def get_table_schema(table_name: str):
         "smart_contract_enabled": true
     }
     """
-    global USE_SMART_CONTRACT
     logger.info(f"GET /schemas/{table_name} - Retrieving schema for table: {table_name}")
     
     try:
         schema = None
         
-        if USE_SMART_CONTRACT and app.state.index_storage:
-            # Get from smart contract
-            success, schema_json = app.state.index_storage.get_table_schema(table_name)
-            if success and schema_json:
-                import json
-                try:
-                    schema = json.loads(schema_json)
-                except json.JSONDecodeError:
-                    logger.warning(f"Invalid JSON schema for table {table_name}")
-            storage_type = "smart contract"
-        else:
-            # Get from in-memory storage
-            if hasattr(app.state, 'table_schemas') and table_name in app.state.table_schemas:
-                import json
-                try:
-                    schema = json.loads(app.state.table_schemas[table_name])
-                except json.JSONDecodeError:
-                    logger.warning(f"Invalid JSON schema for table {table_name}")
-            storage_type = "in-memory"
+        # Get from smart contract
+        success, schema_json = app.state.index_storage.get_table_schema(table_name)
+        if success and schema_json:
+            import json
+            try:
+                schema = json.loads(schema_json)
+            except json.JSONDecodeError:
+                logger.warning(f"Invalid JSON schema for table {table_name}")
+        elif not success:
+            return {
+                "status": "error",
+                "message": f"Failed to retrieve schema for table '{table_name}' from smart contract"
+            }
         
         if schema:
             return {
@@ -1090,7 +993,7 @@ async def get_table_schema(table_name: str):
                 "table_name": table_name,
                 "schema": schema,
                 "smart_contract_enabled": USE_SMART_CONTRACT,
-                "storage_type": storage_type
+                "storage_type": "smart contract"
             }
         else:
             return {
@@ -1107,29 +1010,18 @@ async def get_table_schema(table_name: str):
 @app.delete("/schemas/{table_name}")
 async def delete_table_schema(table_name: str):
     """
-    Delete the schema for a specific table.
+    Delete the schema for a specific table from smart contract.
     """
-    global USE_SMART_CONTRACT
     logger.info(f"DELETE /schemas/{table_name} - Deleting schema for table: {table_name}")
     
     try:
-        if USE_SMART_CONTRACT and app.state.index_storage:
-            # Remove from smart contract
-            success = app.state.index_storage.remove_table_schema(table_name)
-            storage_type = "smart contract"
-        else:
-            # Remove from in-memory storage
-            if hasattr(app.state, 'table_schemas') and table_name in app.state.table_schemas:
-                del app.state.table_schemas[table_name]
-                success = True
-            else:
-                success = False
-            storage_type = "in-memory"
+        # Remove from smart contract
+        success = app.state.index_storage.remove_table_schema(table_name)
         
         if success:
             return {
                 "status": "success",
-                "message": f"Schema for table '{table_name}' deleted successfully from {storage_type}",
+                "message": f"Schema for table '{table_name}' deleted successfully from smart contract",
                 "table_name": table_name,
                 "smart_contract_enabled": USE_SMART_CONTRACT
             }
@@ -1157,39 +1049,20 @@ async def add_access_policy(request: AddAccessPolicyRequest):
         "policy_sql": "SELECT * FROM patient_data WHERE PatientID = '38'"
     }
     """
-    global USE_SMART_CONTRACT
     logger.info(f"POST /access-policies - Adding access policy for wallet: {request.wallet_address}")
     
     try:
-        if USE_SMART_CONTRACT and app.state.index_storage:
-            # Store in smart contract
-            success = app.state.index_storage.add_access_policy(
-                request.wallet_address, 
-                request.table_name, 
-                request.policy_sql
-            )
-            storage_type = "smart contract"
-        else:
-            # Store in memory as fallback
-            if not hasattr(app.state, 'access_policies'):
-                app.state.access_policies = {}
-            
-            if request.wallet_address not in app.state.access_policies:
-                app.state.access_policies[request.wallet_address] = []
-            
-            policy = {
-                'ownerAddress': '0x0000000000000000000000000000000000000000',  # Placeholder for in-memory
-                'tableName': request.table_name,
-                'policySql': request.policy_sql
-            }
-            app.state.access_policies[request.wallet_address].append(policy)
-            success = True
-            storage_type = "in-memory"
+        # Store in smart contract
+        success = app.state.index_storage.add_access_policy(
+            request.wallet_address, 
+            request.table_name, 
+            request.policy_sql
+        )
         
         if success:
             return {
                 "status": "success",
-                "message": f"Access policy added successfully in {storage_type}",
+                "message": f"Access policy added successfully in smart contract",
                 "wallet_address": request.wallet_address,
                 "table_name": request.table_name,
                 "policy_sql": request.policy_sql,
@@ -1208,7 +1081,7 @@ async def add_access_policy(request: AddAccessPolicyRequest):
 @app.get("/access-policies/{wallet_address}")
 async def get_access_policies(wallet_address: str):
     """
-    Get all access policies for a wallet address.
+    Get all access policies for a wallet address from smart contract.
     
     Returns:
     {
@@ -1224,24 +1097,11 @@ async def get_access_policies(wallet_address: str):
         "smart_contract_enabled": true
     }
     """
-    global USE_SMART_CONTRACT
     logger.info(f"GET /access-policies/{wallet_address} - Retrieving access policies")
     
     try:
-        policies = []
-        
-        if USE_SMART_CONTRACT and app.state.index_storage:
-            # Get from smart contract
-            success, policies = app.state.index_storage.get_access_policies(wallet_address)
-            storage_type = "smart contract"
-        else:
-            # Get from in-memory storage
-            if hasattr(app.state, 'access_policies') and wallet_address in app.state.access_policies:
-                policies = app.state.access_policies[wallet_address]
-                success = True
-            else:
-                success = True  # Empty list is still a success
-            storage_type = "in-memory"
+        # Get from smart contract
+        success, policies = app.state.index_storage.get_access_policies(wallet_address)
         
         if success:
             return {
@@ -1250,7 +1110,7 @@ async def get_access_policies(wallet_address: str):
                 "policies": policies,
                 "policy_count": len(policies),
                 "smart_contract_enabled": USE_SMART_CONTRACT,
-                "storage_type": storage_type,
+                "storage_type": "smart contract",
                 "timestamp": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
             }
         else:
@@ -1266,7 +1126,7 @@ async def get_access_policies(wallet_address: str):
 @app.get("/access-policies/{wallet_address}/count")
 async def get_policy_count(wallet_address: str):
     """
-    Get the count of policies for a wallet address.
+    Get the count of policies for a wallet address from smart contract.
     
     Returns:
     {
@@ -1275,22 +1135,11 @@ async def get_policy_count(wallet_address: str):
         "count": 3
     }
     """
-    global USE_SMART_CONTRACT
     logger.info(f"GET /access-policies/{wallet_address}/count - Getting policy count")
     
     try:
-        count = 0
-        
-        if USE_SMART_CONTRACT and app.state.index_storage:
-            # Get from smart contract
-            success, count = app.state.index_storage.get_policy_count(wallet_address)
-            storage_type = "smart contract"
-        else:
-            # Get from in-memory storage
-            if hasattr(app.state, 'access_policies') and wallet_address in app.state.access_policies:
-                count = len(app.state.access_policies[wallet_address])
-            success = True
-            storage_type = "in-memory"
+        # Get from smart contract
+        success, count = app.state.index_storage.get_policy_count(wallet_address)
         
         if success:
             return {
@@ -1298,7 +1147,7 @@ async def get_policy_count(wallet_address: str):
                 "wallet_address": wallet_address,
                 "count": count,
                 "smart_contract_enabled": USE_SMART_CONTRACT,
-                "storage_type": storage_type
+                "storage_type": "smart contract"
             }
         else:
             return {
@@ -1313,7 +1162,7 @@ async def get_policy_count(wallet_address: str):
 @app.delete("/access-policies")
 async def remove_access_policy(request: RemoveAccessPolicyRequest):
     """
-    Remove a specific access policy by index.
+    Remove a specific access policy by index from smart contract.
     
     Example request body:
     {
@@ -1321,33 +1170,19 @@ async def remove_access_policy(request: RemoveAccessPolicyRequest):
         "policy_index": 0
     }
     """
-    global USE_SMART_CONTRACT
     logger.info(f"DELETE /access-policies - Removing policy index {request.policy_index} for wallet: {request.wallet_address}")
     
     try:
-        if USE_SMART_CONTRACT and app.state.index_storage:
-            # Remove from smart contract
-            success = app.state.index_storage.remove_access_policy(
-                request.wallet_address, 
-                request.policy_index
-            )
-            storage_type = "smart contract"
-        else:
-            # Remove from in-memory storage
-            if (hasattr(app.state, 'access_policies') and 
-                request.wallet_address in app.state.access_policies and
-                0 <= request.policy_index < len(app.state.access_policies[request.wallet_address])):
-                
-                app.state.access_policies[request.wallet_address].pop(request.policy_index)
-                success = True
-            else:
-                success = False
-            storage_type = "in-memory"
+        # Remove from smart contract
+        success = app.state.index_storage.remove_access_policy(
+            request.wallet_address, 
+            request.policy_index
+        )
         
         if success:
             return {
                 "status": "success",
-                "message": f"Access policy removed successfully from {storage_type}",
+                "message": f"Access policy removed successfully from smart contract",
                 "wallet_address": request.wallet_address,
                 "policy_index": request.policy_index,
                 "smart_contract_enabled": USE_SMART_CONTRACT
@@ -1365,27 +1200,18 @@ async def remove_access_policy(request: RemoveAccessPolicyRequest):
 @app.delete("/access-policies/{wallet_address}/all")
 async def remove_all_access_policies(wallet_address: str):
     """
-    Remove all access policies for a wallet address.
+    Remove all access policies for a wallet address from smart contract.
     """
-    global USE_SMART_CONTRACT
     logger.info(f"DELETE /access-policies/{wallet_address}/all - Removing all policies for wallet")
     
     try:
-        if USE_SMART_CONTRACT and app.state.index_storage:
-            # Remove from smart contract
-            success = app.state.index_storage.remove_all_access_policies(wallet_address)
-            storage_type = "smart contract"
-        else:
-            # Remove from in-memory storage
-            if hasattr(app.state, 'access_policies') and wallet_address in app.state.access_policies:
-                del app.state.access_policies[wallet_address]
-            success = True
-            storage_type = "in-memory"
+        # Remove from smart contract
+        success = app.state.index_storage.remove_all_access_policies(wallet_address)
         
         if success:
             return {
                 "status": "success",
-                "message": f"All access policies removed successfully from {storage_type}",
+                "message": f"All access policies removed successfully from smart contract",
                 "wallet_address": wallet_address,
                 "smart_contract_enabled": USE_SMART_CONTRACT
             }

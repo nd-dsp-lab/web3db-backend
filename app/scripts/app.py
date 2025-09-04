@@ -205,35 +205,24 @@ async def upload_patient_data(file: UploadFile = File(...)):
         # schema = auto_detect_and_store_schema(df, "patient_data")
         schema = None
         
-        time_start = time.time()
         # Convert to Parquet
-        parquet_time_start = time.time()
         buffer = io.BytesIO()
         pq.write_table(pa.Table.from_pandas(df), buffer)
         buffer.seek(0)
         parquet_data = buffer.read()
-        parquet_time_end = time.time()
 
         # Encrypt the Parquet data
-        encryption_start = time.time()
         encrypted_package = create_encrypted_package(parquet_data, app.state.encryption_key)
-        encryption_end = time.time()
 
         # Upload encrypted data to IPFS
         ipfs_api = "http://localhost:5001/api/v0/add"
-        ipfs_upload_start = time.time()
         resp = requests.post(ipfs_api, files={"file": ("patient_data.enc", encrypted_package)})
-        ipfs_upload_end = time.time()
         resp.raise_for_status()
         data_cid = resp.json()["Hash"]
         buffer.close()
         del df 
 
-        # Build/update encrypted indexes with timing
-        idx_start = time.time()
-        total_index_encrypt_time = 0
-        total_index_upload_time = 0
-        
+        # Build/update encrypted indexes
         # Collect all index CIDs for batch update
         index_cids_to_update = {}
 
@@ -246,12 +235,10 @@ async def upload_patient_data(file: UploadFile = File(...)):
             else:
                 index = CIDIndex(data=data_to_add)
 
-            # Upload encrypted index with timing
-            index_cid, encrypt_time, upload_time = upload_encrypted_index(index, attr)
+            # Upload encrypted index
+            index_cid, _, _ = upload_encrypted_index(index, attr)
             # Collect index CID for batch update
             index_cids_to_update[attr] = index_cid
-            total_index_encrypt_time += encrypt_time
-            total_index_upload_time += upload_time
             logger.info(f"Uploaded encrypted index for {attr}: {index_cid}")
 
         # Batch update all index CIDs in smart contract (single call instead of multiple)
@@ -262,21 +249,12 @@ async def upload_patient_data(file: UploadFile = File(...)):
             else:
                 logger.warning("Batch update to smart contract failed, using fallback storage")
 
-        idx_end = time.time()
-        time_end = time.time()
         gc.collect()
         return {
             "data_cid": data_cid,
             "index_cids": get_all_index_cids(),  # Get from smart contract or in-memory
             "index_sizes": app.state.index_sizes,
-            "message": "Data uploaded successfully. Use POST /schemas to manage table schemas separately.",
-            "parquet_time_seconds": parquet_time_end - parquet_time_start,
-            "data_encryption_time_seconds": encryption_end - encryption_start,
-            "ipfs_upload_time_seconds": ipfs_upload_end - ipfs_upload_start,
-            "index_encryption_time_seconds": total_index_encrypt_time,
-            "index_upload_time_seconds": total_index_upload_time,
-            "index_build_time_seconds": idx_end - idx_start,
-            "total_time_seconds": time_end - time_start
+            "message": "Data uploaded successfully. Use POST /schemas to manage table schemas separately."
         }
 
     except Exception as e:
@@ -349,10 +327,8 @@ def rewrite_query_with_access_policies(original_query: str, policies: List[dict]
 @app.post("/query")
 async def query(request: QueryRequest):
     logger.info("POST /query - Processing query with access control")
-    query_start_time = time.time()
 
     # Step 1: Fetch access policies for the wallet address
-    access_control_start = time.time()
     policies = []
     global USE_SMART_CONTRACT
     
@@ -372,9 +348,6 @@ async def query(request: QueryRequest):
         else:
             policies = []
     
-    access_control_end = time.time()
-    access_control_time = access_control_end - access_control_start
-    
     # Step 2: If no policies found, return no data
     if not policies:
         logger.info(f"No access policies found for wallet {request.wallet_address}, returning no data")
@@ -383,13 +356,10 @@ async def query(request: QueryRequest):
             "wallet_address": request.wallet_address,
             "policy_count": 0,
             "records": 0,
-            "results": [],
-            "access_control_time_seconds": access_control_time,
-            "total_query_execution_time_seconds": time.time() - query_start_time
+            "results": []
         }
     
     # Step 3: Rewrite query with access policies
-    rewrite_start = time.time()
     rewritten_query = rewrite_query_with_access_policies(request.query, policies, "patient_data")
     
     if not rewritten_query:
@@ -397,51 +367,38 @@ async def query(request: QueryRequest):
         return {
             "error": "Failed to create access-controlled query",
             "wallet_address": request.wallet_address,
-            "policy_count": len(policies),
-            "access_control_time_seconds": access_control_time
+            "policy_count": len(policies)
         }
-    
-    rewrite_end = time.time()
-    rewrite_time = rewrite_end - rewrite_start
     
     logger.info(f"Rewritten query for wallet {request.wallet_address}: {rewritten_query}")
 
     # Step 4: Continue with normal query processing using the rewritten query
-    # Retrieve and decrypt index with timing
-    index, idx_fetch_time, idx_decrypt_time = retrieve_index_with_timing(request.index_attribute)
+    # Retrieve and decrypt index
+    index = retrieve_index(request.index_attribute)
 
     if not index:
         return {"error": f"Index for {request.index_attribute} not found"}
 
-    idx_query_time_start = time.time()
     cids = query_index(index, request.query, request.index_attribute)  # Use original query for index lookup
-    idx_query_time_end = time.time()
 
     if not cids:
         return {"message": "No matching CIDs found"}
 
     # Fetch all CIDs in parallel
-    fetch_start = time.time()
     with concurrent.futures.ThreadPoolExecutor(max_workers=64) as executor:
         encrypted_data_list = list(executor.map(fetch_from_ipfs, cids))
-    fetch_end = time.time()
-    total_fetch_time = fetch_end - fetch_start
 
     # Decrypt all data sequentially (or in parallel if needed)
-    decrypt_start = time.time()
     paths = []
     for cid, encrypted_data in zip(cids, encrypted_data_list):
         if encrypted_data:
             path = decrypt_to_file(encrypted_data, cid, app.state.encryption_key)
             if path:
                 paths.append(path)
-    decrypt_end = time.time()
-    total_decrypt_time = decrypt_end - decrypt_start
 
     if not paths:
         return {"error": "No valid Parquet files retrieved"}
 
-    duckdb_query_start = time.time()
     # Apply DuckDB SQL using the rewritten query with access control
     try:
         # For large number of files, use glob pattern or process in batches
@@ -470,8 +427,7 @@ async def query(request: QueryRequest):
                 os.remove(p)
             except Exception as e:
                 logger.warning(f"Failed to delete {p}: {e}")
-    duckdb_query_end = time.time()
-    query_end_time = time.time()
+    
     return {
         "wallet_address": request.wallet_address,
         "policy_count": len(policies),
@@ -479,16 +435,7 @@ async def query(request: QueryRequest):
         "rewritten_query": rewritten_query,
         "cids": len(cids),
         "records": len(results),
-        "results": results,
-        "access_control_time_seconds": access_control_time,
-        "query_rewrite_time_seconds": rewrite_time,
-        "idx_fetch_time_seconds": idx_fetch_time,
-        "idx_decrypt_time_seconds": idx_decrypt_time,
-        "idx_lookup_time_seconds": idx_query_time_end - idx_query_time_start,
-        "cid_fetch_time_seconds": total_fetch_time,
-        "cid_decrypt_time_seconds": total_decrypt_time,
-        "duckdb_query_time_seconds": duckdb_query_end - duckdb_query_start,
-        "total_query_execution_time_seconds": query_end_time - query_start_time
+        "results": results
     }
 
 
@@ -496,12 +443,10 @@ async def query(request: QueryRequest):
 async def fetch_from_ipfs_endpoint(cid: str):
     logger.info(f"GET /ipfs/fetch/{cid}")
     try:
-        start = time.time()
         resp = requests.post("http://localhost:5001/api/v0/cat", params={"arg": cid}, timeout=30)
-        elapsed = time.time() - start
         if resp.status_code != 200:
-            return {"status": "error", "message": resp.text, "time": elapsed}
-        return {"status": "success", "size_bytes": len(resp.content), "time": elapsed}
+            return {"status": "error", "message": resp.text}
+        return {"status": "success", "size_bytes": len(resp.content)}
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
@@ -587,49 +532,35 @@ def auto_detect_and_store_schema(df, table_name):
         logger.error(f"Failed to auto-detect and store schema: {e}")
         return None
 
-def retrieve_index_with_timing(name):
+def retrieve_index(name):
     """
-    Retrieve and decrypt an index from IPFS with timing information.
-    Returns: (index, fetch_time, decrypt_time) or (None, 0, 0) on failure
+    Retrieve and decrypt an index from IPFS.
     """
     cid = get_index_cid(name)
     if not cid:
-        return None, 0, 0
+        return None
 
     # Fetch encrypted index from IPFS
-    fetch_start = time.time()
     encrypted_data = fetch_from_ipfs(cid)
-    fetch_end = time.time()
-    fetch_time = fetch_end - fetch_start
 
     if not encrypted_data:
-        return None, fetch_time, 0
+        return None
 
     # Decrypt the index data
-    decrypt_start = time.time()
     try:
         decrypted_data = extract_and_decrypt_package(encrypted_data, app.state.encryption_key)
         # Load the decrypted index
         index = CIDIndex()
         index.load(io.BytesIO(decrypted_data))
-        decrypt_end = time.time()
-        decrypt_time = decrypt_end - decrypt_start
-        return index, fetch_time, decrypt_time
+        return index
     except Exception as e:
         logger.error(f"Failed to decrypt index {name}: {e}")
-        return None, fetch_time, 0
-
-def retrieve_index(name):
-    """
-    Retrieve and decrypt an index from IPFS (wrapper for backward compatibility).
-    """
-    index, _, _ = retrieve_index_with_timing(name)
-    return index
+        return None
 
 def upload_encrypted_index(index, attr):
     """
-    Serialize, encrypt, and upload an index to IPFS with timing.
-    Returns: (cid, encryption_time, upload_time)
+    Serialize, encrypt, and upload an index to IPFS.
+    Returns: (cid, 0, 0) - last two values for backward compatibility
     """
     try:
         # Serialize the index
@@ -642,21 +573,15 @@ def upload_encrypted_index(index, attr):
         app.state.index_sizes[attr] = index_size_bytes
 
         # Encrypt the index data
-        encrypt_start = time.time()
         encrypted_index = create_encrypted_package(index_data, app.state.encryption_key)
-        encrypt_end = time.time()
-        encryption_time = encrypt_end - encrypt_start
 
         # Upload encrypted index to IPFS
-        upload_start = time.time()
         ipfs_api = "http://localhost:5001/api/v0/add"
         resp = requests.post(ipfs_api, files={"file": (f"{attr}_index.enc", encrypted_index)})
         resp.raise_for_status()
-        upload_end = time.time()
-        upload_time = upload_end - upload_start
 
         serialized.close()
-        return resp.json()["Hash"], encryption_time, upload_time
+        return resp.json()["Hash"], 0, 0
 
     except Exception as e:
         logger.error(f"Failed to upload encrypted index for {attr}: {e}")
@@ -1484,12 +1409,10 @@ async def get_row_count():
     {
         "status": "success",
         "total_rows": 123456,
-        "cids_processed": 25,
-        "execution_time_seconds": 1.234
+        "cids_processed": 25
     }
     """
     logger.info("GET /query/count - Getting total row count from database")
-    count_start_time = time.time()
     
     try:
         # Get all available index CIDs to find all data
@@ -1509,8 +1432,8 @@ async def get_row_count():
                 "message": "No indexes available to retrieve data CIDs"
             }
         
-        # Retrieve and decrypt index with timing
-        index, idx_fetch_time, idx_decrypt_time = retrieve_index_with_timing(index_attr)
+        # Retrieve and decrypt index
+        index = retrieve_index(index_attr)
         
         if not index:
             return {
@@ -1519,9 +1442,7 @@ async def get_row_count():
             }
         
         # Get all CIDs from the index (no WHERE clause filtering)
-        idx_query_time_start = time.time()
         all_cids = index.query_range()  # Get all CIDs without any filtering
-        idx_query_time_end = time.time()
         
         if not all_cids:
             return {
@@ -1532,22 +1453,16 @@ async def get_row_count():
             }
         
         # Fetch all CIDs in parallel
-        fetch_start = time.time()
         with concurrent.futures.ThreadPoolExecutor(max_workers=64) as executor:
             encrypted_data_list = list(executor.map(fetch_from_ipfs, all_cids))
-        fetch_end = time.time()
-        total_fetch_time = fetch_end - fetch_start
         
         # Decrypt all data sequentially
-        decrypt_start = time.time()
         paths = []
         for cid, encrypted_data in zip(all_cids, encrypted_data_list):
             if encrypted_data:
                 path = decrypt_to_file(encrypted_data, cid, app.state.encryption_key)
                 if path:
                     paths.append(path)
-        decrypt_end = time.time()
-        total_decrypt_time = decrypt_end - decrypt_start
         
         if not paths:
             return {
@@ -1556,7 +1471,6 @@ async def get_row_count():
             }
         
         # Execute COUNT(*) query using DuckDB
-        duckdb_query_start = time.time()
         try:
             if len(paths) == 1:
                 count_query = f"SELECT COUNT(*) as total_rows FROM '{paths[0]}'"
@@ -1581,9 +1495,6 @@ async def get_row_count():
                     os.remove(p)
                 except Exception as e:
                     logger.warning(f"Failed to delete {p}: {e}")
-        
-        duckdb_query_end = time.time()
-        count_end_time = time.time()
         
         return {
             "status": "success",

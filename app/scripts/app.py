@@ -793,14 +793,12 @@ async def update_index_cids(request: UpdateIndexCIDsRequest):
                 "status": "success",
                 "message": f"Index CIDs updated successfully in smart contract",
                 "updated_cids": request.index_cids,
-                "current_cids": get_all_index_cids(),
-                "smart_contract_enabled": USE_SMART_CONTRACT
+                "current_cids": get_all_index_cids()
             }
         else:
             return {
                 "status": "error",
-                "message": f"Index CIDs update failed in smart contract",
-                "smart_contract_enabled": USE_SMART_CONTRACT
+                "message": f"Index CIDs update failed in smart contract"
             }
 
     except Exception as e:
@@ -832,7 +830,6 @@ async def get_index_cids():
             "status": "success",
             "index_cids": get_all_index_cids(),  # Get from smart contract
             "index_sizes": app.state.index_sizes,
-            "smart_contract_enabled": USE_SMART_CONTRACT,
             "timestamp": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
         }
     except Exception as e:
@@ -883,8 +880,7 @@ async def create_or_update_table_schema(request: UpdateTableSchemaRequest):
                 "status": "success",
                 "message": f"Schema for table '{request.table_name}' updated successfully in smart contract",
                 "table_name": request.table_name,
-                "table_schema": request.table_schema,
-                "smart_contract_enabled": USE_SMART_CONTRACT
+                "table_schema": request.table_schema
             }
         else:
             return {
@@ -942,7 +938,6 @@ async def get_all_table_schemas():
         return {
             "status": "success",
             "schemas": schemas,
-            "smart_contract_enabled": USE_SMART_CONTRACT,
             "storage_type": "smart contract",
             "timestamp": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
         }
@@ -992,15 +987,13 @@ async def get_table_schema(table_name: str):
                 "status": "success",
                 "table_name": table_name,
                 "schema": schema,
-                "smart_contract_enabled": USE_SMART_CONTRACT,
                 "storage_type": "smart contract"
             }
         else:
             return {
                 "status": "not_found",
                 "message": f"Schema for table '{table_name}' not found",
-                "table_name": table_name,
-                "smart_contract_enabled": USE_SMART_CONTRACT
+                "table_name": table_name
             }
     
     except Exception as e:
@@ -1022,8 +1015,7 @@ async def delete_table_schema(table_name: str):
             return {
                 "status": "success",
                 "message": f"Schema for table '{table_name}' deleted successfully from smart contract",
-                "table_name": table_name,
-                "smart_contract_enabled": USE_SMART_CONTRACT
+                "table_name": table_name
             }
         else:
             return {
@@ -1065,8 +1057,7 @@ async def add_access_policy(request: AddAccessPolicyRequest):
                 "message": f"Access policy added successfully in smart contract",
                 "wallet_address": request.wallet_address,
                 "table_name": request.table_name,
-                "policy_sql": request.policy_sql,
-                "smart_contract_enabled": USE_SMART_CONTRACT
+                "policy_sql": request.policy_sql
             }
         else:
             return {
@@ -1109,7 +1100,6 @@ async def get_access_policies(wallet_address: str):
                 "wallet_address": wallet_address,
                 "policies": policies,
                 "policy_count": len(policies),
-                "smart_contract_enabled": USE_SMART_CONTRACT,
                 "storage_type": "smart contract",
                 "timestamp": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
             }
@@ -1146,7 +1136,6 @@ async def get_policy_count(wallet_address: str):
                 "status": "success",
                 "wallet_address": wallet_address,
                 "count": count,
-                "smart_contract_enabled": USE_SMART_CONTRACT,
                 "storage_type": "smart contract"
             }
         else:
@@ -1184,8 +1173,7 @@ async def remove_access_policy(request: RemoveAccessPolicyRequest):
                 "status": "success",
                 "message": f"Access policy removed successfully from smart contract",
                 "wallet_address": request.wallet_address,
-                "policy_index": request.policy_index,
-                "smart_contract_enabled": USE_SMART_CONTRACT
+                "policy_index": request.policy_index
             }
         else:
             return {
@@ -1212,8 +1200,7 @@ async def remove_all_access_policies(wallet_address: str):
             return {
                 "status": "success",
                 "message": f"All access policies removed successfully from smart contract",
-                "wallet_address": wallet_address,
-                "smart_contract_enabled": USE_SMART_CONTRACT
+                "wallet_address": wallet_address
             }
         else:
             return {

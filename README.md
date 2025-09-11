@@ -1,17 +1,18 @@
 # MtDB: A Decentralized Multi-Tenant Database for Secure Data Sharing
 
-This repository contains the implementation and evaluation code for our research article titled: **"MtDB: A Decentralized Multi-Tenant Database for Secure Data Sharing"**.
+This repository contains the implementation and evaluation code for our research article: **"MtDB: A Decentralized Multi-Tenant Database for Secure Data Sharing"**.
 
-MtDB is a novel data sharing system for healthcare data management. Key components:
-- **Intel SGX V2** for confidential computing and privacy-preserving query processing
-- **IPFS** for distributed storage with content-addressable data
-- **Blockchain (Ethereum)** for metadata management and index integrity
-- **Advanced Indexing** with delta-based updates for efficient querying
-- **Query Re-writer** for enforcing in-enclave fine-grained access control
+### Key Features
 
-(**For details please read our paper**)
+- **Intel SGX v2**: Confidential computing and privacy-preserving query processing
+- **IPFS Integration**: Distributed storage with content-addressable data
+- **Blockchain (Ethereum)**: Metadata management and index integrity
+- **Advanced Indexing**: Delta-based updates for efficient querying
+- **Query Re-writer**: In-enclave fine-grained access control enforcement
 
-## 🏗️ Simplified Architecture
+> **Note**: For detailed technical information, please refer to our research paper.
+
+## High Level System Architecture
 
 ```
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
@@ -30,126 +31,111 @@ MtDB is a novel data sharing system for healthcare data management. Key componen
                     └─────────────────┘
 ```
 
-## 🔧 Prerequisites
+## Prerequisites
 
-- **Operating System**: Ubuntu 20.04/22.04 LTS
-- **Intel SGX v2**: Hardware support with SGX driver installed
-- **Gramine**: SGX runtime environment
-- **Python**: 3.8 or higher
-- **IPFS**: Local IPFS node
-- **Docker**
+Before installing MtDB, ensure your system meets the following requirements:
 
+| Requirement | Version/Details |
+|-------------|----------------|
+| **Operating System** | Ubuntu 20.04/22.04 LTS |
+| **Intel SGX v2** | Hardware support with SGX driver installed |
+| **Gramine** | SGX runtime environment |
+| **Python** | 3.8 or higher |
+| **IPFS** | Local IPFS node |
+| **Docker** | Latest stable version |
 
-## 📦 Installation
+## Deploy/Run MtDB Node
 
-### 1. Clone Repository
+### 1. Clone the Repository
+
 ```bash
-git clone <MtDB>
-cd MtDB/app
+git clone https://github.com/nd-dsp-lab/web3db-backend
+cd web3db-backend/app
 ```
 
-### 2. Install Dependencies
+### 2. Install Python Dependencies
+
 ```bash
 sudo pip3 install -r requirements.txt --break-system-packages
 ```
 
-### 3. Build SGX Application
+### 3. Build the SGX Application
+
+**For SGX-enabled variant:**
 ```bash
-make clean
-make SGX=1 (For SGX variant)
-make (For vanilla variant)
+sudo make clean
+sudo make SGX=1
 ```
 
-### 4. Setup IPFS (if not already running)
+**For vanilla variant (optional):**
 ```bash
-cd MtDB/app/ipfs
+sudo make
+```
+
+Upon successful build, you should see output similar to:
+
+![SGX Build Output](images/make_sgx.png)
+
+### 4. Setup IPFS Node
+
+If IPFS is not already running on your system:
+
+```bash
+cd ipfs
 sudo docker-compose up -d
+cd ..
 ```
 
-## 🚀 Usage
+### 5. Launch the Application
 
-### Basic Query Execution
-
-1. **Start the SGX-enabled application**:
-   ```bash
-   sudo gramine-sgx ./python MtDB/scripts/app.py
-   ```
-
-2. **Run the vanilla variant**:
-   ```python
-   sudo gramine-direct ./python MtDB/scripts/app.py
-   ```
-
-### Configuration
-
-Edit configuration files in `MtDB/app/` directory:
-- `python.manifest.template`: SGX manifest configuration
-- `requirements.txt`: Python dependencies
-
-## 📊 Evaluation
-
-### Performance Evaluation Scripts
-
-Generate performance evaluation figures used in the paper:
+#### Option A: SGX-Enabled Mode (Recommended)
 
 ```bash
-cd MtDB/app/plot
-python3 generate_four_panel_figure.py
+sudo gramine-sgx ./python scripts/app.py
 ```
 
-### Benchmark Datasets
+Upon successful startup, you should see:
 
-The evaluation uses synthetic healthcare datasets:
-- **Size range**: 100M - 400M records
-- **Partition size**: 100K records per CID (~11.848 Mbits)
+![SGX Startup](images/startup_sgx.png)
 
-### Key Performance Metrics
+🎉 **Congratulations!** Your SGX-enabled MtDB node is now running!
 
-- **Query Latency**: With/without indexing across database sizes
-- **Scalability**: Performance vs. number of CID partitions
-- **Network Distribution**: LAN vs. WAN retrieval overhead
-- **SGX Overhead**: Vanilla vs. SGX-enabled performance comparison
-
-## 📈 Performance Results
-
-Our evaluation demonstrates:
-
-1. **Index Efficiency**: 1000x performance improvement with indexing
-2. **SGX Overhead**: ~30% latency increase for privacy guarantees
-3. **Linear Scalability**: Query time scales linearly with CID count
-4. **Network Impact**: WAN retrieval adds significant overhead vs. LAN
-
-Detailed results are available in the generated performance figures and the paper.
-
-## 🎯 Reproducing Paper Results
-
-### Figure Generation
+#### Option B: Vanilla Mode
 
 ```bash
-cd MtDB/app/plot
-python3 generate_four_panel_figure.py
+sudo gramine-direct ./python scripts/app.py
 ```
 
-### Dataset Generation
+### 6. Access the API Documentation
 
-```bash
-cd MtDB/app/utils
-python3 generate_synthetic_data.py
-```
+The application provides an interactive Swagger UI for API exploration and testing:
 
-### Performance Benchmarks
+**🌐 URL:** http://host-ip:8000/docs#
 
-```bash
-cd MtDB/app/scripts
-sudo gramine-sgx ./python app.py
-```
+![Swagger UI Interface](images/swagger_ui.png)
 
-## 🔗 Related Docs
+## 📚 Documentation
 
-- [Intel SGX Documentation](https://www.intel.com/content/www/us/en/developer/tools/software-guard-extensions/overview.html)
-- [Gramine SGX Runtime](https://gramine.readthedocs.io/)
-- [IPFS Documentation](https://docs.ipfs.io/)
+### Additional Resources
+
+- **[Non SGX Setup Instructions](Instructions.md)** - Detailed setup guide for running without gramine/sgx
+- **[Smart Contract Documentation](contracts/SMART_CONTRACT.md)** - Blockchain integration details
+- **[Access Control Summary](ACCESS_CONTROL_SUMMARY.md)** - Security and access control information
+
+### External Documentation
+
+- 📖 [Intel SGX Documentation](https://www.intel.com/content/www/us/en/developer/tools/software-guard-extensions/overview.html)
+- 🛠️ [Gramine SGX Runtime](https://gramine.readthedocs.io/)
+- 🌐 [IPFS Documentation](https://docs.ipfs.io/)
+
+## ⚠️ Important Notes
+
+> **Research Prototype**: This is research prototype software. For production deployments, additional security measures, thorough testing, and security audits are strongly recommended.
+
+## 📧 Contact
+
+We welcome contributions! For questions, issues, or collaboration opportunities, please contact the research team at [nd-dsp-lab](https://github.com/nd-dsp-lab).
 
 ---
 
-**Note**: This is research prototype software. For production use, additional security measures and testing are recommended.
+*Built by the ND DSP Lab team*

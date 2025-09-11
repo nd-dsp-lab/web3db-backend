@@ -114,7 +114,7 @@ The application provides an interactive Swagger UI for API exploration and testi
 
 ![Swagger UI Interface](images/swagger_ui.png)
 
-## 📚 Documentation
+## Documentation
 
 ### Additional Resources
 

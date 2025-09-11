@@ -1,0 +1,90 @@
+# Copyright (C) 2023 Gramine contributors
+# SPDX-License-Identifier: BSD-3-Clause
+
+# Python3 manifest example
+
+libos.entrypoint = "{{ entrypoint }}"
+
+loader.log_level = "{{ log_level }}"
+
+loader.env.LD_LIBRARY_PATH = "/lib:/lib:{{ arch_libdir }}:/usr/{{ arch_libdir }}"
+
+# SSL/TLS configuration
+loader.env.SSL_CERT_FILE = "/etc/ssl/certs/ca-certificates.crt"
+loader.env.SSL_CERT_DIR = "/etc/ssl/certs"
+loader.env.REQUESTS_CA_BUNDLE = "/etc/ssl/certs/ca-certificates.crt"
+loader.env.CURL_CA_BUNDLE = "/etc/ssl/certs/ca-certificates.crt"
+
+# Python's NumPy spawns as many threads as there are CPU cores, and each thread
+# consumes a chunk of memory, so on large machines 1G enclave size may be not enough.
+# We limit the number of spawned threads via OMP_NUM_THREADS env variable.
+# Optimized for SGX performance
+loader.env.OMP_NUM_THREADS = "1"
+loader.env.NUMEXPR_NUM_THREADS = "1"
+loader.env.MKL_NUM_THREADS = "1"
+loader.env.OPENBLAS_NUM_THREADS = "1"
+loader.env.BLIS_NUM_THREADS = "1"
+
+loader.insecure__use_cmdline_argv = true
+# Reduced crypto threads for better SGX performance
+loader.env.GRAMINE_CRYPTO_THREADS = "1"
+sys.enable_sigterm_injection = true
+sys.insecure__allow_eventfd = true
+sgx.use_exinfo = true
+
+fs.mounts = [
+  { path = "/lib", uri = "file:{{ gramine.runtimedir() }}" },
+  { path = "{{ arch_libdir }}", uri = "file:{{ arch_libdir }}" },
+  { path = "/usr/{{ arch_libdir }}", uri = "file:/usr/{{ arch_libdir }}" },
+{% for path in python.get_sys_path(entrypoint) %}
+  { path = "{{ path }}", uri = "file:{{ path }}" },
+{% endfor %}
+  { path = "{{ entrypoint }}", uri = "file:{{ entrypoint }}" },
+  { path = "/usr/share/zoneinfo", uri = "file:/usr/share/zoneinfo" },
+  { type = "tmpfs", path = "/tmp" },
+  {path = "/output", uri = "file:/home/shossain/web3db-backend/app/output"},
+  {path = "/dataset", uri = "file:/home/shossain/web3db-backend/app/dataset"},
+  {path = "/query", uri = "file:/home/shossain/web3db-backend/app/query"},
+  {path = "/scripts/.env", uri = "file:/home/shossain/web3db-backend/app/scripts/.env"},
+  { path = "/etc/ssl/certs", uri = "file:/etc/ssl/certs" },
+  { path = "/etc/ssl/openssl.cnf", uri = "file:/etc/ssl/openssl.cnf" }
+]
+
+# Optimized stack size for SGX performance
+sys.stack.size = "4M"
+sys.enable_extra_runtime_domain_names_conf = true
+
+sgx.debug = false
+#sgx.edmm_enable = {{ 'true' if env.get('EDMM', '0') == '1' else 'false' }}
+sgx.edmm_enable = true
+# Reduced enclave size for better performance and lower overhead
+sgx.enclave_size = "8G"
+#sgx.max_threads = {{ '1' if env.get('EDMM', '0') == '1' else '32' }}
+# Single-threaded for optimal SGX performance
+sgx.max_threads = 1
+
+sgx.remote_attestation = "none"
+
+sgx.trusted_files = [
+  "file:{{ entrypoint }}",
+  "file:{{ gramine.runtimedir() }}/",
+  "file:{{ arch_libdir }}/"
+
+]
+
+sgx.allowed_files = [
+  "file:/usr/{{ arch_libdir }}/",
+{% for path in python.get_sys_path(entrypoint) %}
+  "file:{{ path }}{{ '/' if path.is_dir() else '' }}",
+{% endfor %}
+  "file:scripts/",
+ "file:/usr/share/zoneinfo/",
+  "file:/home/shossain/web3db-backend/app/output/",
+  "file:/home/shossain/web3db-backend/app/dataset/",
+  "file:/home/shossain/web3db-backend/app/query/",
+  "file:/home/shossain/web3db-backend/app/scripts/.env",
+  "file:/etc/ssl/certs/",
+  "file:/etc/ssl/openssl.cnf",
+  #"file:/usr/lib/x86_64-linux-gnu/*",
+  #"file:/lib/x86_64-linux-gnu/*"
+]

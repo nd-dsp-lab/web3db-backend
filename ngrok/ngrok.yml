@@ -6,7 +6,7 @@ agent:
 tunnels:
   basic:
     proto: http
-    addr: 129.74.152.201:8081
-  tcp_tunnel:
-    proto: tcp
-    addr: 129.74.152.201:7077
+    addr: 129.74.154.215:8000
+  # tcp_tunnel:
+  #   proto: tcp
+  #   addr: 129.74.152.201:7077

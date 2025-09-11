@@ -1,154 +1,141 @@
-# README for IPFS Hive Query API
+# MtDB: A Decentralized Multi-Tenant Database for Secure Data Sharing
 
-## Introduction
+This repository contains the implementation and evaluation code for our research article: **"MtDB: A Decentralized Multi-Tenant Database for Secure Data Sharing"**.
 
-The IPFS Hive Query API is a sophisticated Flask-based API designed for executing SQL queries on a Hive database, managing database states with IPFS, and integrating seamlessly with Apache Spark and Hive. This API is especially useful for scenarios requiring stateful data processing and distributed query execution.
+### Key Features
 
-## Features
+- **Intel SGX v2**: Confidential computing and privacy-preserving query processing
+- **IPFS Integration**: Distributed storage with content-addressable data
+- **Blockchain (Ethereum)**: Metadata management and index integrity
+- **Advanced Indexing**: Delta-based updates for efficient querying
+- **Query Re-writer**: In-enclave fine-grained access control enforcement
 
-- RESTful API for executing SQL queries on Hive
-- Database state management using IPFS
-- Apache Spark and Hive integration for efficient data processing
+> **Note**: For detailed technical information, please refer to our research paper.
 
-## Deployment
+## High Level System Architecture
 
-The application is containerized and ready for deployment using Docker Compose. This simplifies the setup and ensures consistency across different environments.
+```
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   Client App    │    │  SGX Enclave    │    │   Blockchain    │
+│                 │───▶│                 │───▶│                 │
+│ Query Interface │    │ Query Processor │    │ Index Metadata  │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+         │                       │                       │
+         └───────────────────────┼───────────────────────┘
+                                 │
+                    ┌─────────────────┐
+                    │      IPFS       │
+                    │                 │
+                    │ Encrypted Data  │
+                    │   Partitions    │
+                    └─────────────────┘
+```
 
-## Using the API
+## Prerequisites
 
-### 1. Running the Service
+Before installing MtDB, ensure your system meets the following requirements:
 
-To run the service, use Docker Compose:
+| Requirement | Version/Details |
+|-------------|----------------|
+| **Operating System** | Ubuntu 20.04/22.04 LTS |
+| **Intel SGX v2** | Hardware support with SGX driver installed |
+| **Gramine** | SGX runtime environment |
+| **Python** | 3.8 or higher |
+| **IPFS** | Local IPFS node |
+| **Docker** | Latest stable version |
+
+## Deploy/Run MtDB Node
+
+### 1. Clone the Repository
 
 ```bash
-docker-compose up
+git clone https://github.com/nd-dsp-lab/web3db-backend
+cd web3db-backend/app
 ```
 
-This command starts all necessary services, including the Flask API, Spark, Hive, and the IPFS node.
+### 2. Install Python Dependencies
 
-### 2. API Endpoints
-
-The API provides a single endpoint:
-
-- **POST /query/**: To execute a SQL query and return the results.
-
-### 3. Making Requests
-
-#### SELECT Queries (Read)
-
-For `SELECT` queries (Read operations), send a POST request with the query and a valid IPFS hash of the previous database state.
-
-```python
-import requests
-import json
-
-url = "http://localhost:5000/query/"
-payload = {
-    "query": "SELECT * FROM your_table",
-    "hash": "valid_ipfs_hash_of_previous_state"
-}
-headers = {'Content-Type': 'application/json'}
-
-response = requests.post(url, data=json.dumps(payload), headers=headers)
-print(response.json())
+```bash
+sudo pip3 install -r requirements.txt --break-system-packages
 ```
 
-#### INSERT Queries (Create)
+### 3. Build the SGX Application
 
-For `INSERT` queries (Create operations), send a POST request with the query and a valid IPFS hash of the previous database state.
-
-```python
-import requests
-import json
-
-url = "http://localhost:5000/query/"
-payload = {
-    "query": "INSERT INTO your_table (column1, column2) VALUES (value1, value2)",
-    "hash": "valid_ipfs_hash_of_previous_state"
-}
-headers = {'Content-Type': 'application/json'}
-
-response = requests.post(url, data=json.dumps(payload), headers=headers)
-print(response.json())
+**For SGX-enabled variant:**
+```bash
+sudo make clean
+sudo make SGX=1
 ```
 
-#### UPDATE Queries (Update)
-
-For `UPDATE` queries (Update operations), send a POST request with the query and a valid IPFS hash of the previous database state.
-
-```python
-import requests
-import json
-
-url = "http://localhost:5000/query/"
-payload = {
-    "query": "UPDATE your_table SET column1 = value1 WHERE condition",
-    "hash": "valid_ipfs_hash_of_previous_state"
-}
-headers = {'Content-Type': 'application/json'}
-
-response = requests.post(url, data=json.dumps(payload), headers=headers)
-print(response.json())
+**For vanilla variant (optional):**
+```bash
+sudo make
 ```
 
-#### DELETE Queries (Delete)
+Upon successful build, you should see output similar to:
 
-For `DELETE` queries (Delete operations), send a POST request with the query and a valid IPFS hash of the previous database state.
+![SGX Build Output](images/make_sgx.png)
 
-```python
-import requests
-import json
+### 4. Setup IPFS Node
 
-url = "http://localhost:5000/query/"
-payload = {
-    "query": "DELETE FROM your_table WHERE condition",
-    "hash": "valid_ipfs_hash_of_previous_state"
-}
-headers = {'Content-Type': 'application/json'}
+If IPFS is not already running on your system:
 
-response = requests.post(url, data=json.dumps(payload), headers=headers)
-print(response.json())
+```bash
+cd ipfs
+sudo docker-compose up -d
+cd ..
 ```
 
-#### CREATE TABLE and Non-Dependent Queries
+### 5. Launch the Application
 
-For `CREATE TABLE` and other non-dependent queries that do not rely on the previous state, a valid hash is not required. Use a dummy hash instead. The response will include a new IPFS hash representing the updated database state.
+#### Option A: SGX-Enabled Mode (Recommended)
 
-```python
-import requests
-import json
-
-url = "http://localhost:5000/query/"
-payload = {
-    "query": "CREATE TABLE new_table (id INT, name STRING)",
-    "hash": "dummy_ipfs_hash"
-}
-headers = {'Content-Type': 'application/json'}
-
-response = requests.post(url, data=json.dumps(payload), headers=headers)
-print(response.json())
+```bash
+sudo gramine-sgx ./python scripts/app.py
 ```
 
-### 4. Response Format
+Upon successful startup, you should see:
 
-Responses are JSON objects containing:
+![SGX Startup](images/startup_sgx.png)
 
-- `message`: Status of the query execution.
-- `data`: Query results (if successful).
-- `hash`: New IPFS hash for the updated database state (for modifying queries).
+🎉 **Congratulations!** Your SGX-enabled MtDB node is now running!
 
-### 5. Error Handling
+#### Option B: Vanilla Mode
 
-The API returns detailed error messages and appropriate HTTP status codes for troubleshooting.
+```bash
+sudo gramine-direct ./python scripts/app.py
+```
 
-## Docker Compose
+### 6. Access the API Documentation
 
-A `docker-compose.yml` file is provided for easy setup. This file defines the necessary services and configurations for running the API.
+The application provides an interactive Swagger UI for API exploration and testing:
 
-## Logging
+**🌐 URL:** http://host-ip:8000/docs#
 
-The application logs key events and query executions for monitoring and debugging purposes.
+![Swagger UI Interface](images/swagger_ui.png)
+
+## 📚 Documentation
+
+### Additional Resources
+
+- **[Non SGX Setup Instructions](Instructions.md)** - Detailed setup guide for running without gramine/sgx
+- **[Smart Contract Documentation](contracts/SMART_CONTRACT.md)** - Blockchain integration details
+- **[Access Control Summary](ACCESS_CONTROL_SUMMARY.md)** - Security and access control information
+
+### External Documentation
+
+- 📖 [Intel SGX Documentation](https://www.intel.com/content/www/us/en/developer/tools/software-guard-extensions/overview.html)
+- 🛠️ [Gramine SGX Runtime](https://gramine.readthedocs.io/)
+- 🌐 [IPFS Documentation](https://docs.ipfs.io/)
+
+## ⚠️ Important Notes
+
+> **Research Prototype**: This is research prototype software. For production deployments, additional security measures, thorough testing, and security audits are strongly recommended.
+
+## 📧 Contact
+
+We welcome contributions! For questions, issues, or collaboration opportunities, please contact the research team at [nd-dsp-lab](https://github.com/nd-dsp-lab).
 
 ---
 
-**Note**: Ensure the Docker Compose setup aligns with your deployment requirements and environment. Adjust the API usage examples to match your specific use cases.
+*Built by the ND DSP Lab team*

@@ -1,0 +1,480 @@
+Query performance for encrypted Web3DB.
+Query Engine: DuckDB
+>> 100M (Total database rows)
+=== Timing Summary (With Index, No SGX) ===
+idx_fetch_time_seconds: 0.263809 seconds
+idx_decrypt_time_seconds: 0.473162 seconds
+idx_lookup_time_seconds: 0.000511 seconds
+cid_fetch_time_seconds: 0.018269 seconds
+cid_decrypt_time_seconds: 0.008096 seconds
+duckdb_query_time_seconds: 0.003917 seconds
+query_execution_time_seconds_excluding_index_overhead: 0.030794 seconds
+total_query_execution_time_seconds: 1.248035 seconds
+
+=== Timing Summary (With Index, Gramine SGX) ===
+idx_fetch_time_seconds: 0.543451 seconds
+idx_decrypt_time_seconds: 1.065428 seconds
+idx_lookup_time_seconds: 0.007777 seconds
+cid_fetch_time_seconds: 0.055091 seconds
+cid_decrypt_time_seconds: 0.048181 seconds
+duckdb_query_time_seconds: 0.062314 seconds
+query_execution_time_seconds_excluding_index_overhead: 0.173363 seconds
+total_query_execution_time_seconds: 2.576374 seconds
+
+>> 200M (Total database rows)
+=== Timing Summary (With Index, No SGX) ===
+idx_fetch_time_seconds: 0.502738 seconds
+idx_decrypt_time_seconds: 0.841767 seconds
+idx_lookup_time_seconds: 0.000488 seconds
+cid_fetch_time_seconds: 0.017852 seconds
+cid_decrypt_time_seconds: 0.006757 seconds
+duckdb_query_time_seconds: 0.004212 seconds
+query_execution_time_seconds_excluding_index_overhead: 0.029309 seconds
+total_query_execution_time_seconds: 2.333564 seconds
+
+=== Timing Summary (With Index, Gramine SGX) ===
+idx_fetch_time_seconds: 1.444257 seconds
+idx_decrypt_time_seconds: 4.239338 seconds
+idx_lookup_time_seconds: 0.008963 seconds
+cid_fetch_time_seconds: 0.056883 seconds
+cid_decrypt_time_seconds: 0.050430 seconds
+duckdb_query_time_seconds: 0.058945 seconds
+query_execution_time_seconds_excluding_index_overhead: 0.175221 seconds
+total_query_execution_time_seconds: 7.464590 seconds
+
+>> 300M (Total database rows)
+=== Timing Summary (With Index, No SGX) ===
+idx_fetch_time_seconds: 1.069671 seconds
+idx_decrypt_time_seconds: 0.796840 seconds
+idx_lookup_time_seconds: 0.000377 seconds
+cid_fetch_time_seconds: 0.015820 seconds
+cid_decrypt_time_seconds: 0.004094 seconds
+duckdb_query_time_seconds: 0.002622 seconds
+query_execution_time_seconds_excluding_index_overhead: 0.022913 seconds
+total_query_execution_time_seconds: 3.159605 seconds
+
+=== Timing Summary (With Index, Gramine SGX) ===
+idx_fetch_time_seconds: 4.873977 seconds
+idx_decrypt_time_seconds: 15.061583 seconds
+idx_lookup_time_seconds: 0.011828 seconds
+cid_fetch_time_seconds: 0.070641 seconds
+cid_decrypt_time_seconds: 0.060679 seconds
+duckdb_query_time_seconds: 0.059714 seconds
+query_execution_time_seconds_excluding_index_overhead: 0.202862 seconds
+total_query_execution_time_seconds: 24.327284 seconds
+
+>> 400M (Total database rows)
+=== Timing Summary (With Index, No SGX) ===
+idx_fetch_time_seconds: 0.932457 seconds
+idx_decrypt_time_seconds: 0.799562 seconds
+idx_lookup_time_seconds: 0.000322 seconds
+cid_fetch_time_seconds: 0.016841 seconds
+cid_decrypt_time_seconds: 0.004450 seconds
+duckdb_query_time_seconds: 0.002698 seconds
+query_execution_time_seconds_excluding_index_overhead: 0.024311 seconds
+total_query_execution_time_seconds: 3.055718 seconds
+=== Timing Summary (With Index, Gramine SGX) ===
+idx_fetch_time_seconds: 4.861907 seconds
+idx_decrypt_time_seconds: 15.683924 seconds
+idx_lookup_time_seconds: 0.011990 seconds
+cid_fetch_time_seconds: 0.078150 seconds
+cid_decrypt_time_seconds: 0.060847 seconds
+duckdb_query_time_seconds: 0.061290 seconds
+query_execution_time_seconds_excluding_index_overhead: 0.212277 seconds
+total_query_execution_time_seconds: 25.488931 seconds
+
+Without Index ..................
+
+>> 100M
+=== Timing Summary (No SGX) ===
+idx_fetch_time_seconds: 0.155098 seconds
+idx_decrypt_time_seconds: 0.382230 seconds
+idx_lookup_time_seconds: 0.126930 seconds
+Number of CIDs processed: 1000
+Parallel fetch/decrypt time (wall time): 8.617798 seconds
+  - Cumulative fetch time: 13.240545 seconds
+  - Cumulative decrypt time: 1.766754 seconds
+  - Average per file: 0.008618 seconds
+duckdb_query_time_seconds: 0.172955 seconds
+query_execution_time_seconds_excluding_index_overhead: 8.917684 seconds
+total_query_execution_time_seconds: 9.804973 seconds
+=== Timing Summary (SGX) ===
+idx_fetch_time_seconds: 0.626873 seconds
+idx_decrypt_time_seconds: 1.176036 seconds
+idx_lookup_time_seconds: 0.132734 seconds
+Number of CIDs processed: 1000
+Parallel fetch/decrypt time (wall time): 23.085518 seconds
+  - Cumulative fetch time: 22.963623 seconds
+  - Cumulative decrypt time: 3.044854 seconds
+  - Average per file: 0.023086 seconds
+duckdb_query_time_seconds: 0.421900 seconds
+query_execution_time_seconds_excluding_index_overhead: 23.640152 seconds
+total_query_execution_time_seconds: 26.057742 seconds
+
+>> 200M
+=== Timing Summary (No SGX) === 
+idx_fetch_time_seconds: 0.568317 seconds
+idx_decrypt_time_seconds: 0.937683 seconds
+idx_lookup_time_seconds: 0.326471 seconds
+Number of CIDs processed: 2000
+Parallel fetch/decrypt time (wall time): 24.456567 seconds
+  - Cumulative fetch time: 37.206021 seconds
+  - Cumulative decrypt time: 5.295769 seconds
+  - Average per file: 0.012228 seconds
+duckdb_query_time_seconds: 0.341238 seconds
+query_execution_time_seconds_excluding_index_overhead: 25.124276 seconds
+total_query_execution_time_seconds: 27.611804 seconds
+
+=== Timing Summary (SGX) ===
+idx_fetch_time_seconds: 1.355570 seconds
+idx_decrypt_time_seconds: 3.532477 seconds
+idx_lookup_time_seconds: 0.250091 seconds
+Number of CIDs processed: 2000
+Parallel fetch/decrypt time (wall time): 48.996849 seconds
+  - Cumulative fetch time: 51.513381 seconds
+  - Cumulative decrypt time: 6.893032 seconds
+  - Average per file: 0.024498 seconds
+duckdb_query_time_seconds: 0.965859 seconds
+query_execution_time_seconds_excluding_index_overhead: 50.212799 seconds
+total_query_execution_time_seconds: 56.836416 seconds
+
+>> 300M
+=== Timing Summary (No SGX)===
+idx_fetch_time_seconds: 0.792591 seconds
+idx_decrypt_time_seconds: 1.207613 seconds
+idx_lookup_time_seconds: 0.487227 seconds
+Number of CIDs processed: 3000
+Parallel fetch/decrypt time (wall time): 37.801525 seconds
+  - Cumulative fetch time: 57.444815 seconds
+  - Cumulative decrypt time: 8.052443 seconds
+  - Average per file: 0.012601 seconds
+duckdb_query_time_seconds: 0.559564 seconds
+query_execution_time_seconds_excluding_index_overhead: 38.848316 seconds
+total_query_execution_time_seconds: 42.306763 seconds
+=== Timing Summary (SGX) ===
+idx_fetch_time_seconds: 2.942801 seconds
+idx_decrypt_time_seconds: 10.270568 seconds
+idx_lookup_time_seconds: 1.649381 seconds
+Number of CIDs processed: 3000
+Parallel fetch/decrypt time (wall time): 76.355175 seconds
+  - Cumulative fetch time: 81.260997 seconds
+  - Cumulative decrypt time: 9.098718 seconds
+  - Average per file: 0.025452 seconds
+duckdb_query_time_seconds: 1.430331 seconds
+query_execution_time_seconds_excluding_index_overhead: 79.434887 seconds
+total_query_execution_time_seconds: 95.719799 seconds
+
+>> 400M
+=== Timing Summary (No SGX) ===
+idx_fetch_time_seconds: 1.065409 seconds
+idx_decrypt_time_seconds: 1.460255 seconds
+idx_lookup_time_seconds: 0.449355 seconds
+Number of CIDs processed: 3999
+Parallel fetch/decrypt time (wall time): 47.299721 seconds
+  - Cumulative fetch time: 71.965159 seconds
+  - Cumulative decrypt time: 10.145012 seconds
+  - Average per file: 0.011828 seconds
+duckdb_query_time_seconds: 0.855646 seconds
+query_execution_time_seconds_excluding_index_overhead: 48.604722 seconds
+total_query_execution_time_seconds: 52.920609 seconds
+=== Timing Summary (SGX) ===
+idx_fetch_time_seconds: 5.189649 seconds
+idx_decrypt_time_seconds: 16.571858 seconds
+idx_lookup_time_seconds: 2.379737 seconds
+Number of CIDs processed: 3999
+Parallel fetch/decrypt time (wall time): 103.893063 seconds
+  - Cumulative fetch time: 118.009342 seconds
+  - Cumulative decrypt time: 13.475484 seconds
+  - Average per file: 0.025980 seconds
+duckdb_query_time_seconds: 2.069292 seconds
+query_execution_time_seconds_excluding_index_overhead: 108.342092 seconds
+total_query_execution_time_seconds: 134.738019 seconds
+
+
+>>>> Network Distribution Effect....................
+See Notebook.
+
+
+>>> Query execution time vs number of cids returned...............
+=== Timing Summary (SGX) ===
+idx_fetch_time_seconds: 0.101080 seconds
+idx_decrypt_time_seconds: 0.262546 seconds
+idx_lookup_time_seconds: 0.053179 seconds
+Number of CIDs processed: 250
+Parallel fetch/decrypt time (wall time): 8.463247 seconds
+  - Cumulative fetch time: 7.351055 seconds
+  - Cumulative decrypt time: 0.906768 seconds
+  - Average per file: 0.033853 seconds
+duckdb_query_time_seconds: 0.147813 seconds
+query_execution_time_seconds_excluding_index_overhead: 8.664239 seconds
+total_query_execution_time_seconds: 9.112130 seconds
+
+Query execution time Summary
+DB Size > With idx, no sgx > With idx, sgx > Withoud idx, no sgx > Without idx, sgx
+100M > 0.030794 > 0.173363 > 8.917684 > 23.640152
+200M > 0.029309 > 0.175221 > 25.124276 > 50.212799
+300M > 0.022913 > 0.202862 > 38.848316 > 79.434887
+400M > 0.024311 > 0.212277 > 48.604722 > 108.342092
+ 
+
+
+Query Execution Time vs. Number of CIDs Retrieved
+250 -> 8.664239 seconds
+500 -> 14.923036 seconds
+750 -> 20.516290 seconds
+1000 -> 23.640152 seconds
+2000 -> 50.212799 seconds
+3000 -> 79.434887 seconds
+4000 -> 108.342092 seconds
+........................................
+25 -> 0.8664239
+50 -> 1.4923036
+75 -> 2.0516290 seconds
+100 -> 2.5640152
+
+Network Distribution Effects
+X-axis > LAN > WAN
+100-0 > 2.5640 > 0
+75-25 > 2.7760 > 5.5027
+50-50 > 3.0916 > 8.3621
+25-75 > 3.4299 > 11.2195
+0-100 > 3.6412 > 14.0768
+
+...........................after kernel upgrade...............
+.............................EDMM = true.....................
+.............................EPC Size = 128GB.................
+
+100M
+With idx, vanilla
+=== Timing Summary ===
+1. Index fetch time: 0.197918 seconds
+2. Index decrypt time: 0.196887 seconds
+3. Index lookup time: 0.000164 seconds
+4. Data (CIDs) fetch time: 0.017512 seconds
+5. Data (CIDs) decrypt time: 0.005258 seconds
+6. DuckDB Query execution time: 0.002482 seconds
+7. Query execution time without index overhead: 0.025417 seconds
+8. Query execution time without index overhead (Wall time): 0.028214 seconds
+9. Total execution time: 0.589288 seconds
+With idx, sgx
+=== Timing Summary ===
+1. Index fetch time: 0.351593 seconds
+2. Index decrypt time: 0.706463 seconds
+3. Index lookup time: 0.000223 seconds
+4. Data (CIDs) fetch time: 0.018672 seconds
+5. Data (CIDs) decrypt time: 0.023742 seconds
+6. DuckDB Query execution time: 0.009307 seconds
+7. Query execution time without index overhead: 0.051944 seconds
+8. Query execution time without index overhead (Wall time): 0.490946 seconds
+9. Total execution time: 2.035903 seconds
+Without idx, vanilla
+=== Timing Summary ===
+1. Index fetch time: 0.231698 seconds
+2. Index decrypt time: 0.120667 seconds
+3. Index lookup time: 0.061572 seconds
+4. Data (CIDs) fetch time: 13.286924 seconds
+5. Data (CIDs) decrypt time: 1.645383 seconds
+6. DuckDB Query execution time: 0.144713 seconds
+7. Query execution time without index overhead: 15.138592 seconds
+8. Query execution time without index overhead (Wall time): 9.118552 seconds
+9. Total execution time: 9.642419 seconds
+Without idx, sgx
+=== Timing Summary ===
+1. Index fetch time: 0.312972 seconds
+2. Index decrypt time: 0.663981 seconds
+3. Index lookup time: 0.125150 seconds
+4. Data (CIDs) fetch time: 20.698210 seconds
+5. Data (CIDs) decrypt time: 1.713166 seconds
+6. DuckDB Query execution time: 0.228847 seconds
+7. Query execution time without index overhead: 22.765373 seconds
+8. Query execution time without index overhead (Wall time): 17.293439 seconds
+9. Total execution time: 18.774504 seconds
+
+200M
+idx,vanilla
+=== Timing Summary ===
+1. Index fetch time: 0.507012 seconds
+2. Index decrypt time: 0.285847 seconds
+3. Index lookup time: 0.000220 seconds
+4. Data (CIDs) fetch time: 0.019531 seconds
+5. Data (CIDs) decrypt time: 0.004946 seconds
+6. DuckDB Query execution time: 0.002359 seconds
+7. Query execution time without index overhead: 0.027056 seconds
+8. Query execution time without index overhead (Wall time): 0.032570 seconds
+9. Total execution time: 1.193420 seconds
+idx, sgx
+=== Timing Summary ===
+1. Index fetch time: 0.712618 seconds
+2. Index decrypt time: 1.846852 seconds
+3. Index lookup time: 0.000247 seconds
+4. Data (CIDs) fetch time: 0.016601 seconds
+5. Data (CIDs) decrypt time: 0.008696 seconds
+6. DuckDB Query execution time: 0.008369 seconds
+7. Query execution time without index overhead: 0.033913 seconds
+8. Query execution time without index overhead (Wall time): 0.473600 seconds
+9. Total execution time: 4.040544 seconds
+no idx, vanilla
+=== Timing Summary ===
+1. Index fetch time: 0.531178 seconds
+2. Index decrypt time: 0.548075 seconds
+3. Index lookup time: 0.211645 seconds
+4. Data (CIDs) fetch time: 27.292167 seconds
+5. Data (CIDs) decrypt time: 3.533960 seconds
+6. DuckDB Query execution time: 0.322951 seconds
+7. Query execution time without index overhead: 31.360722 seconds
+8. Query execution time without index overhead (Wall time): 18.980452 seconds
+9. Total execution time: 20.640293 seconds
+no idx, sgx
+=== Timing Summary ===
+1. Index fetch time: 0.709743 seconds
+2. Index decrypt time: 1.725854 seconds
+3. Index lookup time: 0.266494 seconds
+4. Data (CIDs) fetch time: 42.688554 seconds
+5. Data (CIDs) decrypt time: 3.791535 seconds
+6. DuckDB Query execution time: 0.660486 seconds
+7. Query execution time without index overhead: 47.407069 seconds
+8. Query execution time without index overhead (Wall time): 35.275096 seconds
+9. Total execution time: 38.701698 seconds
+
+300M
+idx, vanilla
+=== Timing Summary ===
+1. Index fetch time: 2.102897 seconds
+2. Index decrypt time: 0.824326 seconds
+3. Index lookup time: 0.000342 seconds
+4. Data (CIDs) fetch time: 0.016926 seconds
+5. Data (CIDs) decrypt time: 0.005823 seconds
+6. DuckDB Query execution time: 0.003927 seconds
+7. Query execution time without index overhead: 0.027018 seconds
+8. Query execution time without index overhead (Wall time): 0.033705 seconds
+9. Total execution time: 3.850756 seconds
+idx, sgx
+=== Timing Summary ===
+1. Index fetch time: 1.057403 seconds
+2. Index decrypt time: 2.673541 seconds
+3. Index lookup time: 0.000263 seconds
+4. Data (CIDs) fetch time: 0.016674 seconds
+5. Data (CIDs) decrypt time: 0.008262 seconds
+6. DuckDB Query execution time: 0.008759 seconds
+7. Query execution time without index overhead: 0.033958 seconds
+8. Query execution time without index overhead (Wall time): 0.703936 seconds
+9. Total execution time: 5.910748 seconds
+no idx, vanilla
+=== Timing Summary ===
+1. Index fetch time: 0.772478 seconds
+2. Index decrypt time: 0.835740 seconds
+3. Index lookup time: 0.343417 seconds
+4. Data (CIDs) fetch time: 40.412863 seconds
+5. Data (CIDs) decrypt time: 5.541395 seconds
+6. DuckDB Query execution time: 0.555953 seconds
+7. Query execution time without index overhead: 46.853628 seconds
+8. Query execution time without index overhead (Wall time): 28.529397 seconds
+9. Total execution time: 31.029563 seconds
+no idx, sgx
+=== Timing Summary ===
+1. Index fetch time: 1.083815 seconds
+2. Index decrypt time: 2.753067 seconds
+3. Index lookup time: 0.355947 seconds
+4. Data (CIDs) fetch time: 56.624975 seconds
+5. Data (CIDs) decrypt time: 4.490853 seconds
+6. DuckDB Query execution time: 1.017276 seconds
+7. Query execution time without index overhead: 62.489052 seconds
+8. Query execution time without index overhead (Wall time): 47.580453 seconds
+9. Total execution time: 52.944590 seconds
+
+400M
+idx, vanilla
+=== Timing Summary ===
+1. Index fetch time: 0.933453 seconds
+2. Index decrypt time: 0.806068 seconds
+3. Index lookup time: 0.000313 seconds
+4. Data (CIDs) fetch time: 0.016642 seconds
+5. Data (CIDs) decrypt time: 0.004871 seconds
+6. DuckDB Query execution time: 0.003318 seconds
+7. Query execution time without index overhead: 0.025144 seconds
+8. Query execution time without index overhead (Wall time): 0.030623 seconds
+9. Total execution time: 2.911770 seconds
+idx, sgx
+=== Timing Summary ===
+1. Index fetch time: 1.488189 seconds
+2. Index decrypt time: 3.734764 seconds
+3. Index lookup time: 0.000294 seconds
+4. Data (CIDs) fetch time: 0.017663 seconds
+5. Data (CIDs) decrypt time: 0.010000 seconds
+6. DuckDB Query execution time: 0.009863 seconds
+7. Query execution time without index overhead: 0.037820 seconds
+8. Query execution time without index overhead (Wall time): 0.715745 seconds
+9. Total execution time: 7.964681 seconds
+no idx, vanilla
+=== Timing Summary ===
+1. Index fetch time: 0.945213 seconds
+2. Index decrypt time: 0.807265 seconds
+3. Index lookup time: 0.500116 seconds
+4. Data (CIDs) fetch time: 48.794904 seconds
+5. Data (CIDs) decrypt time: 5.403353 seconds
+6. DuckDB Query execution time: 0.784857 seconds
+7. Query execution time without index overhead: 55.483231 seconds
+8. Query execution time without index overhead (Wall time): 33.344396 seconds
+9. Total execution time: 36.239591 seconds
+no idx, sgx
+=== Timing Summary ===
+1. Index fetch time: 1.453257 seconds
+2. Index decrypt time: 3.670357 seconds
+3. Index lookup time: 0.541066 seconds
+4. Data (CIDs) fetch time: 75.322798 seconds
+5. Data (CIDs) decrypt time: 5.928828 seconds
+6. DuckDB Query execution time: 1.401401 seconds
+7. Query execution time without index overhead: 83.194093 seconds
+8. Query execution time without index overhead (Wall time): 62.818068 seconds
+9. Total execution time: 69.951990 seconds
+
+
+
+
+25 CID fetch time
+=== Timing Summary ===
+1. Index fetch time: 0.011937 seconds
+2. Index decrypt time: 0.040000 seconds
+3. Index lookup time: 0.022107 seconds
+4. Data (CIDs) fetch time: 1.359236 seconds
+5. Data (CIDs) decrypt time: 0.106454 seconds
+6. DuckDB Query execution time: 0.029161 seconds
+7. Query execution time without index overhead: 1.516958 seconds
+8. Query execution time without index overhead (Wall time): 1.766674 seconds
+9. Total execution time: 1.845721 seconds
+
+50 CID fetch time
+=== Timing Summary ===
+1. Index fetch time: 0.018818 seconds
+2. Index decrypt time: 0.048000 seconds
+3. Index lookup time: 0.022794 seconds
+4. Data (CIDs) fetch time: 1.576865 seconds
+5. Data (CIDs) decrypt time: 0.147225 seconds
+6. DuckDB Query execution time: 0.036433 seconds
+7. Query execution time without index overhead: 1.783318 seconds
+8. Query execution time without index overhead (Wall time): 1.981038 seconds
+9. Total execution time: 2.082396 seconds
+
+75 CID fetch time
+=== Timing Summary ===
+1. Index fetch time: 0.019742 seconds
+2. Index decrypt time: 0.058844 seconds
+3. Index lookup time: 0.025961 seconds
+4. Data (CIDs) fetch time: 2.094866 seconds
+5. Data (CIDs) decrypt time: 0.140016 seconds
+6. DuckDB Query execution time: 0.040020 seconds
+7. Query execution time without index overhead: 2.300863 seconds
+8. Query execution time without index overhead (Wall time): 2.452401 seconds
+9. Total execution time: 2.571918 seconds
+
+100 CID fetch time
+=== Timing Summary ===
+1. Index fetch time: 0.025060 seconds
+2. Index decrypt time: 0.067058 seconds
+3. Index lookup time: 0.027660 seconds
+4. Data (CIDs) fetch time: 2.301328 seconds
+5. Data (CIDs) decrypt time: 0.132137 seconds
+6. DuckDB Query execution time: 0.045938 seconds
+7. Query execution time without index overhead: 2.507063 seconds
+8. Query execution time without index overhead (Wall time): 2.740335 seconds
+9. Total execution time: 2.878124 seconds

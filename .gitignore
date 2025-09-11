@@ -27,7 +27,12 @@ htmlcov/
 venv/
 env/
 ENV/
-.env
+# .env
+
+#SGX
+python.manifest
+python.manifest.sgx 
+python.sig
 
 # IDEs and editors
 .idea/
@@ -56,9 +61,10 @@ docker-compose.override.yml
 *.db
 *.sqlite3
 data/
-
+/app/dataset/
 # IPFS
 .ipfs/
+ipfs_data/
 
 
 

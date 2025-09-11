@@ -1,0 +1,81 @@
+Query performance for encrypted Web3DB.
+Query Engine: DuckDB (inside Gramine SGX)
+>> 400M (Total database rows)
+=== Timing Summary ===
+Index operations:
+  - Fetch: 4.568542 seconds
+  - Decrypt: 14.665480 seconds
+  - Query: 0.009261 seconds
+Data operations:
+  - Fetch: 0.062769 seconds
+  - Decrypt: 0.042093 seconds
+  - Write to disk: 1.042200 seconds
+DuckDB query: 0.052134 seconds
+Total time: 24.363007 seconds
+5.128985
+>> 300M
+=== Timing Summary ===
+Index operations:
+  - Fetch: 3.118624 seconds
+  - Decrypt: 8.792197 seconds
+  - Query: 0.008638 seconds
+Data operations:
+  - Fetch: 0.063111 seconds
+  - Decrypt: 0.039206 seconds
+  - Write to disk: 1.052811 seconds
+DuckDB query: 0.049919 seconds
+Total time: 15.785963 seconds
+3.875142 seconds
+>>200M
+=== Timing Summary ===
+Index operations:
+  - Fetch: 1.307059 seconds
+  - Decrypt: 3.566032 seconds
+  - Query: 0.008919 seconds
+Data operations:
+  - Fetch: 0.068929 seconds
+  - Decrypt: 0.038987 seconds
+  - Write to disk: 1.018754 seconds
+DuckDB query: 0.050061 seconds
+Total time: 7.608053 seconds
+2.734962 seconds
+
+>>100M
+=== Timing Summary (DuckDB Gramine SGX) ===
+Index operations:
+  - Fetch: 0.582578 seconds
+  - Decrypt: 0.956383 seconds
+  - Query: 0.003720 seconds
+CID/Data operations:
+  - Fetch: 0.047332 seconds
+  - Decrypt and write to disk: 1.046609 seconds
+DuckDB query: 0.053855 seconds
+Total time: 3.082378 seconds
+1.543417 seconds
+
+>>>50M
+=== Timing Summary ===
+Index operations:
+  - Fetch: 0.420491 seconds
+  - Decrypt: 0.649535 seconds
+  - Query: 0.000485 seconds
+Data operations:
+  - Fetch: 0.017174 seconds
+  - Decrypt: 0.001288 seconds
+  - Write to disk: 0.888870 seconds
+DuckDB query: 0.025003 seconds
+Total time: 2.136189 seconds
+1.066163 seconds
+>>>10M 
+=== Timing Summary ===
+Index operations:
+  - Fetch: 0.025873 seconds
+  - Decrypt: 0.252747 seconds
+  - Query: 0.000321 seconds
+Data operations:
+  - Fetch: 0.017639 seconds
+  - Decrypt: 0.019952 seconds
+  - Write to disk: 0.886717 seconds
+DuckDB query: 0.008482 seconds
+Total time: 1.241986 seconds
+0.963366 seconds

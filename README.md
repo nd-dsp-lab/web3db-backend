@@ -74,7 +74,39 @@ sudo make
 
 Upon successful build, you should see output similar to:
 
-![SGX Build Output](images/make_sgx.png)
+```console
+shossain@tjws-06:~/web3db-backend/app$ sudo make SGX=1
+gramine-manifest \
+        -Dlog_level=error \
+        -Darch_libdir=/lib/x86_64-linux-gnu \
+        -Dentrypoint=/usr/bin/python3.12 \
+        -Dra_type=dcap \
+        python.manifest.template >python.manifest
+gramine-sgx-sign \
+        --manifest python.manifest \
+        --output python.manifest.sgx
+
+Attributes (required for enclave measurement):
+    size:        0x200000000
+    edmm:        True
+    max_threads: 1
+
+SGX remote attestation:
+    None
+
+Memory:
+    00000001ffe75000-0000000200000000 [REG:R--] (manifest) measured
+    00000001ffe6d000-00000001ffe75000 [REG:RW-] (ssa) measured
+    00000001ffe6c000-00000001ffe6d000 [TCS:---] (tcs) measured
+    00000001ffe6b000-00000001ffe6c000 [REG:RW-] (tls) measured
+    00000001ffe2b000-00000001ffe6b000 [REG:RW-] (stack) measured
+    00000001ffe1b000-00000001ffe2b000 [REG:RW-] (sig_stack) measured
+    00000001ffdc3000-00000001ffe12000 [REG:R-X] (code) measured
+    00000001ffe12000-00000001ffe1b000 [REG:RW-] (data) measured
+
+Measurement:
+    637e53fc5abc75eef609cfc0572ea617cde8a57b34e7528a160c9377ea9642bf
+```
 
 ### 4. Setup IPFS Node
 
@@ -96,7 +128,36 @@ sudo gramine-sgx ./python scripts/app.py
 
 Upon successful startup, you should see:
 
-![SGX Startup](images/startup_sgx.png)
+```console
+shossain@tjws-06:~/web3db-backend/app$ sudo gramine-sgx ./python scripts/app.py
+Gramine is starting. Parsing TOML manifest file, this may take some time...
+-----------------------------------------------------------------------------------------------------------------------
+Gramine detected the following insecure configurations:
+
+  - loader.insecure__use_cmdline_argv = true   (forwarding command-line args from untrusted host to the app)
+  - sys.insecure__allow_eventfd = true         (host-based eventfd is enabled)
+  - sgx.allowed_files = [ ... ]                (some files are passed through from untrusted host without verification)
+
+Gramine will continue application execution, but this configuration must not be used in production!
+-----------------------------------------------------------------------------------------------------------------------
+
+2025-09-11 15:34:28 [INFO] Smart contract connection initialized successfully
+2025-09-11 15:34:28 [INFO] Generated AES-256 encryption key
+2025-09-11 15:34:28 [INFO] Initializing DuckDB Connection
+2025-09-11 15:34:55 [INFO] DuckDB Connection created
+//scripts/app.py:1324: DeprecationWarning: 
+        on_event is deprecated, use lifespan event handlers instead.
+
+        Read more about it in the
+        [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+        
+  @app.on_event("shutdown")
+2025-09-11 15:35:06 [INFO] Starting FastAPI server...
+INFO:     Started server process [1]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8001 (Press CTRL+C to quit)
+```
 
 🎉 **Congratulations!** Your SGX-enabled MtDB node is now running!
 
@@ -135,7 +196,3 @@ The application provides an interactive Swagger UI for API exploration and testi
 ## Contact
 
 We welcome contributions! For questions, issues, or collaboration opportunities, please contact the research team at [nd-dsp-lab](https://github.com/nd-dsp-lab).
-
----
-
-*Built by the ND DSP Lab team*

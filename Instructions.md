@@ -35,8 +35,30 @@ Follow these steps to set up and run the MtDB backend application in a standard 
 
 Once the application starts successfully, you should see output similar to the following:
 
-![Application Startup](images/startup.png)
+```console
+shossain@tjws-06:~/web3db-backend/app/scripts$ python3 app.py
+INFURA_API_KEY: Present
+PRIVATE_KEY: Present
+CONTRACT_ADDRESS: Present
+Connected to Sepolia network: True
+Connected with address: 0x68ef100cC9dAdE0bb67a0aE99A02CDd1eaE54A2f
+2025-09-11 15:06:39 [INFO] Smart contract connection initialized successfully
+2025-09-11 15:06:39 [INFO] Generated AES-256 encryption key
+2025-09-11 15:06:39 [INFO] Initializing DuckDB Connection
+2025-09-11 15:06:39 [INFO] DuckDB Connection created
+/home/shossain/web3db-backend/app/scripts/app.py:1324: DeprecationWarning: 
+        on_event is deprecated, use lifespan event handlers instead.
 
+        Read more about it in the
+        [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+        
+  @app.on_event("shutdown")
+2025-09-11 15:06:39 [INFO] Starting FastAPI server...
+INFO:     Started server process [716386]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8001 (Press CTRL+C to quit)
+```
 ### Accessing the API Documentation
 
 The application provides an interactive API documentation interface via Swagger UI. You can access it at:

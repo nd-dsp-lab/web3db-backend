@@ -110,11 +110,11 @@ sudo gramine-direct ./python scripts/app.py
 
 The application provides an interactive Swagger UI for API exploration and testing:
 
-**🌐 URL:** http://host-ip:8000/docs#
+**URL:** http://host-ip:8000/docs#
 
 ![Swagger UI Interface](images/swagger_ui.png)
 
-## 📚 Documentation
+## Documentation
 
 ### Additional Resources
 
@@ -124,15 +124,15 @@ The application provides an interactive Swagger UI for API exploration and testi
 
 ### External Documentation
 
-- 📖 [Intel SGX Documentation](https://www.intel.com/content/www/us/en/developer/tools/software-guard-extensions/overview.html)
-- 🛠️ [Gramine SGX Runtime](https://gramine.readthedocs.io/)
-- 🌐 [IPFS Documentation](https://docs.ipfs.io/)
+- [Intel SGX Documentation](https://www.intel.com/content/www/us/en/developer/tools/software-guard-extensions/overview.html)
+- [Gramine SGX Runtime](https://gramine.readthedocs.io/)
+- [IPFS Documentation](https://docs.ipfs.io/)
 
-## ⚠️ Important Notes
+## Important Notes
 
 > **Research Prototype**: This is research prototype software. For production deployments, additional security measures, thorough testing, and security audits are strongly recommended.
 
-## 📧 Contact
+## Contact
 
 We welcome contributions! For questions, issues, or collaboration opportunities, please contact the research team at [nd-dsp-lab](https://github.com/nd-dsp-lab).
 

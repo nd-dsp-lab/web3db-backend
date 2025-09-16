@@ -192,7 +192,19 @@ async def upload_patient_data(file: UploadFile = File(...)):
     logger.info("POST /upload/patient-data - Processing patient data upload")
     try:
         content = await file.read()
-        df = pd.read_csv(io.BytesIO(content), dtype={"PatientID": str, "HospitalID": str, "Age": int})
+        
+        # Determine file type and process accordingly
+        file_extension = file.filename.lower().split('.')[-1] if file.filename else 'csv'
+        
+        if file_extension == 'sql':
+            # Process SQL file
+            df = process_sql_file(content)
+        elif file_extension == 'csv':
+            # Process CSV file
+            df = pd.read_csv(io.BytesIO(content), dtype={"PatientID": str, "HospitalID": str, "Age": int})
+        else:
+            return {"error": f"Unsupported file type: {file_extension}. Only CSV and SQL files are supported."}
+        
         indexed_values = {k: set(df[k].values) for k in app.state.index_cids if k in df.columns}
 
         # Schema auto-detection disabled - use POST /schemas endpoint to manage schemas separately
@@ -214,6 +226,9 @@ async def upload_patient_data(file: UploadFile = File(...)):
         resp.raise_for_status()
         data_cid = resp.json()["Hash"]
         buffer.close()
+        
+        # Store row count before deleting DataFrame
+        rows_processed = len(df)
         del df 
 
         # Build/update encrypted indexes
@@ -249,7 +264,9 @@ async def upload_patient_data(file: UploadFile = File(...)):
             "data_cid": data_cid,
             "index_cids": get_all_index_cids(),  # Get from smart contract or in-memory
             "index_sizes": app.state.index_sizes,
-            "message": "Data uploaded successfully. Use POST /schemas to manage table schemas separately."
+            "file_type": file_extension,
+            "rows_processed": rows_processed,
+            "message": "Data uploaded successfully. Supports CSV and SQL files. Use POST /schemas to manage table schemas separately."
         }
 
     except Exception as e:
@@ -436,6 +453,67 @@ async def fetch_from_ipfs_endpoint(cid: str):
         return {"status": "error", "message": str(e)}
 
 # --- Helper functions ---
+
+def process_sql_file(content: bytes) -> pd.DataFrame:
+    """
+    Process SQL file by executing it in DuckDB and extracting the resulting data.
+    
+    Args:
+        content (bytes): Raw SQL file content
+        
+    Returns:
+        pd.DataFrame: Data extracted from executed SQL statements
+    """
+    try:
+        # Decode the SQL content
+        sql_content = content.decode('utf-8')
+        
+        # Connect to in-memory DuckDB
+        temp_conn = duckdb.connect()
+        
+        try:
+            # Create the patient_data table first (since SQL file only has INSERTs)
+            create_table_sql = """
+            CREATE TABLE patient_data (
+                PatientID VARCHAR,
+                Name VARCHAR,
+                Age INTEGER,
+                Gender VARCHAR,
+                BloodType VARCHAR,
+                Condition VARCHAR,
+                VisitDate VARCHAR,
+                Doctor VARCHAR,
+                HospitalID VARCHAR,
+                Prescription VARCHAR,
+                DiagnosisReport VARCHAR
+            )
+            """
+            temp_conn.execute(create_table_sql)
+            
+            # Execute the SQL content (INSERT statements)
+            temp_conn.execute(sql_content)
+            
+            # Query the patient_data table into DataFrame
+            df = temp_conn.execute("SELECT * FROM patient_data").fetchdf()
+            
+            # Convert data types to match expected schema
+            if 'PatientID' in df.columns:
+                df['PatientID'] = df['PatientID'].astype(str)
+            if 'HospitalID' in df.columns:
+                df['HospitalID'] = df['HospitalID'].astype(str)
+            if 'Age' in df.columns:
+                df['Age'] = pd.to_numeric(df['Age'], errors='coerce').astype('Int64')
+            
+            logger.info(f"Processed SQL file: {len(df)} rows extracted from patient_data table")
+            return df
+            
+        finally:
+            # Close the temporary connection
+            temp_conn.close()
+        
+    except Exception as e:
+        logger.error(f"Error processing SQL file: {e}")
+        raise ValueError(f"Failed to process SQL file: {str(e)}")
 
 def auto_detect_and_store_schema(df, table_name):
     """
@@ -741,7 +819,7 @@ async def root():
             "health": "GET /health",
             "query": "POST /query (requires wallet_address for access control)", 
             "query-count": "GET /query/count",
-            "upload": "POST /upload/patient-data",
+            "upload": "POST /upload/patient-data (supports CSV and SQL files)",
             "index-cids": "GET /index-cids",
             "schemas": "GET /schemas, POST /schemas",
             "schema-by-table": "GET /schemas/{table_name}, DELETE /schemas/{table_name}",
@@ -749,6 +827,10 @@ async def root():
             "policy-count": "GET /access-policies/{wallet_address}/count",
             "remove-all-policies": "DELETE /access-policies/{wallet_address}/all",
             "docs": "GET /docs"
+        },
+        "file_support": {
+            "csv": "Comma-separated values with headers",
+            "sql": "INSERT statements for patient_data table"
         },
         "access_control": {
             "enabled": True,

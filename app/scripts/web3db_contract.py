@@ -241,7 +241,7 @@ class Web3dbContract:
                 "inputs": [
                     {
                         "internalType": "string[]",
-                        "name": "tableNames",
+                        "name": "tableNamesList",
                         "type": "string[]"
                     }
                 ],
@@ -251,6 +251,44 @@ class Web3dbContract:
                         "internalType": "string[]",
                         "name": "",
                         "type": "string[]"
+                    }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [],
+                "name": "getAllTableNames",
+                "outputs": [
+                    {
+                        "internalType": "string[]",
+                        "name": "",
+                        "type": "string[]"
+                    }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [],
+                "name": "getAllTableSchemas",
+                "outputs": [
+                    {
+                        "components": [
+                            {
+                                "internalType": "string",
+                                "name": "tableName",
+                                "type": "string"
+                            },
+                            {
+                                "internalType": "string",
+                                "name": "schemaJson",
+                                "type": "string"
+                            }
+                        ],
+                        "internalType": "struct Web3dbContract.TableSchema[]",
+                        "name": "",
+                        "type": "tuple[]"
                     }
                 ],
                 "stateMutability": "view",
@@ -717,6 +755,40 @@ class Web3dbContract:
             return True, schema_dict
         except Exception as e:
             print(f"Failed to get batch table schemas: {e}")
+            return False, {}
+
+    def get_all_table_names(self):
+        """
+        Get all table names that have schemas stored
+        
+        Returns:
+            tuple: (success, table_names_list) where success is bool and table_names_list is list of strings
+        """
+        try:
+            table_names = self.contract.functions.getAllTableNames().call()
+            return True, table_names
+        except Exception as e:
+            print(f"Failed to get all table names: {e}")
+            return False, []
+
+    def get_all_table_schemas(self):
+        """
+        Get all table schemas with their names
+        
+        Returns:
+            tuple: (success, schemas_dict) where success is bool and schemas_dict maps table names to schemas
+        """
+        try:
+            table_schemas = self.contract.functions.getAllTableSchemas().call()
+            schema_dict = {}
+            for schema_tuple in table_schemas:
+                table_name = schema_tuple[0]  # tableName
+                schema_json = schema_tuple[1]  # schemaJson
+                if schema_json:  # Only include non-empty schemas
+                    schema_dict[table_name] = schema_json
+            return True, schema_dict
+        except Exception as e:
+            print(f"Failed to get all table schemas: {e}")
             return False, {}
 
     def remove_table_schema(self, table_name):

@@ -851,6 +851,7 @@ async def root():
             "upload": "POST /upload/patient-data (supports CSV and SQL files)",
             "index-cids": "GET /index-cids",
             "schemas": "GET /schemas, POST /schemas",
+            "schema-tables": "GET /schemas/tables",
             "schema-by-table": "GET /schemas/{table_name}, DELETE /schemas/{table_name}",
             "access-policies": "POST /access-policies, GET /access-policies/{wallet_address}, DELETE /access-policies",
             "policy-count": "GET /access-policies/{wallet_address}/count",
@@ -1020,32 +1021,87 @@ async def get_all_table_schemas():
     logger.info("GET /schemas - Retrieving all table schemas")
     
     try:
-        schemas = {}
+        # Use the new smart contract method to get all table schemas
+        success, schemas = app.state.index_storage.get_all_table_schemas()
         
-        # Get known table names (you may want to maintain a list or discover them)
-        # For now, we'll assume patient_data is the main table
-        known_tables = ["patient_data"]  # You can extend this or make it dynamic
-        
-        success, schema_dict = app.state.index_storage.batch_get_table_schemas(known_tables)
         if success:
-            for table_name, schema_sql in schema_dict.items():
-                if schema_sql:  # Only include non-empty schemas
-                    schemas[table_name] = schema_sql
+            return {
+                "status": "success",
+                "schemas": schemas,
+                "storage_type": "smart contract (SQL format)",
+                "timestamp": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+            }
         else:
             return {
                 "status": "error",
                 "message": "Failed to retrieve schemas from smart contract"
             }
-        
-        return {
-            "status": "success",
-            "schemas": schemas,
-            "storage_type": "smart contract (SQL format)",
-            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
-        }
     
     except Exception as e:
         logger.error(f"Error retrieving table schemas: {e}")
+        return {"status": "error", "message": str(e)}
+
+@app.get("/schemas/tables")
+async def get_all_table_names():
+    """
+    Get all table names that have schemas stored in the smart contract.
+    
+    Returns:
+    {
+        "status": "success",
+        "table_names": ["patient_data", "user_profiles", ...],
+        "total_tables": 2
+    }
+    """
+    logger.info("GET /schemas/tables - Retrieving all table names")
+    
+    try:
+        # Use the new smart contract method to get all table names
+        success, table_names = app.state.index_storage.get_all_table_names()
+        
+        if success:
+            return {
+                "status": "success",
+                "table_names": table_names,
+                "total_tables": len(table_names),
+                "storage_type": "smart contract",
+                "timestamp": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+            }
+        else:
+            return {
+                "status": "error",
+                "message": "Failed to retrieve table names from smart contract"
+            }
+    
+    except Exception as e:
+        logger.error(f"Error retrieving table names: {e}")
+        return {"status": "error", "message": str(e)}
+
+@app.delete("/schemas/{table_name}")
+async def delete_table_schema(table_name: str):
+    """
+    Delete the schema for a specific table from smart contract.
+    """
+    logger.info(f"DELETE /schemas/{table_name} - Deleting schema for table: {table_name}")
+    
+    try:
+        # Remove from smart contract
+        success = app.state.index_storage.remove_table_schema(table_name)
+        
+        if success:
+            return {
+                "status": "success",
+                "message": f"Schema for table '{table_name}' deleted successfully from smart contract",
+                "table_name": table_name
+            }
+        else:
+            return {
+                "status": "error",
+                "message": f"Failed to delete schema for table '{table_name}' or schema not found"
+            }
+    
+    except Exception as e:
+        logger.error(f"Error deleting schema for table {table_name}: {e}")
         return {"status": "error", "message": str(e)}
 
 @app.get("/schemas/{table_name}")
@@ -1090,33 +1146,6 @@ async def get_table_schema(table_name: str):
     
     except Exception as e:
         logger.error(f"Error retrieving schema for table {table_name}: {e}")
-        return {"status": "error", "message": str(e)}
-
-@app.delete("/schemas/{table_name}")
-async def delete_table_schema(table_name: str):
-    """
-    Delete the schema for a specific table from smart contract.
-    """
-    logger.info(f"DELETE /schemas/{table_name} - Deleting schema for table: {table_name}")
-    
-    try:
-        # Remove from smart contract
-        success = app.state.index_storage.remove_table_schema(table_name)
-        
-        if success:
-            return {
-                "status": "success",
-                "message": f"Schema for table '{table_name}' deleted successfully from smart contract",
-                "table_name": table_name
-            }
-        else:
-            return {
-                "status": "error",
-                "message": f"Failed to delete schema for table '{table_name}' or schema not found"
-            }
-    
-    except Exception as e:
-        logger.error(f"Error deleting schema for table {table_name}: {e}")
         return {"status": "error", "message": str(e)}
 
 # Access Policy Management Endpoints
@@ -1423,4 +1452,4 @@ def shutdown_event():
 if __name__ == "__main__":
     import uvicorn
     logger.info("Starting FastAPI server...")
-    uvicorn.run(app, host="0.0.0.0", port=8001, log_level="info")
+    uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info")

@@ -355,7 +355,12 @@ class Web3dbContract:
                 "inputs": [
                     {
                         "internalType": "address",
-                        "name": "walletAddress",
+                        "name": "subject",
+                        "type": "address"
+                    },
+                    {
+                        "internalType": "address",
+                        "name": "object",
                         "type": "address"
                     },
                     {
@@ -378,7 +383,7 @@ class Web3dbContract:
                 "inputs": [
                     {
                         "internalType": "address",
-                        "name": "walletAddress",
+                        "name": "objectAddress",
                         "type": "address"
                     }
                 ],
@@ -388,7 +393,7 @@ class Web3dbContract:
                         "components": [
                             {
                                 "internalType": "address",
-                                "name": "ownerAddress",
+                                "name": "subject",
                                 "type": "address"
                             },
                             {
@@ -400,6 +405,11 @@ class Web3dbContract:
                                 "internalType": "string",
                                 "name": "policySql",
                                 "type": "string"
+                            },
+                            {
+                                "internalType": "address",
+                                "name": "object",
+                                "type": "address"
                             }
                         ],
                         "internalType": "struct Web3dbContract.AccessPolicy[]",
@@ -414,7 +424,7 @@ class Web3dbContract:
                 "inputs": [
                     {
                         "internalType": "address",
-                        "name": "walletAddress",
+                        "name": "objectAddress",
                         "type": "address"
                     }
                 ],
@@ -433,7 +443,7 @@ class Web3dbContract:
                 "inputs": [
                     {
                         "internalType": "address",
-                        "name": "walletAddress",
+                        "name": "objectAddress",
                         "type": "address"
                     },
                     {
@@ -451,7 +461,7 @@ class Web3dbContract:
                 "inputs": [
                     {
                         "internalType": "address",
-                        "name": "walletAddress",
+                        "name": "objectAddress",
                         "type": "address"
                     }
                 ],
@@ -836,12 +846,13 @@ class Web3dbContract:
     
     # Access Policy Management Methods
     
-    def add_access_policy(self, wallet_address, table_name, policy_sql):
+    def add_access_policy(self, subject_address, object_address, table_name, policy_sql):
         """
-        Add an access policy for a wallet address
+        Add an access policy for an object address
         
         Args:
-            wallet_address (str): The wallet address (e.g., "0x123...")
+            subject_address (str): The subject address (policy creator/owner)
+            object_address (str): The object address (querier)
             table_name (str): The table name
             policy_sql (str): The SQL policy string
             
@@ -849,14 +860,16 @@ class Web3dbContract:
             bool: True if successful, False otherwise
         """
         try:
-            # Convert string address to checksum address
-            wallet_address = Web3.to_checksum_address(wallet_address)
+            # Convert string addresses to checksum addresses
+            subject_address = Web3.to_checksum_address(subject_address)
+            object_address = Web3.to_checksum_address(object_address)
             
             # Build transaction
             nonce = self.w3.eth.get_transaction_count(self.address)
             
             tx = self.contract.functions.addAccessPolicy(
-                wallet_address,
+                subject_address,
+                object_address,
                 table_name,
                 policy_sql
             ).build_transaction({
@@ -918,9 +931,10 @@ class Web3dbContract:
             policy_list = []
             for policy in policies:
                 policy_dict = {
-                    'ownerAddress': policy[0],
+                    'subject': policy[0],
                     'tableName': policy[1],
-                    'policySql': policy[2]
+                    'policySql': policy[2],
+                    'object': policy[3]
                 }
                 policy_list.append(policy_dict)
                 
@@ -1070,7 +1084,7 @@ if __name__ == "__main__":
     try:
         # Initialize the Web3dbContract instance
         index_storage = Web3dbContract(
-            contract_address="0x041da68BD3F1bf13C5d75E3bA80ab6bB8B136BFd",
+            contract_address="0x2528003c5f47dE324B6caDa12507643D46295bec",
             infura_api_key="eb1d43f1429e49fba50e18fbf5ebd4ab",
             private_key="34cf59aaa5ef0a24e65b4e4dbe6fb23c2bd23a4d9a6b584d7995a141de719d53"
         )
@@ -1146,9 +1160,10 @@ if __name__ == "__main__":
                 print("Retrieved access policies:")
                 for i, policy in enumerate(policies):
                     print(f"  Policy {i}:")
-                    print(f"    Owner: {policy['ownerAddress']}")
+                    print(f"    Subject: {policy['subject']}")
                     print(f"    Table: {policy['tableName']}")
                     print(f"    SQL: {policy['policySql']}")
+                    print(f"    Object: {policy['object']}")
             else:
                 print("Failed to retrieve access policies")
                 

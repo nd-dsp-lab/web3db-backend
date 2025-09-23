@@ -282,18 +282,18 @@ class QueryRequest(BaseModel):
 
 def rewrite_query_with_access_policies(original_query: str, policies: List[dict], table_name: str = "patient_data") -> str:
     """
-    Rewrite the original query to incorporate access control policies.
+    Rewrite the original query to incorporate access control policies with subject validation.
     
-    For multiple policies, this creates a more complex CTE that combines the conditions 
-    using OR logic rather than UNION to avoid column compatibility issues.
+    For multi-tenant security, each policy condition is combined with OwnerID = subject
+    to ensure the querier can only access data owned by the policy subject.
     
     Args:
         original_query (str): The original SQL query
-        policies (List[dict]): List of access policies with 'policySql' field
+        policies (List[dict]): List of access policies with 'subject', 'object', 'policySql' fields
         table_name (str): The table name to apply policies to
         
     Returns:
-        str: The rewritten query with access control
+        str: The rewritten query with access control and subject validation
     """
     if not policies:
         return ""  # Return empty query if no policies
@@ -303,20 +303,21 @@ def rewrite_query_with_access_policies(original_query: str, policies: List[dict]
     
     for policy in policies:
         policy_sql = policy.get('policySql', '').strip()
-        if policy_sql:
+        subject = policy.get('subject', '').strip()
+        
+        if policy_sql and subject:
             # Extract the WHERE clause from each policy SQL
-            # This is a simple approach - we'll extract conditions from WHERE clauses
             policy_sql_lower = policy_sql.lower()
             
             if 'where' in policy_sql_lower:
                 # Find the WHERE clause
                 where_index = policy_sql_lower.find('where')
                 condition = policy_sql[where_index + 5:].strip()  # +5 for "where"
-                policy_conditions.append(f"({condition})")
+                # Combine subject validation with policy condition
+                policy_conditions.append(f"(OwnerID = '{subject}' AND {condition})")
             else:
-                # If no WHERE clause, this policy allows all data
-                # We'll treat this as a catch-all condition
-                policy_conditions.append("(1=1)")  # Always true condition
+                # If no WHERE clause, this policy allows all data for this subject
+                policy_conditions.append(f"(OwnerID = '{subject}')")
     
     if not policy_conditions:
         return ""  # Return empty query if no valid policies
@@ -325,7 +326,7 @@ def rewrite_query_with_access_policies(original_query: str, policies: List[dict]
     combined_condition = " OR ".join(policy_conditions)
     
     # Create the accessible_part CTE with all columns from original table
-    # and the combined WHERE condition
+    # and the combined WHERE condition with subject validation
     accessible_part_definition = f"SELECT * FROM {table_name} WHERE {combined_condition}"
     
     # Rewrite the original query to use the accessible_part CTE
@@ -433,7 +434,15 @@ async def query(request: QueryRequest):
     return {
         "wallet_address": request.wallet_address,
         "policy_count": len(policies),
-        "policies_applied": [{"table": p.get('tableName'), "sql": p.get('policySql')} for p in policies],
+        "policies_applied": [
+            {
+                "subject": p.get('subject'), 
+                "object": p.get('object'), 
+                "table": p.get('tableName'), 
+                "original_sql": p.get('policySql'),
+                "enforced_condition": f"OwnerID = '{p.get('subject')}' AND ({p.get('policySql', '').split('WHERE')[-1].strip() if 'WHERE' in p.get('policySql', '').upper() else '1=1'})"
+            } for p in policies
+        ],
         "rewritten_query": rewritten_query,
         "cids": len(cids),
         "records": len(results),
@@ -817,13 +826,14 @@ class BatchUpdateTableSchemasRequest(BaseModel):
 
 
 class AddAccessPolicyRequest(BaseModel):
-    wallet_address: str
+    subject_address: str  # The policy creator/owner address
+    object_address: str  # The querier address (who the policy applies to)
     table_name: str
     policy_sql: str
 
 
 class RemoveAccessPolicyRequest(BaseModel):
-    wallet_address: str
+    object_address: str  # The querier address (who the policy applies to)
     policy_index: int
 
 
@@ -853,9 +863,9 @@ async def root():
             "schemas": "GET /schemas, POST /schemas",
             "schema-tables": "GET /schemas/tables",
             "schema-by-table": "GET /schemas/{table_name}, DELETE /schemas/{table_name}",
-            "access-policies": "POST /access-policies, GET /access-policies/{wallet_address}, DELETE /access-policies",
-            "policy-count": "GET /access-policies/{wallet_address}/count",
-            "remove-all-policies": "DELETE /access-policies/{wallet_address}/all",
+            "access-policies": "POST /access-policies, GET /access-policies/{object_address}, DELETE /access-policies",
+            "policy-count": "GET /access-policies/{object_address}/count",
+            "remove-all-policies": "DELETE /access-policies/{object_address}/all",
             "docs": "GET /docs"
         },
         "file_support": {
@@ -868,7 +878,9 @@ async def root():
         },
         "access_control": {
             "enabled": True,
-            "description": "All queries require a wallet_address parameter and are filtered based on access policies stored in the smart contract"
+            "description": "All queries require a wallet_address parameter and are filtered based on access policies stored in the smart contract. Multi-tenant security ensures users can only access data where OwnerID matches the policy subject.",
+            "enforcement": "Query rewriting with CTE combining OwnerID = subject AND policy conditions",
+            "example": "WITH accessible_part AS (SELECT * FROM table WHERE (OwnerID = 'subject1' AND condition1) OR (OwnerID = 'subject2' AND condition2)) SELECT * FROM accessible_part"
         }
     }
 
@@ -1153,21 +1165,23 @@ async def get_table_schema(table_name: str):
 @app.post("/access-policies")
 async def add_access_policy(request: AddAccessPolicyRequest):
     """
-    Add an access policy for a wallet address.
+    Add an access policy for an object address (querier).
     
     Example request body:
     {
-        "wallet_address": "0x68ef100cC9dAdE0bb67a0aE99A02CDd1eaE54A2f",
+        "subject_address": "0x123...",
+        "object_address": "0x68ef100cC9dAdE0bb67a0aE99A02CDd1eaE54A2f",
         "table_name": "patient_data",
         "policy_sql": "SELECT * FROM patient_data WHERE PatientID = '38'"
     }
     """
-    logger.info(f"POST /access-policies - Adding access policy for wallet: {request.wallet_address}")
+    logger.info(f"POST /access-policies - Adding access policy for subject: {request.subject_address}, object: {request.object_address}")
     
     try:
         # Store in smart contract
         success = app.state.index_storage.add_access_policy(
-            request.wallet_address, 
+            request.subject_address,
+            request.object_address, 
             request.table_name, 
             request.policy_sql
         )
@@ -1176,7 +1190,8 @@ async def add_access_policy(request: AddAccessPolicyRequest):
             return {
                 "status": "success",
                 "message": f"Access policy added successfully in smart contract",
-                "wallet_address": request.wallet_address,
+                "subject_address": request.subject_address,
+                "object_address": request.object_address,
                 "table_name": request.table_name,
                 "policy_sql": request.policy_sql
             }
@@ -1190,35 +1205,36 @@ async def add_access_policy(request: AddAccessPolicyRequest):
         logger.error(f"Error adding access policy: {e}")
         return {"status": "error", "message": str(e)}
 
-@app.get("/access-policies/{wallet_address}")
-async def get_access_policies(wallet_address: str):
+@app.get("/access-policies/{object_address}")
+async def get_access_policies(object_address: str):
     """
-    Get all access policies for a wallet address from smart contract.
+    Get all access policies for an object address (querier) from smart contract.
     
     Returns:
     {
         "status": "success",
-        "wallet_address": "0x68ef100cC9dAdE0bb67a0aE99A02CDd1eaE54A2f",
+        "object_address": "0x68ef100cC9dAdE0bb67a0aE99A02CDd1eaE54A2f",
         "policies": [
             {
-                "ownerAddress": "0x123...",
+                "subject": "0x123...",
                 "tableName": "patient_data",
-                "policySql": "SELECT * FROM patient_data WHERE PatientID = '38'"
+                "policySql": "SELECT * FROM patient_data WHERE PatientID = '38'",
+                "object": "0x68ef100cC9dAdE0bb67a0aE99A02CDd1eaE54A2f"
             }
         ],
         "smart_contract_enabled": true
     }
     """
-    logger.info(f"GET /access-policies/{wallet_address} - Retrieving access policies")
+    logger.info(f"GET /access-policies/{object_address} - Retrieving access policies")
     
     try:
         # Get from smart contract
-        success, policies = app.state.index_storage.get_access_policies(wallet_address)
+        success, policies = app.state.index_storage.get_access_policies(object_address)
         
         if success:
             return {
                 "status": "success",
-                "wallet_address": wallet_address,
+                "object_address": object_address,
                 "policies": policies,
                 "policy_count": len(policies),
                 "storage_type": "smart contract",
@@ -1231,31 +1247,31 @@ async def get_access_policies(wallet_address: str):
             }
     
     except Exception as e:
-        logger.error(f"Error retrieving access policies for {wallet_address}: {e}")
+        logger.error(f"Error retrieving access policies for {object_address}: {e}")
         return {"status": "error", "message": str(e)}
 
-@app.get("/access-policies/{wallet_address}/count")
-async def get_policy_count(wallet_address: str):
+@app.get("/access-policies/{object_address}/count")
+async def get_policy_count(object_address: str):
     """
-    Get the count of policies for a wallet address from smart contract.
+    Get the count of policies for an object address (querier) from smart contract.
     
     Returns:
     {
         "status": "success",
-        "wallet_address": "0x68ef100cC9dAdE0bb67a0aE99A02CDd1eaE54A2f",
+        "object_address": "0x68ef100cC9dAdE0bb67a0aE99A02CDd1eaE54A2f",
         "count": 3
     }
     """
-    logger.info(f"GET /access-policies/{wallet_address}/count - Getting policy count")
+    logger.info(f"GET /access-policies/{object_address}/count - Getting policy count")
     
     try:
         # Get from smart contract
-        success, count = app.state.index_storage.get_policy_count(wallet_address)
+        success, count = app.state.index_storage.get_policy_count(object_address)
         
         if success:
             return {
                 "status": "success",
-                "wallet_address": wallet_address,
+                "object_address": object_address,
                 "count": count,
                 "storage_type": "smart contract"
             }
@@ -1266,7 +1282,7 @@ async def get_policy_count(wallet_address: str):
             }
     
     except Exception as e:
-        logger.error(f"Error getting policy count for {wallet_address}: {e}")
+        logger.error(f"Error getting policy count for {object_address}: {e}")
         return {"status": "error", "message": str(e)}
 
 @app.delete("/access-policies")
@@ -1276,16 +1292,16 @@ async def remove_access_policy(request: RemoveAccessPolicyRequest):
     
     Example request body:
     {
-        "wallet_address": "0x68ef100cC9dAdE0bb67a0aE99A02CDd1eaE54A2f",
+        "object_address": "0x68ef100cC9dAdE0bb67a0aE99A02CDd1eaE54A2f",
         "policy_index": 0
     }
     """
-    logger.info(f"DELETE /access-policies - Removing policy index {request.policy_index} for wallet: {request.wallet_address}")
+    logger.info(f"DELETE /access-policies - Removing policy index {request.policy_index} for object: {request.object_address}")
     
     try:
         # Remove from smart contract
         success = app.state.index_storage.remove_access_policy(
-            request.wallet_address, 
+            request.object_address, 
             request.policy_index
         )
         
@@ -1293,7 +1309,7 @@ async def remove_access_policy(request: RemoveAccessPolicyRequest):
             return {
                 "status": "success",
                 "message": f"Access policy removed successfully from smart contract",
-                "wallet_address": request.wallet_address,
+                "object_address": request.object_address,
                 "policy_index": request.policy_index
             }
         else:
@@ -1306,22 +1322,22 @@ async def remove_access_policy(request: RemoveAccessPolicyRequest):
         logger.error(f"Error removing access policy: {e}")
         return {"status": "error", "message": str(e)}
 
-@app.delete("/access-policies/{wallet_address}/all")
-async def remove_all_access_policies(wallet_address: str):
+@app.delete("/access-policies/{object_address}/all")
+async def remove_all_access_policies(object_address: str):
     """
-    Remove all access policies for a wallet address from smart contract.
+    Remove all access policies for an object address (querier) from smart contract.
     """
-    logger.info(f"DELETE /access-policies/{wallet_address}/all - Removing all policies for wallet")
+    logger.info(f"DELETE /access-policies/{object_address}/all - Removing all policies for object")
     
     try:
         # Remove from smart contract
-        success = app.state.index_storage.remove_all_access_policies(wallet_address)
+        success = app.state.index_storage.remove_all_access_policies(object_address)
         
         if success:
             return {
                 "status": "success",
                 "message": f"All access policies removed successfully from smart contract",
-                "wallet_address": wallet_address
+                "object_address": object_address
             }
         else:
             return {
@@ -1330,7 +1346,7 @@ async def remove_all_access_policies(wallet_address: str):
             }
     
     except Exception as e:
-        logger.error(f"Error removing all access policies for {wallet_address}: {e}")
+        logger.error(f"Error removing all access policies for {object_address}: {e}")
         return {"status": "error", "message": str(e)}
 
 @app.get("/query/count")

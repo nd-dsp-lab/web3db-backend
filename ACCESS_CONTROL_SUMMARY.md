@@ -70,29 +70,48 @@
 - Clear error message: "No access policies found for this wallet address"
 - Prevents unauthorized data access
 
-### 2. **Policy Combination Strategy**
+### 2. **Multi-Tenant Policy Combination Strategy**
+
+**Enhanced Security Model:**
+- Each policy includes `subject` (data owner) and `object` (querier)
+- Query rewriting enforces `OwnerID = subject` for each policy condition
+- Ensures users can only access data owned by policy subjects
+
 ```sql
 -- Single Policy Example:
 WITH accessible_part AS (
-    SELECT * FROM patient_data WHERE PatientID = '38'
+    SELECT * FROM patient_data WHERE OwnerID = '0x123' AND PatientID = '38'
 ) SELECT * FROM accessible_part LIMIT 10
 
--- Multiple Policies Example:
+-- Multiple Policies Example (Multi-Tenant):
 WITH accessible_part AS (
     SELECT * FROM patient_data WHERE 
-    (HospitalID = 'HOSP-001' AND Age > 50) OR 
-    (Condition = 'Diabetes' AND Age < 30)
-) SELECT * FROM accessible_part ORDER BY PatientID
+    (OwnerID = '0x123' AND PatientID = '38') OR 
+    (OwnerID = '0x789' AND HospitalID = 'HOSP-001')
+) SELECT * FROM accessible_part WHERE Age > 30 ORDER BY PatientID
 ```
 
-### 3. **Query Processing Flow**
+**Policy Structure:**
+```json
+{
+    "subject": "0x123...",  // Data owner address
+    "object": "0x456...",   // Querier address  
+    "tableName": "patient_data",
+    "policySql": "SELECT * FROM patient_data WHERE PatientID = '38'"
+}
+```
+
+### 3. **Multi-Tenant Query Processing Flow**
 1. **Authentication**: Validate `wallet_address` parameter
-2. **Policy Retrieval**: Fetch access policies from smart contract
+2. **Policy Retrieval**: Fetch access policies from smart contract where `object = wallet_address`
 3. **Access Check**: Return empty if no policies found
-4. **Query Rewriting**: Combine policy conditions with OR logic
+4. **Enhanced Query Rewriting**: 
+   - Extract WHERE conditions from each policy's `policySql`
+   - Combine each condition with `OwnerID = subject` for multi-tenant security
+   - Join multiple policies with OR logic: `(OwnerID = subject1 AND condition1) OR (OwnerID = subject2 AND condition2)`
 5. **Index Lookup**: Use original query for efficient IPFS CID retrieval
-6. **Data Access**: Apply rewritten query to decrypted data
-7. **Result Return**: Filtered data matching access policies only
+6. **Data Access**: Apply rewritten query with subject validation to decrypted data
+7. **Result Return**: Filtered data ensuring users only access data owned by policy subjects
 
 ## Test Coverage
 
@@ -123,7 +142,7 @@ Query by 0x742d...c9c9: Two policies combined → 275 records
 
 ### Contract: Web3dbContract.sol
 - **Network**: Sepolia Testnet
-- **Address**: `0x041da68BD3F1bf13C5d75E3bA80ab6bB8B136BFd`
+- **Address**: `0x2528003c5f47dE324B6caDa12507643D46295bec`
 - **Functions Used**:
   - `getAccessPolicies(address walletAddress)`
   - `addAccessPolicy(address, string, string)`

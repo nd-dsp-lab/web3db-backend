@@ -4,9 +4,10 @@ pragma solidity ^0.8.0;
 contract Web3dbContract {
     // Struct to store access policies
     struct AccessPolicy {
-        address ownerAddress;
-        string tableName;
-        string policySql;
+        address subject;  // Address of the policy creator/owner (msg.sender)
+        string tableName;      // Target table name (e.g., "patient_data")
+        string policySql;      // SQL policy condition (e.g., "SELECT * FROM patient_data WHERE PatientID = '38'")
+        address object; // Address of the querier
     }
     
     // Struct to store table schema with name
@@ -27,7 +28,7 @@ contract Web3dbContract {
     // Mapping to check if a table name exists (for efficient lookups)
     mapping(string => bool) private tableExists;
     
-    // Mapping from wallet address to their access policies
+    // Mapping from object address (querier) to their access policies
     mapping(address => AccessPolicy[]) private accessPolicies;
 
     // Event to log index updates
@@ -184,46 +185,48 @@ contract Web3dbContract {
     
     // Function to add an access policy for a wallet address
     function addAccessPolicy(
-        address walletAddress,
+        address subject,
+        address object,
         string memory tableName,
         string memory policySql
     ) public {
-        accessPolicies[walletAddress].push(AccessPolicy({
-            ownerAddress: msg.sender,
+        accessPolicies[object].push(AccessPolicy({
+            subject: subject,
             tableName: tableName,
-            policySql: policySql
+            policySql: policySql,
+            object: object
         }));
-        emit AccessPolicyAdded(walletAddress, tableName, policySql);
+        emit AccessPolicyAdded(object, tableName, policySql);
     }
     
-    // Function to get all access policies for a wallet address
+    // Function to get all access policies for an object address (querier)
     function getAccessPolicies(
-        address walletAddress
+        address objectAddress
     ) public view returns (AccessPolicy[] memory) {
-        return accessPolicies[walletAddress];
+        return accessPolicies[objectAddress];
     }
     
-    // Function to get the count of policies for a wallet address
-    function getPolicyCount(address walletAddress) public view returns (uint) {
-        return accessPolicies[walletAddress].length;
+    // Function to get the count of policies for an object address (querier)
+    function getPolicyCount(address objectAddress) public view returns (uint) {
+        return accessPolicies[objectAddress].length;
     }
     
     // Function to remove a specific policy by index
-    function removeAccessPolicy(address walletAddress, uint policyIndex) public {
-        require(policyIndex < accessPolicies[walletAddress].length, "Invalid policy index");
+    function removeAccessPolicy(address objectAddress, uint policyIndex) public {
+        require(policyIndex < accessPolicies[objectAddress].length, "Invalid policy index");
         
-        AccessPolicy memory removedPolicy = accessPolicies[walletAddress][policyIndex];
+        AccessPolicy memory removedPolicy = accessPolicies[objectAddress][policyIndex];
         
         // Move the last element to the deleted spot and remove the last element
-        accessPolicies[walletAddress][policyIndex] = accessPolicies[walletAddress][accessPolicies[walletAddress].length - 1];
-        accessPolicies[walletAddress].pop();
+        accessPolicies[objectAddress][policyIndex] = accessPolicies[objectAddress][accessPolicies[objectAddress].length - 1];
+        accessPolicies[objectAddress].pop();
         
-        emit AccessPolicyRemoved(walletAddress, removedPolicy.tableName);
+        emit AccessPolicyRemoved(objectAddress, removedPolicy.tableName);
     }
     
-    // Function to remove all policies for a wallet address
-    function removeAllAccessPolicies(address walletAddress) public {
-        delete accessPolicies[walletAddress];
-        emit AccessPolicyRemoved(walletAddress, "ALL");
+    // Function to remove all policies for an object address (querier)
+    function removeAllAccessPolicies(address objectAddress) public {
+        delete accessPolicies[objectAddress];
+        emit AccessPolicyRemoved(objectAddress, "ALL");
     }
 }

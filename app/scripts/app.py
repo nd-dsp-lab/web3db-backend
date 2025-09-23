@@ -454,6 +454,37 @@ async def fetch_from_ipfs_endpoint(cid: str):
 
 # --- Helper functions ---
 
+def execute_schema_sql(table_name: str, connection=None) -> bool:
+    """
+    Retrieve and execute schema SQL from smart contract for a given table.
+    
+    Args:
+        table_name (str): Name of the table
+        connection: DuckDB connection to use (defaults to global connection)
+        
+    Returns:
+        bool: True if schema was successfully executed, False otherwise
+    """
+    try:
+        # Use provided connection or default to global connection
+        conn = connection if connection else duckdb_conn
+        
+        # Get schema SQL from smart contract
+        success, schema_sql = app.state.index_storage.get_table_schema(table_name)
+        
+        if success and schema_sql:
+            # Execute the CREATE TABLE statement
+            conn.execute(schema_sql)
+            logger.info(f"Successfully executed schema SQL for table '{table_name}'")
+            return True
+        else:
+            logger.error(f"Failed to retrieve schema SQL for table '{table_name}' from smart contract")
+            return False
+            
+    except Exception as e:
+        logger.error(f"Error executing schema SQL for table '{table_name}': {e}")
+        return False
+
 def process_sql_file(content: bytes) -> pd.DataFrame:
     """
     Process SQL file by executing it in DuckDB and extracting the resulting data.
@@ -472,22 +503,38 @@ def process_sql_file(content: bytes) -> pd.DataFrame:
         temp_conn = duckdb.connect()
         
         try:
-            # Create the patient_data table first (since SQL file only has INSERTs)
-            create_table_sql = """
-            CREATE TABLE patient_data (
-                PatientID VARCHAR,
-                Name VARCHAR,
-                Age INTEGER,
-                Gender VARCHAR,
-                BloodType VARCHAR,
-                Condition VARCHAR,
-                VisitDate VARCHAR,
-                Doctor VARCHAR,
-                HospitalID VARCHAR,
-                Prescription VARCHAR,
-                DiagnosisReport VARCHAR
-            )
-            """
+            # Try to get schema from smart contract first
+            create_table_sql = None
+            try:
+                success, schema_sql = app.state.index_storage.get_table_schema("patient_data")
+                if success and schema_sql:
+                    create_table_sql = schema_sql
+                    logger.info("Using schema from smart contract")
+                else:
+                    logger.warning("Schema not found in smart contract, using fallback")
+            except Exception as e:
+                logger.warning(f"Failed to retrieve schema from smart contract: {e}")
+            
+            # Fallback to hardcoded schema if smart contract schema is not available
+            if not create_table_sql:
+                create_table_sql = """
+                CREATE TABLE patient_data (
+                    PatientID VARCHAR,
+                    Name VARCHAR,
+                    Age INTEGER,
+                    Gender VARCHAR,
+                    BloodType VARCHAR,
+                    Condition VARCHAR,
+                    VisitDate VARCHAR,
+                    Doctor VARCHAR,
+                    HospitalID VARCHAR,
+                    Prescription VARCHAR,
+                    DiagnosisReport VARCHAR
+                )
+                """
+                logger.info("Using fallback hardcoded schema")
+            
+            # Create the patient_data table using the retrieved or fallback schema
             temp_conn.execute(create_table_sql)
             
             # Execute the SQL content (INSERT statements)
@@ -517,71 +564,53 @@ def process_sql_file(content: bytes) -> pd.DataFrame:
 
 def auto_detect_and_store_schema(df, table_name):
     """
-    Auto-detect schema from a pandas DataFrame and store it in the smart contract.
+    Auto-detect schema from a pandas DataFrame and store it as SQL CREATE TABLE statement in the smart contract.
     
     Args:
         df (pd.DataFrame): The DataFrame to analyze
         table_name (str): The name of the table
         
     Returns:
-        dict: The detected schema
+        str: The generated SQL CREATE TABLE statement
     """
     try:
-        import json
+        # Build SQL CREATE TABLE statement
+        columns_sql = []
         
-        # Detect schema from DataFrame
-        schema = {
-            "table_name": table_name,
-            "columns": [],
-            "indexes": list(app.state.index_cids.keys()),  # Use the configured index attributes
-            "row_count": len(df),
-            "created_at": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
-        }
-        
-        # Analyze each column
         for col_name in df.columns:
-            col_info = {
-                "name": col_name,
-                "type": str(df[col_name].dtype),
-                "nullable": bool(df[col_name].isnull().any()),  # Convert numpy.bool_ to Python bool
-                "unique_values": int(df[col_name].nunique()),   # Convert numpy.int64 to Python int
-                "sample_values": df[col_name].dropna().head(3).tolist() if not df[col_name].empty else []
-            }
+            col_dtype = str(df[col_name].dtype)
             
-            # Convert numpy types to JSON-serializable types
-            if col_info["type"] == "object":
-                col_info["type"] = "string"
-            elif "int" in col_info["type"]:
-                col_info["type"] = "integer"
-            elif "float" in col_info["type"]:
-                col_info["type"] = "float"
-            elif "bool" in col_info["type"]:
-                col_info["type"] = "boolean"
-            elif "datetime" in col_info["type"]:
-                col_info["type"] = "datetime"
-                
-            schema["columns"].append(col_info)
+            # Map pandas dtypes to SQL types
+            if col_dtype == "object":
+                sql_type = "VARCHAR"
+            elif "int" in col_dtype:
+                sql_type = "INTEGER"
+            elif "float" in col_dtype:
+                sql_type = "DOUBLE"
+            elif "bool" in col_dtype:
+                sql_type = "BOOLEAN"
+            elif "datetime" in col_dtype:
+                sql_type = "TIMESTAMP"
+            else:
+                sql_type = "VARCHAR"  # Default fallback
+            
+            columns_sql.append(f"    {col_name} {sql_type}")
         
-        # Determine primary key (assuming PatientID if present)
-        if "PatientID" in df.columns:
-            schema["primary_key"] = ["PatientID"]
-        else:
-            schema["primary_key"] = [df.columns[0]]  # Use first column as default
+        # Generate CREATE TABLE statement
+        create_table_sql = f"CREATE TABLE {table_name} (\n" + ",\n".join(columns_sql) + "\n)"
         
         # Store schema in smart contract
-        schema_json = json.dumps(schema)
-        
-        success = app.state.index_storage.update_table_schema(table_name, schema_json)
+        success = app.state.index_storage.update_table_schema(table_name, create_table_sql)
         if success:
-            logger.info(f"Schema for table '{table_name}' stored in smart contract")
+            logger.info(f"SQL schema for table '{table_name}' stored in smart contract")
         else:
-            logger.error(f"Failed to store schema in smart contract")
+            logger.error(f"Failed to store SQL schema in smart contract")
             return None
         
-        return schema
+        return create_table_sql
         
     except Exception as e:
-        logger.error(f"Failed to auto-detect and store schema: {e}")
+        logger.error(f"Failed to auto-detect and store SQL schema: {e}")
         return None
 
 def retrieve_index(name):
@@ -780,7 +809,7 @@ class UpdateIndexCIDsRequest(BaseModel):
 
 class UpdateTableSchemaRequest(BaseModel):
     table_name: str
-    table_schema: dict  # The schema as a dictionary (renamed to avoid shadowing BaseModel.schema)
+    schema_sql: str  # The schema as SQL CREATE TABLE statement
 
 
 class BatchUpdateTableSchemasRequest(BaseModel):
@@ -831,6 +860,10 @@ async def root():
         "file_support": {
             "csv": "Comma-separated values with headers",
             "sql": "INSERT statements for patient_data table"
+        },
+        "schema_storage": {
+            "format": "SQL CREATE TABLE statements",
+            "description": "Schemas are stored as executable SQL DDL statements in the smart contract"
         },
         "access_control": {
             "enabled": True,
@@ -926,48 +959,43 @@ async def create_or_update_table_schema(request: UpdateTableSchemaRequest):
     Example request body:
     {
         "table_name": "patient_data",
-        "table_schema": {
-            "columns": [
-                {"name": "PatientID", "type": "string", "nullable": false},
-                {"name": "Name", "type": "string", "nullable": false},
-                {"name": "Age", "type": "integer", "nullable": true},
-                {"name": "Gender", "type": "string", "nullable": true},
-                {"name": "BloodType", "type": "string", "nullable": true},
-                {"name": "Condition", "type": "string", "nullable": true},
-                {"name": "VisitDate", "type": "string", "nullable": true},
-                {"name": "Doctor", "type": "string", "nullable": true},
-                {"name": "HospitalID", "type": "string", "nullable": false},
-                {"name": "Prescription", "type": "string", "nullable": true},
-                {"name": "DiagnosisReport", "type": "string", "nullable": true}
-            ],
-            "primary_key": ["PatientID"],
-            "indexes": ["PatientID", "HospitalID", "Age"]
-        }
+        "schema_sql": "CREATE TABLE patient_data (PatientID VARCHAR PRIMARY KEY, Name VARCHAR, Age INTEGER, Gender VARCHAR, BloodType VARCHAR, Condition VARCHAR, VisitDate VARCHAR, Doctor VARCHAR, HospitalID VARCHAR, Prescription VARCHAR, DiagnosisReport VARCHAR)"
     }
     """
     logger.info(f"POST /schemas - Creating/updating schema for table: {request.table_name}")
     
     try:
-        import json
-        schema_json = json.dumps(request.table_schema)
-        logger.info(f"Schema JSON length: {len(schema_json)} characters")
+        # Validate SQL syntax by attempting to parse it with DuckDB
+        temp_conn = duckdb.connect()
+        try:
+            # Test the SQL by executing it in a temporary connection
+            temp_conn.execute(request.schema_sql)
+            logger.info("Schema SQL validated successfully")
+        except Exception as sql_error:
+            logger.error(f"Invalid SQL schema: {sql_error}")
+            return {
+                "status": "error",
+                "message": f"Invalid SQL schema: {str(sql_error)}"
+            }
+        finally:
+            temp_conn.close()
         
-        # Store in smart contract
-        logger.info(f"Attempting to store schema in smart contract for table: {request.table_name}")
-        success = app.state.index_storage.update_table_schema(request.table_name, schema_json)
+        # Store SQL schema directly in smart contract
+        logger.info(f"Attempting to store SQL schema in smart contract for table: {request.table_name}")
+        success = app.state.index_storage.update_table_schema(request.table_name, request.schema_sql)
         logger.info(f"Smart contract update result: {success}")
         
         if success:
             return {
                 "status": "success",
-                "message": f"Schema for table '{request.table_name}' updated successfully in smart contract",
+                "message": f"SQL schema for table '{request.table_name}' updated successfully in smart contract",
                 "table_name": request.table_name,
-                "table_schema": request.table_schema
+                "schema_sql": request.schema_sql
             }
         else:
             return {
                 "status": "error",
-                "message": f"Failed to update schema for table '{request.table_name}' in smart contract"
+                "message": f"Failed to update SQL schema for table '{request.table_name}' in smart contract"
             }
     
     except Exception as e:
@@ -983,14 +1011,10 @@ async def get_all_table_schemas():
     {
         "status": "success",
         "schemas": {
-            "patient_data": {
-                "columns": [...],
-                "primary_key": [...],
-                "indexes": [...]
-            },
+            "patient_data": "CREATE TABLE patient_data (PatientID VARCHAR, Name VARCHAR, ...)",
             ...
         },
-        "smart_contract_enabled": true
+        "storage_type": "smart contract"
     }
     """
     logger.info("GET /schemas - Retrieving all table schemas")
@@ -1004,13 +1028,9 @@ async def get_all_table_schemas():
         
         success, schema_dict = app.state.index_storage.batch_get_table_schemas(known_tables)
         if success:
-            import json
-            for table_name, schema_json in schema_dict.items():
-                if schema_json:  # Only include non-empty schemas
-                    try:
-                        schemas[table_name] = json.loads(schema_json)
-                    except json.JSONDecodeError:
-                        logger.warning(f"Invalid JSON schema for table {table_name}")
+            for table_name, schema_sql in schema_dict.items():
+                if schema_sql:  # Only include non-empty schemas
+                    schemas[table_name] = schema_sql
         else:
             return {
                 "status": "error",
@@ -1020,7 +1040,7 @@ async def get_all_table_schemas():
         return {
             "status": "success",
             "schemas": schemas,
-            "storage_type": "smart contract",
+            "storage_type": "smart contract (SQL format)",
             "timestamp": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
         }
     
@@ -1037,39 +1057,29 @@ async def get_table_schema(table_name: str):
     {
         "status": "success",
         "table_name": "patient_data",
-        "schema": {
-            "columns": [...],
-            "primary_key": [...],
-            "indexes": [...]
-        },
-        "smart_contract_enabled": true
+        "schema_sql": "CREATE TABLE patient_data (PatientID VARCHAR, Name VARCHAR, ...)",
+        "storage_type": "smart contract"
     }
     """
     logger.info(f"GET /schemas/{table_name} - Retrieving schema for table: {table_name}")
     
     try:
-        schema = None
+        schema_sql = None
         
         # Get from smart contract
-        success, schema_json = app.state.index_storage.get_table_schema(table_name)
-        if success and schema_json:
-            import json
-            try:
-                schema = json.loads(schema_json)
-            except json.JSONDecodeError:
-                logger.warning(f"Invalid JSON schema for table {table_name}")
-        elif not success:
+        success, schema_sql = app.state.index_storage.get_table_schema(table_name)
+        if not success:
             return {
                 "status": "error",
                 "message": f"Failed to retrieve schema for table '{table_name}' from smart contract"
             }
         
-        if schema:
+        if schema_sql:
             return {
                 "status": "success",
                 "table_name": table_name,
-                "schema": schema,
-                "storage_type": "smart contract"
+                "schema_sql": schema_sql,
+                "storage_type": "smart contract (SQL format)"
             }
         else:
             return {

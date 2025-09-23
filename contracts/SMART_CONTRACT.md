@@ -271,4 +271,4 @@ npx hardhat test
 
 ## Contract Address
 
-**Sepolia Testnet**: `0x041da68BD3F1bf13C5d75E3bA80ab6bB8B136BFd`
+**Sepolia Testnet**: `0x2528003c5f47dE324B6caDa12507643D46295bec`

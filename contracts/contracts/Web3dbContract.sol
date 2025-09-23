@@ -4,9 +4,16 @@ pragma solidity ^0.8.0;
 contract Web3dbContract {
     // Struct to store access policies
     struct AccessPolicy {
-        address ownerAddress;
+        address subject;  // Address of the policy creator/owner (msg.sender)
+        string tableName;      // Target table name (e.g., "patient_data")
+        string policySql;      // SQL policy condition (e.g., "SELECT * FROM patient_data WHERE PatientID = '38'")
+        address object; // Address of the querier
+    }
+    
+    // Struct to store table schema with name
+    struct TableSchema {
         string tableName;
-        string policySql;
+        string schemaJson;
     }
     
     // Mapping from attribute name (like "PatientID") to its current index CID
@@ -15,7 +22,13 @@ contract Web3dbContract {
     // Mapping from table name to its schema (stored as JSON string)
     mapping(string => string) private tableSchemas;
     
-    // Mapping from wallet address to their access policies
+    // Array to keep track of all table names that have schemas
+    string[] private tableNames;
+    
+    // Mapping to check if a table name exists (for efficient lookups)
+    mapping(string => bool) private tableExists;
+    
+    // Mapping from object address (querier) to their access policies
     mapping(address => AccessPolicy[]) private accessPolicies;
 
     // Event to log index updates
@@ -96,6 +109,13 @@ contract Web3dbContract {
     ) public {
         string memory oldSchema = tableSchemas[tableName];
         tableSchemas[tableName] = schemaJson;
+        
+        // Add table name to the list if it doesn't exist
+        if (!tableExists[tableName]) {
+            tableNames.push(tableName);
+            tableExists[tableName] = true;
+        }
+        
         emit SchemaUpdated(tableName, oldSchema, schemaJson);
     }
     
@@ -108,12 +128,31 @@ contract Web3dbContract {
     
     // Function to get multiple table schemas in one call
     function batchGetTableSchemas(
-        string[] memory tableNames
+        string[] memory tableNamesList
     ) public view returns (string[] memory) {
-        string[] memory results = new string[](tableNames.length);
+        string[] memory results = new string[](tableNamesList.length);
+        
+        for (uint i = 0; i < tableNamesList.length; i++) {
+            results[i] = tableSchemas[tableNamesList[i]];
+        }
+        
+        return results;
+    }
+    
+    // Function to get all table names that have schemas
+    function getAllTableNames() public view returns (string[] memory) {
+        return tableNames;
+    }
+    
+    // Function to get all table schemas with their names
+    function getAllTableSchemas() public view returns (TableSchema[] memory) {
+        TableSchema[] memory results = new TableSchema[](tableNames.length);
         
         for (uint i = 0; i < tableNames.length; i++) {
-            results[i] = tableSchemas[tableNames[i]];
+            results[i] = TableSchema({
+                tableName: tableNames[i],
+                schemaJson: tableSchemas[tableNames[i]]
+            });
         }
         
         return results;
@@ -123,6 +162,22 @@ contract Web3dbContract {
     function removeTableSchema(string memory tableName) public {
         string memory oldSchema = tableSchemas[tableName];
         delete tableSchemas[tableName];
+        
+        // Remove table name from the list if it exists
+        if (tableExists[tableName]) {
+            tableExists[tableName] = false;
+            
+            // Find and remove the table name from the array
+            for (uint i = 0; i < tableNames.length; i++) {
+                if (keccak256(abi.encodePacked(tableNames[i])) == keccak256(abi.encodePacked(tableName))) {
+                    // Move the last element to the deleted spot and remove the last element
+                    tableNames[i] = tableNames[tableNames.length - 1];
+                    tableNames.pop();
+                    break;
+                }
+            }
+        }
+        
         emit SchemaUpdated(tableName, oldSchema, "");
     }
     
@@ -130,46 +185,48 @@ contract Web3dbContract {
     
     // Function to add an access policy for a wallet address
     function addAccessPolicy(
-        address walletAddress,
+        address subject,
+        address object,
         string memory tableName,
         string memory policySql
     ) public {
-        accessPolicies[walletAddress].push(AccessPolicy({
-            ownerAddress: msg.sender,
+        accessPolicies[object].push(AccessPolicy({
+            subject: subject,
             tableName: tableName,
-            policySql: policySql
+            policySql: policySql,
+            object: object
         }));
-        emit AccessPolicyAdded(walletAddress, tableName, policySql);
+        emit AccessPolicyAdded(object, tableName, policySql);
     }
     
-    // Function to get all access policies for a wallet address
+    // Function to get all access policies for an object address (querier)
     function getAccessPolicies(
-        address walletAddress
+        address objectAddress
     ) public view returns (AccessPolicy[] memory) {
-        return accessPolicies[walletAddress];
+        return accessPolicies[objectAddress];
     }
     
-    // Function to get the count of policies for a wallet address
-    function getPolicyCount(address walletAddress) public view returns (uint) {
-        return accessPolicies[walletAddress].length;
+    // Function to get the count of policies for an object address (querier)
+    function getPolicyCount(address objectAddress) public view returns (uint) {
+        return accessPolicies[objectAddress].length;
     }
     
     // Function to remove a specific policy by index
-    function removeAccessPolicy(address walletAddress, uint policyIndex) public {
-        require(policyIndex < accessPolicies[walletAddress].length, "Invalid policy index");
+    function removeAccessPolicy(address objectAddress, uint policyIndex) public {
+        require(policyIndex < accessPolicies[objectAddress].length, "Invalid policy index");
         
-        AccessPolicy memory removedPolicy = accessPolicies[walletAddress][policyIndex];
+        AccessPolicy memory removedPolicy = accessPolicies[objectAddress][policyIndex];
         
         // Move the last element to the deleted spot and remove the last element
-        accessPolicies[walletAddress][policyIndex] = accessPolicies[walletAddress][accessPolicies[walletAddress].length - 1];
-        accessPolicies[walletAddress].pop();
+        accessPolicies[objectAddress][policyIndex] = accessPolicies[objectAddress][accessPolicies[objectAddress].length - 1];
+        accessPolicies[objectAddress].pop();
         
-        emit AccessPolicyRemoved(walletAddress, removedPolicy.tableName);
+        emit AccessPolicyRemoved(objectAddress, removedPolicy.tableName);
     }
     
-    // Function to remove all policies for a wallet address
-    function removeAllAccessPolicies(address walletAddress) public {
-        delete accessPolicies[walletAddress];
-        emit AccessPolicyRemoved(walletAddress, "ALL");
+    // Function to remove all policies for an object address (querier)
+    function removeAllAccessPolicies(address objectAddress) public {
+        delete accessPolicies[objectAddress];
+        emit AccessPolicyRemoved(objectAddress, "ALL");
     }
 }

@@ -192,7 +192,19 @@ async def upload_patient_data(file: UploadFile = File(...)):
     logger.info("POST /upload/patient-data - Processing patient data upload")
     try:
         content = await file.read()
-        df = pd.read_csv(io.BytesIO(content), dtype={"PatientID": str, "HospitalID": str, "Age": int})
+        
+        # Determine file type and process accordingly
+        file_extension = file.filename.lower().split('.')[-1] if file.filename else 'csv'
+        
+        if file_extension == 'sql':
+            # Process SQL file
+            df = process_sql_file(content)
+        elif file_extension == 'csv':
+            # Process CSV file
+            df = pd.read_csv(io.BytesIO(content), dtype={"PatientID": str, "HospitalID": str, "Age": int})
+        else:
+            return {"error": f"Unsupported file type: {file_extension}. Only CSV and SQL files are supported."}
+        
         indexed_values = {k: set(df[k].values) for k in app.state.index_cids if k in df.columns}
 
         # Schema auto-detection disabled - use POST /schemas endpoint to manage schemas separately
@@ -214,6 +226,9 @@ async def upload_patient_data(file: UploadFile = File(...)):
         resp.raise_for_status()
         data_cid = resp.json()["Hash"]
         buffer.close()
+        
+        # Store row count before deleting DataFrame
+        rows_processed = len(df)
         del df 
 
         # Build/update encrypted indexes
@@ -249,7 +264,9 @@ async def upload_patient_data(file: UploadFile = File(...)):
             "data_cid": data_cid,
             "index_cids": get_all_index_cids(),  # Get from smart contract or in-memory
             "index_sizes": app.state.index_sizes,
-            "message": "Data uploaded successfully. Use POST /schemas to manage table schemas separately."
+            "file_type": file_extension,
+            "rows_processed": rows_processed,
+            "message": "Data uploaded successfully. Supports CSV and SQL files. Use POST /schemas to manage table schemas separately."
         }
 
     except Exception as e:
@@ -265,18 +282,18 @@ class QueryRequest(BaseModel):
 
 def rewrite_query_with_access_policies(original_query: str, policies: List[dict], table_name: str = "patient_data") -> str:
     """
-    Rewrite the original query to incorporate access control policies.
+    Rewrite the original query to incorporate access control policies with subject validation.
     
-    For multiple policies, this creates a more complex CTE that combines the conditions 
-    using OR logic rather than UNION to avoid column compatibility issues.
+    For multi-tenant security, each policy condition is combined with OwnerID = subject
+    to ensure the querier can only access data owned by the policy subject.
     
     Args:
         original_query (str): The original SQL query
-        policies (List[dict]): List of access policies with 'policySql' field
+        policies (List[dict]): List of access policies with 'subject', 'object', 'policySql' fields
         table_name (str): The table name to apply policies to
         
     Returns:
-        str: The rewritten query with access control
+        str: The rewritten query with access control and subject validation
     """
     if not policies:
         return ""  # Return empty query if no policies
@@ -286,20 +303,21 @@ def rewrite_query_with_access_policies(original_query: str, policies: List[dict]
     
     for policy in policies:
         policy_sql = policy.get('policySql', '').strip()
-        if policy_sql:
+        subject = policy.get('subject', '').strip()
+        
+        if policy_sql and subject:
             # Extract the WHERE clause from each policy SQL
-            # This is a simple approach - we'll extract conditions from WHERE clauses
             policy_sql_lower = policy_sql.lower()
             
             if 'where' in policy_sql_lower:
                 # Find the WHERE clause
                 where_index = policy_sql_lower.find('where')
                 condition = policy_sql[where_index + 5:].strip()  # +5 for "where"
-                policy_conditions.append(f"({condition})")
+                # Combine subject validation with policy condition
+                policy_conditions.append(f"(OwnerID = '{subject}' AND {condition})")
             else:
-                # If no WHERE clause, this policy allows all data
-                # We'll treat this as a catch-all condition
-                policy_conditions.append("(1=1)")  # Always true condition
+                # If no WHERE clause, this policy allows all data for this subject
+                policy_conditions.append(f"(OwnerID = '{subject}')")
     
     if not policy_conditions:
         return ""  # Return empty query if no valid policies
@@ -308,7 +326,7 @@ def rewrite_query_with_access_policies(original_query: str, policies: List[dict]
     combined_condition = " OR ".join(policy_conditions)
     
     # Create the accessible_part CTE with all columns from original table
-    # and the combined WHERE condition
+    # and the combined WHERE condition with subject validation
     accessible_part_definition = f"SELECT * FROM {table_name} WHERE {combined_condition}"
     
     # Rewrite the original query to use the accessible_part CTE
@@ -416,7 +434,15 @@ async def query(request: QueryRequest):
     return {
         "wallet_address": request.wallet_address,
         "policy_count": len(policies),
-        "policies_applied": [{"table": p.get('tableName'), "sql": p.get('policySql')} for p in policies],
+        "policies_applied": [
+            {
+                "subject": p.get('subject'), 
+                "object": p.get('object'), 
+                "table": p.get('tableName'), 
+                "original_sql": p.get('policySql'),
+                "enforced_condition": f"OwnerID = '{p.get('subject')}' AND ({p.get('policySql', '').split('WHERE')[-1].strip() if 'WHERE' in p.get('policySql', '').upper() else '1=1'})"
+            } for p in policies
+        ],
         "rewritten_query": rewritten_query,
         "cids": len(cids),
         "records": len(results),
@@ -437,73 +463,163 @@ async def fetch_from_ipfs_endpoint(cid: str):
 
 # --- Helper functions ---
 
+def execute_schema_sql(table_name: str, connection=None) -> bool:
+    """
+    Retrieve and execute schema SQL from smart contract for a given table.
+    
+    Args:
+        table_name (str): Name of the table
+        connection: DuckDB connection to use (defaults to global connection)
+        
+    Returns:
+        bool: True if schema was successfully executed, False otherwise
+    """
+    try:
+        # Use provided connection or default to global connection
+        conn = connection if connection else duckdb_conn
+        
+        # Get schema SQL from smart contract
+        success, schema_sql = app.state.index_storage.get_table_schema(table_name)
+        
+        if success and schema_sql:
+            # Execute the CREATE TABLE statement
+            conn.execute(schema_sql)
+            logger.info(f"Successfully executed schema SQL for table '{table_name}'")
+            return True
+        else:
+            logger.error(f"Failed to retrieve schema SQL for table '{table_name}' from smart contract")
+            return False
+            
+    except Exception as e:
+        logger.error(f"Error executing schema SQL for table '{table_name}': {e}")
+        return False
+
+def process_sql_file(content: bytes) -> pd.DataFrame:
+    """
+    Process SQL file by executing it in DuckDB and extracting the resulting data.
+    
+    Args:
+        content (bytes): Raw SQL file content
+        
+    Returns:
+        pd.DataFrame: Data extracted from executed SQL statements
+    """
+    try:
+        # Decode the SQL content
+        sql_content = content.decode('utf-8')
+        
+        # Connect to in-memory DuckDB
+        temp_conn = duckdb.connect()
+        
+        try:
+            # Try to get schema from smart contract first
+            create_table_sql = None
+            try:
+                success, schema_sql = app.state.index_storage.get_table_schema("patient_data")
+                if success and schema_sql:
+                    create_table_sql = schema_sql
+                    logger.info("Using schema from smart contract")
+                else:
+                    logger.warning("Schema not found in smart contract, using fallback")
+            except Exception as e:
+                logger.warning(f"Failed to retrieve schema from smart contract: {e}")
+            
+            # Fallback to hardcoded schema if smart contract schema is not available
+            if not create_table_sql:
+                create_table_sql = """
+                CREATE TABLE patient_data (
+                    PatientID VARCHAR,
+                    Name VARCHAR,
+                    Age INTEGER,
+                    Gender VARCHAR,
+                    BloodType VARCHAR,
+                    Condition VARCHAR,
+                    VisitDate VARCHAR,
+                    Doctor VARCHAR,
+                    HospitalID VARCHAR,
+                    Prescription VARCHAR,
+                    DiagnosisReport VARCHAR
+                )
+                """
+                logger.info("Using fallback hardcoded schema")
+            
+            # Create the patient_data table using the retrieved or fallback schema
+            temp_conn.execute(create_table_sql)
+            
+            # Execute the SQL content (INSERT statements)
+            temp_conn.execute(sql_content)
+            
+            # Query the patient_data table into DataFrame
+            df = temp_conn.execute("SELECT * FROM patient_data").fetchdf()
+            
+            # Convert data types to match expected schema
+            if 'PatientID' in df.columns:
+                df['PatientID'] = df['PatientID'].astype(str)
+            if 'HospitalID' in df.columns:
+                df['HospitalID'] = df['HospitalID'].astype(str)
+            if 'Age' in df.columns:
+                df['Age'] = pd.to_numeric(df['Age'], errors='coerce').astype('Int64')
+            
+            logger.info(f"Processed SQL file: {len(df)} rows extracted from patient_data table")
+            return df
+            
+        finally:
+            # Close the temporary connection
+            temp_conn.close()
+        
+    except Exception as e:
+        logger.error(f"Error processing SQL file: {e}")
+        raise ValueError(f"Failed to process SQL file: {str(e)}")
+
 def auto_detect_and_store_schema(df, table_name):
     """
-    Auto-detect schema from a pandas DataFrame and store it in the smart contract.
+    Auto-detect schema from a pandas DataFrame and store it as SQL CREATE TABLE statement in the smart contract.
     
     Args:
         df (pd.DataFrame): The DataFrame to analyze
         table_name (str): The name of the table
         
     Returns:
-        dict: The detected schema
+        str: The generated SQL CREATE TABLE statement
     """
     try:
-        import json
+        # Build SQL CREATE TABLE statement
+        columns_sql = []
         
-        # Detect schema from DataFrame
-        schema = {
-            "table_name": table_name,
-            "columns": [],
-            "indexes": list(app.state.index_cids.keys()),  # Use the configured index attributes
-            "row_count": len(df),
-            "created_at": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
-        }
-        
-        # Analyze each column
         for col_name in df.columns:
-            col_info = {
-                "name": col_name,
-                "type": str(df[col_name].dtype),
-                "nullable": bool(df[col_name].isnull().any()),  # Convert numpy.bool_ to Python bool
-                "unique_values": int(df[col_name].nunique()),   # Convert numpy.int64 to Python int
-                "sample_values": df[col_name].dropna().head(3).tolist() if not df[col_name].empty else []
-            }
+            col_dtype = str(df[col_name].dtype)
             
-            # Convert numpy types to JSON-serializable types
-            if col_info["type"] == "object":
-                col_info["type"] = "string"
-            elif "int" in col_info["type"]:
-                col_info["type"] = "integer"
-            elif "float" in col_info["type"]:
-                col_info["type"] = "float"
-            elif "bool" in col_info["type"]:
-                col_info["type"] = "boolean"
-            elif "datetime" in col_info["type"]:
-                col_info["type"] = "datetime"
-                
-            schema["columns"].append(col_info)
+            # Map pandas dtypes to SQL types
+            if col_dtype == "object":
+                sql_type = "VARCHAR"
+            elif "int" in col_dtype:
+                sql_type = "INTEGER"
+            elif "float" in col_dtype:
+                sql_type = "DOUBLE"
+            elif "bool" in col_dtype:
+                sql_type = "BOOLEAN"
+            elif "datetime" in col_dtype:
+                sql_type = "TIMESTAMP"
+            else:
+                sql_type = "VARCHAR"  # Default fallback
+            
+            columns_sql.append(f"    {col_name} {sql_type}")
         
-        # Determine primary key (assuming PatientID if present)
-        if "PatientID" in df.columns:
-            schema["primary_key"] = ["PatientID"]
-        else:
-            schema["primary_key"] = [df.columns[0]]  # Use first column as default
+        # Generate CREATE TABLE statement
+        create_table_sql = f"CREATE TABLE {table_name} (\n" + ",\n".join(columns_sql) + "\n)"
         
         # Store schema in smart contract
-        schema_json = json.dumps(schema)
-        
-        success = app.state.index_storage.update_table_schema(table_name, schema_json)
+        success = app.state.index_storage.update_table_schema(table_name, create_table_sql)
         if success:
-            logger.info(f"Schema for table '{table_name}' stored in smart contract")
+            logger.info(f"SQL schema for table '{table_name}' stored in smart contract")
         else:
-            logger.error(f"Failed to store schema in smart contract")
+            logger.error(f"Failed to store SQL schema in smart contract")
             return None
         
-        return schema
+        return create_table_sql
         
     except Exception as e:
-        logger.error(f"Failed to auto-detect and store schema: {e}")
+        logger.error(f"Failed to auto-detect and store SQL schema: {e}")
         return None
 
 def retrieve_index(name):
@@ -702,7 +818,7 @@ class UpdateIndexCIDsRequest(BaseModel):
 
 class UpdateTableSchemaRequest(BaseModel):
     table_name: str
-    table_schema: dict  # The schema as a dictionary (renamed to avoid shadowing BaseModel.schema)
+    schema_sql: str  # The schema as SQL CREATE TABLE statement
 
 
 class BatchUpdateTableSchemasRequest(BaseModel):
@@ -710,13 +826,14 @@ class BatchUpdateTableSchemasRequest(BaseModel):
 
 
 class AddAccessPolicyRequest(BaseModel):
-    wallet_address: str
+    subject_address: str  # The policy creator/owner address
+    object_address: str  # The querier address (who the policy applies to)
     table_name: str
     policy_sql: str
 
 
 class RemoveAccessPolicyRequest(BaseModel):
-    wallet_address: str
+    object_address: str  # The querier address (who the policy applies to)
     policy_index: int
 
 
@@ -741,18 +858,29 @@ async def root():
             "health": "GET /health",
             "query": "POST /query (requires wallet_address for access control)", 
             "query-count": "GET /query/count",
-            "upload": "POST /upload/patient-data",
+            "upload": "POST /upload/patient-data (supports CSV and SQL files)",
             "index-cids": "GET /index-cids",
             "schemas": "GET /schemas, POST /schemas",
+            "schema-tables": "GET /schemas/tables",
             "schema-by-table": "GET /schemas/{table_name}, DELETE /schemas/{table_name}",
-            "access-policies": "POST /access-policies, GET /access-policies/{wallet_address}, DELETE /access-policies",
-            "policy-count": "GET /access-policies/{wallet_address}/count",
-            "remove-all-policies": "DELETE /access-policies/{wallet_address}/all",
+            "access-policies": "POST /access-policies, GET /access-policies/{object_address}, DELETE /access-policies",
+            "policy-count": "GET /access-policies/{object_address}/count",
+            "remove-all-policies": "DELETE /access-policies/{object_address}/all",
             "docs": "GET /docs"
+        },
+        "file_support": {
+            "csv": "Comma-separated values with headers",
+            "sql": "INSERT statements for patient_data table"
+        },
+        "schema_storage": {
+            "format": "SQL CREATE TABLE statements",
+            "description": "Schemas are stored as executable SQL DDL statements in the smart contract"
         },
         "access_control": {
             "enabled": True,
-            "description": "All queries require a wallet_address parameter and are filtered based on access policies stored in the smart contract"
+            "description": "All queries require a wallet_address parameter and are filtered based on access policies stored in the smart contract. Multi-tenant security ensures users can only access data where OwnerID matches the policy subject.",
+            "enforcement": "Query rewriting with CTE combining OwnerID = subject AND policy conditions",
+            "example": "WITH accessible_part AS (SELECT * FROM table WHERE (OwnerID = 'subject1' AND condition1) OR (OwnerID = 'subject2' AND condition2)) SELECT * FROM accessible_part"
         }
     }
 
@@ -844,48 +972,43 @@ async def create_or_update_table_schema(request: UpdateTableSchemaRequest):
     Example request body:
     {
         "table_name": "patient_data",
-        "table_schema": {
-            "columns": [
-                {"name": "PatientID", "type": "string", "nullable": false},
-                {"name": "Name", "type": "string", "nullable": false},
-                {"name": "Age", "type": "integer", "nullable": true},
-                {"name": "Gender", "type": "string", "nullable": true},
-                {"name": "BloodType", "type": "string", "nullable": true},
-                {"name": "Condition", "type": "string", "nullable": true},
-                {"name": "VisitDate", "type": "string", "nullable": true},
-                {"name": "Doctor", "type": "string", "nullable": true},
-                {"name": "HospitalID", "type": "string", "nullable": false},
-                {"name": "Prescription", "type": "string", "nullable": true},
-                {"name": "DiagnosisReport", "type": "string", "nullable": true}
-            ],
-            "primary_key": ["PatientID"],
-            "indexes": ["PatientID", "HospitalID", "Age"]
-        }
+        "schema_sql": "CREATE TABLE patient_data (PatientID VARCHAR PRIMARY KEY, Name VARCHAR, Age INTEGER, Gender VARCHAR, BloodType VARCHAR, Condition VARCHAR, VisitDate VARCHAR, Doctor VARCHAR, HospitalID VARCHAR, Prescription VARCHAR, DiagnosisReport VARCHAR)"
     }
     """
     logger.info(f"POST /schemas - Creating/updating schema for table: {request.table_name}")
     
     try:
-        import json
-        schema_json = json.dumps(request.table_schema)
-        logger.info(f"Schema JSON length: {len(schema_json)} characters")
+        # Validate SQL syntax by attempting to parse it with DuckDB
+        temp_conn = duckdb.connect()
+        try:
+            # Test the SQL by executing it in a temporary connection
+            temp_conn.execute(request.schema_sql)
+            logger.info("Schema SQL validated successfully")
+        except Exception as sql_error:
+            logger.error(f"Invalid SQL schema: {sql_error}")
+            return {
+                "status": "error",
+                "message": f"Invalid SQL schema: {str(sql_error)}"
+            }
+        finally:
+            temp_conn.close()
         
-        # Store in smart contract
-        logger.info(f"Attempting to store schema in smart contract for table: {request.table_name}")
-        success = app.state.index_storage.update_table_schema(request.table_name, schema_json)
+        # Store SQL schema directly in smart contract
+        logger.info(f"Attempting to store SQL schema in smart contract for table: {request.table_name}")
+        success = app.state.index_storage.update_table_schema(request.table_name, request.schema_sql)
         logger.info(f"Smart contract update result: {success}")
         
         if success:
             return {
                 "status": "success",
-                "message": f"Schema for table '{request.table_name}' updated successfully in smart contract",
+                "message": f"SQL schema for table '{request.table_name}' updated successfully in smart contract",
                 "table_name": request.table_name,
-                "table_schema": request.table_schema
+                "schema_sql": request.schema_sql
             }
         else:
             return {
                 "status": "error",
-                "message": f"Failed to update schema for table '{request.table_name}' in smart contract"
+                "message": f"Failed to update SQL schema for table '{request.table_name}' in smart contract"
             }
     
     except Exception as e:
@@ -901,103 +1024,69 @@ async def get_all_table_schemas():
     {
         "status": "success",
         "schemas": {
-            "patient_data": {
-                "columns": [...],
-                "primary_key": [...],
-                "indexes": [...]
-            },
+            "patient_data": "CREATE TABLE patient_data (PatientID VARCHAR, Name VARCHAR, ...)",
             ...
         },
-        "smart_contract_enabled": true
+        "storage_type": "smart contract"
     }
     """
     logger.info("GET /schemas - Retrieving all table schemas")
     
     try:
-        schemas = {}
+        # Use the new smart contract method to get all table schemas
+        success, schemas = app.state.index_storage.get_all_table_schemas()
         
-        # Get known table names (you may want to maintain a list or discover them)
-        # For now, we'll assume patient_data is the main table
-        known_tables = ["patient_data"]  # You can extend this or make it dynamic
-        
-        success, schema_dict = app.state.index_storage.batch_get_table_schemas(known_tables)
         if success:
-            import json
-            for table_name, schema_json in schema_dict.items():
-                if schema_json:  # Only include non-empty schemas
-                    try:
-                        schemas[table_name] = json.loads(schema_json)
-                    except json.JSONDecodeError:
-                        logger.warning(f"Invalid JSON schema for table {table_name}")
+            return {
+                "status": "success",
+                "schemas": schemas,
+                "storage_type": "smart contract (SQL format)",
+                "timestamp": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+            }
         else:
             return {
                 "status": "error",
                 "message": "Failed to retrieve schemas from smart contract"
             }
-        
-        return {
-            "status": "success",
-            "schemas": schemas,
-            "storage_type": "smart contract",
-            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
-        }
     
     except Exception as e:
         logger.error(f"Error retrieving table schemas: {e}")
         return {"status": "error", "message": str(e)}
 
-@app.get("/schemas/{table_name}")
-async def get_table_schema(table_name: str):
+@app.get("/schemas/tables")
+async def get_all_table_names():
     """
-    Get the schema for a specific table from smart contract.
+    Get all table names that have schemas stored in the smart contract.
     
     Returns:
     {
         "status": "success",
-        "table_name": "patient_data",
-        "schema": {
-            "columns": [...],
-            "primary_key": [...],
-            "indexes": [...]
-        },
-        "smart_contract_enabled": true
+        "table_names": ["patient_data", "user_profiles", ...],
+        "total_tables": 2
     }
     """
-    logger.info(f"GET /schemas/{table_name} - Retrieving schema for table: {table_name}")
+    logger.info("GET /schemas/tables - Retrieving all table names")
     
     try:
-        schema = None
+        # Use the new smart contract method to get all table names
+        success, table_names = app.state.index_storage.get_all_table_names()
         
-        # Get from smart contract
-        success, schema_json = app.state.index_storage.get_table_schema(table_name)
-        if success and schema_json:
-            import json
-            try:
-                schema = json.loads(schema_json)
-            except json.JSONDecodeError:
-                logger.warning(f"Invalid JSON schema for table {table_name}")
-        elif not success:
-            return {
-                "status": "error",
-                "message": f"Failed to retrieve schema for table '{table_name}' from smart contract"
-            }
-        
-        if schema:
+        if success:
             return {
                 "status": "success",
-                "table_name": table_name,
-                "schema": schema,
-                "storage_type": "smart contract"
+                "table_names": table_names,
+                "total_tables": len(table_names),
+                "storage_type": "smart contract",
+                "timestamp": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
             }
         else:
             return {
-                "status": "not_found",
-                "message": f"Schema for table '{table_name}' not found",
-                "table_name": table_name
+                "status": "error",
+                "message": "Failed to retrieve table names from smart contract"
             }
     
     except Exception as e:
-        logger.error(f"Error retrieving schema for table {table_name}: {e}")
+        logger.error(f"Error retrieving table names: {e}")
         return {"status": "error", "message": str(e)}
 
 @app.delete("/schemas/{table_name}")
@@ -1027,26 +1116,72 @@ async def delete_table_schema(table_name: str):
         logger.error(f"Error deleting schema for table {table_name}: {e}")
         return {"status": "error", "message": str(e)}
 
+@app.get("/schemas/{table_name}")
+async def get_table_schema(table_name: str):
+    """
+    Get the schema for a specific table from smart contract.
+    
+    Returns:
+    {
+        "status": "success",
+        "table_name": "patient_data",
+        "schema_sql": "CREATE TABLE patient_data (PatientID VARCHAR, Name VARCHAR, ...)",
+        "storage_type": "smart contract"
+    }
+    """
+    logger.info(f"GET /schemas/{table_name} - Retrieving schema for table: {table_name}")
+    
+    try:
+        schema_sql = None
+        
+        # Get from smart contract
+        success, schema_sql = app.state.index_storage.get_table_schema(table_name)
+        if not success:
+            return {
+                "status": "error",
+                "message": f"Failed to retrieve schema for table '{table_name}' from smart contract"
+            }
+        
+        if schema_sql:
+            return {
+                "status": "success",
+                "table_name": table_name,
+                "schema_sql": schema_sql,
+                "storage_type": "smart contract (SQL format)"
+            }
+        else:
+            return {
+                "status": "not_found",
+                "message": f"Schema for table '{table_name}' not found",
+                "table_name": table_name
+            }
+    
+    except Exception as e:
+        logger.error(f"Error retrieving schema for table {table_name}: {e}")
+        return {"status": "error", "message": str(e)}
+
 # Access Policy Management Endpoints
 
 @app.post("/access-policies")
 async def add_access_policy(request: AddAccessPolicyRequest):
     """
-    Add an access policy for a wallet address.
+    Add an access policy for an object address (querier).
     
     Example request body:
     {
-        "wallet_address": "0x68ef100cC9dAdE0bb67a0aE99A02CDd1eaE54A2f",
+        "subject_address": "0x123...",
+        "object_address": "0x68ef100cC9dAdE0bb67a0aE99A02CDd1eaE54A2f",
         "table_name": "patient_data",
         "policy_sql": "SELECT * FROM patient_data WHERE PatientID = '38'"
     }
     """
-    logger.info(f"POST /access-policies - Adding access policy for wallet: {request.wallet_address}")
+    logger.info(f"POST /access-policies - Adding access policy for subject: {request.subject_address}, object: {request.object_address}")
     
     try:
         # Store in smart contract
         success = app.state.index_storage.add_access_policy(
-            request.wallet_address, 
+            request.subject_address,
+            request.object_address, 
             request.table_name, 
             request.policy_sql
         )
@@ -1055,7 +1190,8 @@ async def add_access_policy(request: AddAccessPolicyRequest):
             return {
                 "status": "success",
                 "message": f"Access policy added successfully in smart contract",
-                "wallet_address": request.wallet_address,
+                "subject_address": request.subject_address,
+                "object_address": request.object_address,
                 "table_name": request.table_name,
                 "policy_sql": request.policy_sql
             }
@@ -1069,35 +1205,36 @@ async def add_access_policy(request: AddAccessPolicyRequest):
         logger.error(f"Error adding access policy: {e}")
         return {"status": "error", "message": str(e)}
 
-@app.get("/access-policies/{wallet_address}")
-async def get_access_policies(wallet_address: str):
+@app.get("/access-policies/{object_address}")
+async def get_access_policies(object_address: str):
     """
-    Get all access policies for a wallet address from smart contract.
+    Get all access policies for an object address (querier) from smart contract.
     
     Returns:
     {
         "status": "success",
-        "wallet_address": "0x68ef100cC9dAdE0bb67a0aE99A02CDd1eaE54A2f",
+        "object_address": "0x68ef100cC9dAdE0bb67a0aE99A02CDd1eaE54A2f",
         "policies": [
             {
-                "ownerAddress": "0x123...",
+                "subject": "0x123...",
                 "tableName": "patient_data",
-                "policySql": "SELECT * FROM patient_data WHERE PatientID = '38'"
+                "policySql": "SELECT * FROM patient_data WHERE PatientID = '38'",
+                "object": "0x68ef100cC9dAdE0bb67a0aE99A02CDd1eaE54A2f"
             }
         ],
         "smart_contract_enabled": true
     }
     """
-    logger.info(f"GET /access-policies/{wallet_address} - Retrieving access policies")
+    logger.info(f"GET /access-policies/{object_address} - Retrieving access policies")
     
     try:
         # Get from smart contract
-        success, policies = app.state.index_storage.get_access_policies(wallet_address)
+        success, policies = app.state.index_storage.get_access_policies(object_address)
         
         if success:
             return {
                 "status": "success",
-                "wallet_address": wallet_address,
+                "object_address": object_address,
                 "policies": policies,
                 "policy_count": len(policies),
                 "storage_type": "smart contract",
@@ -1110,31 +1247,31 @@ async def get_access_policies(wallet_address: str):
             }
     
     except Exception as e:
-        logger.error(f"Error retrieving access policies for {wallet_address}: {e}")
+        logger.error(f"Error retrieving access policies for {object_address}: {e}")
         return {"status": "error", "message": str(e)}
 
-@app.get("/access-policies/{wallet_address}/count")
-async def get_policy_count(wallet_address: str):
+@app.get("/access-policies/{object_address}/count")
+async def get_policy_count(object_address: str):
     """
-    Get the count of policies for a wallet address from smart contract.
+    Get the count of policies for an object address (querier) from smart contract.
     
     Returns:
     {
         "status": "success",
-        "wallet_address": "0x68ef100cC9dAdE0bb67a0aE99A02CDd1eaE54A2f",
+        "object_address": "0x68ef100cC9dAdE0bb67a0aE99A02CDd1eaE54A2f",
         "count": 3
     }
     """
-    logger.info(f"GET /access-policies/{wallet_address}/count - Getting policy count")
+    logger.info(f"GET /access-policies/{object_address}/count - Getting policy count")
     
     try:
         # Get from smart contract
-        success, count = app.state.index_storage.get_policy_count(wallet_address)
+        success, count = app.state.index_storage.get_policy_count(object_address)
         
         if success:
             return {
                 "status": "success",
-                "wallet_address": wallet_address,
+                "object_address": object_address,
                 "count": count,
                 "storage_type": "smart contract"
             }
@@ -1145,7 +1282,7 @@ async def get_policy_count(wallet_address: str):
             }
     
     except Exception as e:
-        logger.error(f"Error getting policy count for {wallet_address}: {e}")
+        logger.error(f"Error getting policy count for {object_address}: {e}")
         return {"status": "error", "message": str(e)}
 
 @app.delete("/access-policies")
@@ -1155,16 +1292,16 @@ async def remove_access_policy(request: RemoveAccessPolicyRequest):
     
     Example request body:
     {
-        "wallet_address": "0x68ef100cC9dAdE0bb67a0aE99A02CDd1eaE54A2f",
+        "object_address": "0x68ef100cC9dAdE0bb67a0aE99A02CDd1eaE54A2f",
         "policy_index": 0
     }
     """
-    logger.info(f"DELETE /access-policies - Removing policy index {request.policy_index} for wallet: {request.wallet_address}")
+    logger.info(f"DELETE /access-policies - Removing policy index {request.policy_index} for object: {request.object_address}")
     
     try:
         # Remove from smart contract
         success = app.state.index_storage.remove_access_policy(
-            request.wallet_address, 
+            request.object_address, 
             request.policy_index
         )
         
@@ -1172,7 +1309,7 @@ async def remove_access_policy(request: RemoveAccessPolicyRequest):
             return {
                 "status": "success",
                 "message": f"Access policy removed successfully from smart contract",
-                "wallet_address": request.wallet_address,
+                "object_address": request.object_address,
                 "policy_index": request.policy_index
             }
         else:
@@ -1185,22 +1322,22 @@ async def remove_access_policy(request: RemoveAccessPolicyRequest):
         logger.error(f"Error removing access policy: {e}")
         return {"status": "error", "message": str(e)}
 
-@app.delete("/access-policies/{wallet_address}/all")
-async def remove_all_access_policies(wallet_address: str):
+@app.delete("/access-policies/{object_address}/all")
+async def remove_all_access_policies(object_address: str):
     """
-    Remove all access policies for a wallet address from smart contract.
+    Remove all access policies for an object address (querier) from smart contract.
     """
-    logger.info(f"DELETE /access-policies/{wallet_address}/all - Removing all policies for wallet")
+    logger.info(f"DELETE /access-policies/{object_address}/all - Removing all policies for object")
     
     try:
         # Remove from smart contract
-        success = app.state.index_storage.remove_all_access_policies(wallet_address)
+        success = app.state.index_storage.remove_all_access_policies(object_address)
         
         if success:
             return {
                 "status": "success",
                 "message": f"All access policies removed successfully from smart contract",
-                "wallet_address": wallet_address
+                "object_address": object_address
             }
         else:
             return {
@@ -1209,7 +1346,7 @@ async def remove_all_access_policies(wallet_address: str):
             }
     
     except Exception as e:
-        logger.error(f"Error removing all access policies for {wallet_address}: {e}")
+        logger.error(f"Error removing all access policies for {object_address}: {e}")
         return {"status": "error", "message": str(e)}
 
 @app.get("/query/count")
@@ -1331,4 +1468,4 @@ def shutdown_event():
 if __name__ == "__main__":
     import uvicorn
     logger.info("Starting FastAPI server...")
-    uvicorn.run(app, host="0.0.0.0", port=8001, log_level="info")
+    uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info")

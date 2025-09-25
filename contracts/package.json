@@ -4,7 +4,16 @@
   "description": "This project demonstrates a basic Hardhat use case. It comes with a sample contract, a test for that contract, and a Hardhat Ignition module that deploys that contract.",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "npx hardhat test",
+    "compile": "npx hardhat compile",
+    "deploy:local": "npx hardhat run scripts/deploy-local-ignition.js --network hardhat",
+    "test:local": "npx hardhat run scripts/test-local-ignition.js --network hardhat",
+    "node": "npx hardhat node",
+    "deploy:ignition": "npx hardhat ignition deploy ignition/modules/Web3dbModule.js --network hardhat",
+    "deploy:localhost": "npx hardhat ignition deploy ignition/modules/Web3dbModule.js --network localhost",
+    "get-address": "npx hardhat run scripts/get-deployed-address.js",
+    "interact:local": "npx hardhat run scripts/interact-local.js --network hardhat",
+    "clean": "npx hardhat clean"
   },
   "keywords": [],
   "author": "",

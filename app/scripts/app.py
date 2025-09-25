@@ -59,9 +59,12 @@ os.makedirs(SHARED_TMP_DIR, exist_ok=True)
 app.state.index_storage = None
 try:
     app.state.index_storage = Web3dbContract(
-        contract_address=os.getenv("CONTRACT_ADDRESS"),
-        infura_api_key=os.getenv("INFURA_API_KEY"),
-        private_key=os.getenv("PRIVATE_KEY")
+        # contract_address=os.getenv("CONTRACT_ADDRESS"),
+        contract_address="0x5FbDB2315678afecb367f032d93F642f64180aa3",
+        infura_api_key=os.getenv("INFURA_API_KEY", "eb1d43f1429e49fba50e18fbf5ebd4ab"),
+        # private_key=os.getenv("PRIVATE_KEY")
+        private_key="ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80",
+        abi_path="/Users/tangwenyi/Desktop/web3db-temp-test/web3db-backend/contracts/artifacts/contracts/Web3dbContract.sol/Web3dbContract.json"
     )
     logger.info("Smart contract connection initialized successfully")
 except Exception as e:

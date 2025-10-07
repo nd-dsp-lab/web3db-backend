@@ -44,6 +44,15 @@ Deletes records from the database based on a SQL DELETE query with access contro
   "deletion_stats": {
     "total_deletions": 15,
     "last_deletion": 1727123456.789
+  },
+  "performance": {
+    "cid_processing_time_seconds": 2.45,
+    "records_processed": 5
+  },
+  "debug_info": {
+    "deleted_patient_ids": ["323", "324", "325"],
+    "old_cids_replaced": ["QmOldCID1...", "QmOldCID2..."],
+    "new_cids_created": ["QmNewCID1...", "EMPTY"]
   }
 }
 ```
@@ -76,6 +85,14 @@ Uses existing index system to find CIDs that might contain matching records:
 - Leverages the PatientID index for efficient lookup
 - Reuses the `query_index` function for consistent behavior
 - Returns list of CIDs to process
+- Supports configurable index attribute (defaults to 'PatientID')
+- Provides async interface for integration with the DELETE endpoint
+
+```python
+async def find_cids_containing_records(where_clause: str, index_attribute: str = 'PatientID'):
+    # Uses query_index to find relevant CIDs based on WHERE clause
+    # Returns list of CIDs that potentially contain matching records
+```
 
 ### 3. Parallel CID Processing (`process_cid_for_deletion`)
 
@@ -86,6 +103,12 @@ For each CID containing potentially matching records:
 3. **Filter Records**: Remove deletable records from the dataset
 4. **Re-encrypt & Store**: Create new encrypted Parquet file and upload to IPFS
 5. **Handle Empty Cases**: Return "EMPTY" indicator if all records are deleted
+
+**Threading Configuration:**
+- Conservative worker count: `max_workers = min(4, len(relevant_cids))`
+- Individual CID timeout: 15 seconds
+- Overall processing timeout: 30 seconds
+- Uses `ThreadPoolExecutor` with `concurrent.futures` for reliability
 
 ### 4. Index Management (`update_indexes_after_deletion`)
 
@@ -105,29 +128,24 @@ DELETE operations respect the same access control policies as SELECT queries:
 
 ## Key Features
 
-### ✅ **ACID Properties**
+### **ACID Properties**
 - **Atomicity**: All-or-nothing operations per CID
 - **Consistency**: Indexes always reflect current state
 - **Isolation**: Parallel processing with proper coordination
 - **Durability**: All changes persisted to IPFS and blockchain
 
-### ✅ **Performance Optimized**
+### **Performance Optimized**
 - **Parallel Processing**: Multiple CIDs processed concurrently
 - **Efficient Indexing**: Batch updates to minimize smart contract calls
 - **Memory Management**: Proper cleanup of temporary files
 - **Index Reuse**: Leverages existing index infrastructure
 
-### ✅ **Security & Access Control**
+### **Security & Access Control**
 - **Policy Enforcement**: Only authorized deletions allowed
 - **Audit Trail**: Complete record of deletion operations
 - **Wallet Authentication**: All operations tied to wallet addresses
 - **Immutable Logs**: Deletion statistics tracked permanently
 
-### ✅ **Data Integrity**
-- **Referential Integrity**: All indexes updated consistently
-- **Version Control**: New CIDs replace old ones atomically
-- **Error Recovery**: Failed operations don't corrupt existing data
-- **Comprehensive Logging**: Detailed operation tracking
 
 ## Usage Examples
 
@@ -185,62 +203,91 @@ curl -X POST http://localhost:8001/delete \
    {"message": "No records found matching the DELETE criteria", "deleted_count": 0}
    ```
 
-## Performance Characteristics
+5. **CID Processing Timeout**
+   ```json
+   {"error": "DELETE operation timed out"}
+   ```
 
-### Typical Operations
+6. **Index Update Timeout**
+   ```json
+   {"error": "DELETE operation failed: Index update timed out after 30 seconds"}
+   ```
 
-- **Single Record Deletion**: ~0.5-2 seconds
-- **Batch Deletion (10-100 records)**: ~2-10 seconds  
-- **Large Batch (100+ records)**: ~10-30 seconds
-- **Index Updates**: ~0.1-0.5 seconds per index
+7. **CID Processing Failure**
+   ```json
+   {"error": "CID processing failed: [specific error details]"}
+   ```
 
-### Factors Affecting Performance
+## Enhanced Response Format
 
-1. **Number of CIDs**: More CIDs = more parallel processing
-2. **CID Size**: Larger Parquet files take longer to process
-3. **Network Latency**: IPFS upload/download speeds
-4. **Index Size**: Larger indexes take longer to update
-5. **Access Policy Complexity**: More complex policies require more processing
+The DELETE endpoint provides comprehensive information about the operation:
+
+### Performance Metrics
+- **cid_processing_time_seconds**: Time spent processing all CIDs
+- **records_processed**: Total number of records that were deleted
+
+### Debug Information
+- **deleted_patient_ids**: List of PatientIDs that were actually deleted
+- **old_cids_replaced**: List of original CIDs that were replaced
+- **new_cids_created**: List of new CIDs created ("EMPTY" for completely deleted CIDs)
+
+### Operation Metadata
+- **policy_count**: Number of access policies applied
+- **index_update_success**: Boolean indicating if index updates succeeded
+- **deletion_stats**: Current system-wide deletion statistics
+
 
 ## Monitoring & Statistics
 
-The system tracks deletion statistics:
+The system tracks deletion statistics in real-time:
 
 ```python
 app.state.deletion_stats = {
     'total_deletions': 150,      # Total records deleted since startup
-    'last_deletion': 1727123456.789  # Timestamp of last deletion
+    'last_deletion': 1727123456.789  # Timestamp of last deletion (None if no deletions)
 }
 ```
 
-Access via:
-- `GET /delete/stats` (if implemented)
-- Included in DELETE response
-- Available in health check endpoint
+
+**Performance Monitoring:**
+Each DELETE response includes detailed performance metrics:
+```json
+{
+  "performance": {
+    "cid_processing_time_seconds": 2.45,
+    "records_processed": 5
+  },
+  "debug_info": {
+    "deleted_patient_ids": ["323", "324"],
+    "old_cids_replaced": ["QmOld..."],
+    "new_cids_created": ["QmNew..."]
+  }
+}
+```
 
 ## Integration with Existing Features
 
-### ✅ **SELECT Queries**
+### **SELECT Queries**
 - Deleted records automatically excluded from future queries
 - No changes needed to existing SELECT implementation
 - Consistent access control enforcement
 
-### ✅ **Index System**
+### **Index System**
 - Reuses existing CIDIndex infrastructure
 - Compatible with PatientID, HospitalID, Age indexes
 - Maintains index performance characteristics
 
-### ✅ **Smart Contract Integration**
+### **Smart Contract Integration**
 - Uses existing index CID storage
 - Batch updates minimize blockchain transaction costs
 - Consistent with upload/query patterns
 
-### ✅ **Access Control**
+### **Access Control**
 - Same policy system as SELECT queries
 - Query rewriting ensures security
 - Audit trail maintained
 
-## Future Enhancements
+## Future Improvements
 
 ### Potential Improvements
 
@@ -248,8 +295,6 @@ Access via:
 2. **Bulk Operations**: Optimized multi-query deletion
 3. **Compaction Scheduling**: Automatic cleanup of old CIDs
 4. **Deletion Audit Log**: Detailed tracking of all deletions
-5. **Recovery Tools**: Utilities to restore accidentally deleted data
-6. **Performance Monitoring**: Real-time deletion operation metrics
 
 ### Advanced Features
 
@@ -260,17 +305,17 @@ Access via:
 
 ## Security Considerations
 
-### ✅ **Access Control**
+### **Access Control**
 - DELETE operations require valid access policies
 - Users can only delete records they have access to
 - Wallet-based authentication mandatory
 
-### ✅ **Data Protection**
+### **Data Protection**
 - All data remains encrypted on IPFS
 - Deletion creates new encrypted versions
 - Original data may remain on IPFS (immutable)
 
-### ✅ **Audit Trail**
+### **Audit Trail**
 - Complete logging of deletion operations
 - Wallet addresses tracked for all deletions
 - Timestamps and query details preserved
@@ -278,30 +323,36 @@ Access via:
 ### ⚠️ **IPFS Immutability Note**
 While records are "deleted" from the database perspective, the original encrypted data may still exist on IPFS nodes. For true data purging, additional IPFS garbage collection and pin management would be required.
 
-## Testing
+## Implementation Functions
 
-Use the provided test script:
+### Core Functions
 
-```bash
-cd /home/shossain/web3db-backend/app
-python test_delete_endpoint.py
-```
+#### `parse_delete_query(delete_query: str)`
+- **Purpose**: Parse SQL DELETE statement into components
+- **Input**: Raw SQL DELETE query string
+- **Output**: Tuple of (table_name, where_clause, primary_key_value)
+- **Validation**: Ensures proper SQL syntax and supported table names
 
-The test script includes:
-- Single record deletion tests
-- Multiple record deletion tests  
-- Invalid query handling tests
-- Access control validation tests
-- Server connectivity verification
+#### `find_cids_containing_records(where_clause: str, index_attribute: str = 'PatientID')`
+- **Purpose**: Async function to find CIDs that may contain matching records
+- **Input**: WHERE clause and index attribute to search
+- **Output**: List of relevant CIDs to process
+- **Method**: Uses existing query_index infrastructure
 
-## Conclusion
+#### `process_cid_for_deletion(cid: str, where_clause: str, wallet_address: str)`
+- **Purpose**: Process individual CID for deletion
+- **Input**: CID to process, WHERE clause, wallet address
+- **Output**: Tuple of (new_cid, all_records, deleted_records)
+- **Operations**: Decrypt → Filter → Access Control → Re-encrypt → Upload
 
-The DELETE implementation provides robust, secure, and performant record deletion capabilities while maintaining the core architectural principles of the Web3DB system:
+#### `apply_where_clause_to_dataframe(df: pd.DataFrame, where_clause: str)`
+- **Purpose**: Apply WHERE clause filtering to DataFrame
+- **Input**: DataFrame and WHERE clause string
+- **Output**: Filtered DataFrame with matching records
+- **Features**: Supports complex WHERE conditions with proper SQL parsing
 
-- **Immutable Storage**: Creates new versions rather than modifying existing data
-- **Decentralized Architecture**: Uses IPFS and smart contracts consistently
-- **Access Control**: Enforces user permissions on all operations
-- **Performance**: Optimized for concurrent processing and efficient indexing
-- **Integration**: Seamlessly works with existing SELECT and INSERT operations
-
-The implementation balances true data deletion capabilities with the immutable nature of IPFS, providing a practical solution for privacy-preserving decentralized database operations.
+#### `update_indexes_after_deletion(old_cid: str, new_cid: str, all_records: List[dict], deleted_records: List[dict])`
+- **Purpose**: Async function to update all indexes after deletion
+- **Input**: Old/new CID mapping and record lists
+- **Output**: Boolean success indicator
+- **Operations**: Remove old mappings → Add new mappings → Batch smart contract update

@@ -1,15 +1,15 @@
 # UPDATE Implementation Documentation
 
-## Architecture Philosophy
+## Architecture
 
-### Delete + Insert Paradigm
+### Delete + Insert
 The UPDATE operation follows a **"delete + insert"** semantic:
 - Original data CIDs are replaced with new CIDs containing updated records
 - All records are preserved in the new CID (no data loss)
 - Indexes are updated to point to new CIDs
 - Historical versions remain accessible in IPFS
 
-### Key Design Principles
+### Key Design
 1. **Immutability**: No data is ever truly deleted or modified in-place
 2. **Atomicity**: Either all updates succeed or none do
 3. **Multi-tenancy**: Strong isolation between different wallet owners

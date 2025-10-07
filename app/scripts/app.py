@@ -17,6 +17,8 @@ from pydantic import BaseModel
 import concurrent.futures
 from cidindex import CIDIndex
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+import hashlib
+import uuid
 from cryptography.hazmat.primitives import padding
 from cryptography.hazmat.backends import default_backend
 import secrets
@@ -73,8 +75,13 @@ app.state.index_cids = {
     'PatientID': None,
     'HospitalID': None,
     'Age': None,
+    'deletion_log': None,  # Track deletion operations
 }
 app.state.index_sizes = {}
+app.state.deletion_stats = {
+    'total_deletions': 0,
+    'last_deletion': None
+}
 
 # Encryption key management
 # In production, use a proper key management service
@@ -278,6 +285,10 @@ async def upload_patient_data(file: UploadFile = File(...)):
 class QueryRequest(BaseModel):
     index_attribute: str = 'PatientID'
     query: str = "select * from patient_data where PatientID = 'X'"
+    wallet_address: str  # Required wallet address for access control
+
+class DeleteRequest(BaseModel):
+    delete_query: str  # "DELETE FROM patient_data WHERE PatientID = '323'"
     wallet_address: str  # Required wallet address for access control
 
 def rewrite_query_with_access_policies(original_query: str, policies: List[dict], table_name: str = "patient_data") -> str:
@@ -837,6 +848,436 @@ class RemoveAccessPolicyRequest(BaseModel):
     policy_index: int
 
 
+# DELETE Query Processing Functions
+def apply_where_clause_to_dataframe(df: pd.DataFrame, where_clause: str) -> pd.DataFrame:
+    """
+    Apply WHERE clause directly to DataFrame for fast filtering
+    Optimized for common DELETE patterns
+    """
+    try:
+        # Handle simple equality conditions: PatientID = 'value'
+        if "PatientID = " in where_clause:
+            import re
+            match = re.search(r"PatientID\s*=\s*['\"]([^'\"]+)['\"]?", where_clause)
+            if match:
+                patient_id = match.group(1)
+                return df[df['PatientID'] == patient_id]
+        
+        # Handle age comparisons: Age > 95, Age < 30, etc.
+        elif "Age " in where_clause:
+            import re
+            match = re.search(r"Age\s*(>=|<=|>|<|=)\s*(\d+)", where_clause)
+            if match:
+                operator = match.group(1)
+                age_value = int(match.group(2))
+                
+                if operator == "=":
+                    return df[df['Age'] == age_value]
+                elif operator == ">":
+                    return df[df['Age'] > age_value]
+                elif operator == "<":
+                    return df[df['Age'] < age_value]
+                elif operator == ">=":
+                    return df[df['Age'] >= age_value]
+                elif operator == "<=":
+                    return df[df['Age'] <= age_value]
+        
+        # Handle HospitalID conditions
+        elif "HospitalID = " in where_clause:
+            import re
+            match = re.search(r"HospitalID\s*=\s*['\"]([^'\"]+)['\"]?", where_clause)
+            if match:
+                hospital_id = match.group(1)
+                return df[df['HospitalID'] == hospital_id]
+        
+        # For complex conditions, fall back to empty DataFrame (safe approach)
+        else:
+            logger.warning(f"Complex WHERE clause not optimized: {where_clause}")
+            return pd.DataFrame()  # Return empty for safety
+            
+    except Exception as e:
+        logger.error(f"Error applying WHERE clause {where_clause}: {e}")
+        return pd.DataFrame()
+    
+    return df
+
+def parse_delete_query(delete_query: str):
+    """
+    Parse DELETE query to extract table name and WHERE conditions
+    DELETE FROM patient_data WHERE PatientID = '323'
+    """
+    import re
+    
+    # Extract table name
+    table_match = re.search(r'DELETE\s+FROM\s+(\w+)', delete_query, re.IGNORECASE)
+    table_name = table_match.group(1) if table_match else None
+    
+    # Extract WHERE clause
+    where_match = re.search(r'WHERE\s+(.*)', delete_query, re.IGNORECASE | re.DOTALL)
+    where_clause = where_match.group(1).strip() if where_match else None
+    
+    # Extract primary key condition (assuming PatientID is primary key)
+    primary_key_value = None
+    if where_clause:
+        # Look for PatientID = 'value' or PatientID = "value"
+        pk_match = re.search(r'PatientID\s*=\s*[\'"]([^\'"]+)[\'"]', where_clause, re.IGNORECASE)
+        if pk_match:
+            primary_key_value = pk_match.group(1)
+    
+    return table_name, where_clause, primary_key_value
+
+async def find_cids_containing_records(where_clause: str, index_attribute: str = 'PatientID'):
+    """
+    Find all CIDs that contain records matching the WHERE clause
+    """
+    # Retrieve and decrypt index
+    index = retrieve_index(index_attribute)
+    if not index:
+        return []
+    
+    # Use existing query_index function to find relevant CIDs
+    dummy_query = f"SELECT * FROM patient_data WHERE {where_clause}"
+    cids = query_index(index, dummy_query, index_attribute)
+    return cids
+
+def process_cid_for_deletion(cid: str, where_clause: str, wallet_address: str):
+    """
+    Process a single CID: decrypt, apply deletion, re-encrypt, and return new CID
+    Note: This function is synchronous to work with ThreadPoolExecutor
+    Simplified and optimized version
+    """
+    try:
+        # Fetch and decrypt data from IPFS (same as upload)
+        encrypted_data = fetch_from_ipfs(cid)
+        if not encrypted_data:
+            logger.error(f"Failed to fetch CID {cid}")
+            return None, [], []
+        
+        decrypted_data = extract_and_decrypt_package(encrypted_data, app.state.encryption_key)
+        
+        # Load as DataFrame
+        df = pd.read_parquet(io.BytesIO(decrypted_data))
+        original_count = len(df)
+        logger.info(f"Processing CID {cid} with {original_count} records")
+        
+        # Get all records that will be affected (for index updates)
+        all_records_in_cid = df.to_dict('records')
+        
+        # SIMPLIFIED: Apply access control directly on DataFrame
+        # Filter by wallet's OwnerID (much faster than temp files)
+        accessible_df = df[df['OwnerID'] == wallet_address]
+        
+        if len(accessible_df) == 0:
+            logger.info(f"No accessible records in CID {cid} for wallet {wallet_address}")
+            return None, all_records_in_cid, []
+        
+        # Apply WHERE clause directly on accessible DataFrame
+        deletable_df = apply_where_clause_to_dataframe(accessible_df, where_clause)
+        
+        if len(deletable_df) == 0:
+            logger.info(f"No records match deletion criteria in CID {cid}")
+            return None, all_records_in_cid, []
+        
+        deletable_records = deletable_df.to_dict('records')
+        deletable_patient_ids = set(deletable_df['PatientID'])
+        
+        # Filter out the deletable records from the original DataFrame
+        filtered_df = df[~df['PatientID'].isin(deletable_patient_ids)]
+        deleted_count = original_count - len(filtered_df)
+        
+        logger.info(f"Deleted {deleted_count} records from CID {cid}, {len(filtered_df)} records remaining")
+        
+        # If all records are deleted, return empty indicators
+        if len(filtered_df) == 0:
+            logger.info(f"All records deleted from CID {cid}")
+            return "EMPTY", all_records_in_cid, deletable_records
+        
+        # Convert to Parquet directly (same as upload process)
+        buffer = io.BytesIO()
+        pq.write_table(pa.Table.from_pandas(filtered_df), buffer)
+        buffer.seek(0)
+        new_parquet_data = buffer.read()
+        
+        # Encrypt the new data (same as upload)
+        encrypted_package = create_encrypted_package(new_parquet_data, app.state.encryption_key)
+        
+        # Upload to IPFS (same as upload)
+        resp = requests.post("http://localhost:5001/api/v0/add", 
+                           files={"file": (f"filtered_data_{int(time.time())}.enc", encrypted_package)})
+        resp.raise_for_status()
+        new_cid = resp.json()["Hash"]
+        
+        buffer.close()
+        return new_cid, all_records_in_cid, deletable_records
+        
+    except Exception as e:
+        logger.error(f"Error processing CID {cid} for deletion: {e}")
+        return None, [], []
+
+async def update_indexes_after_deletion(old_cid: str, new_cid: str, all_records: List[dict], deleted_records: List[dict]):
+    """
+    Update all indexes after deletion operation
+    CRITICAL FIX: Rebuild indexes to remove old CID references completely
+    """
+    index_cids_to_update = {}
+    
+    for attr in ['PatientID', 'HospitalID', 'Age']:
+        if attr not in app.state.index_cids:
+            continue
+            
+        try:
+            logger.info(f"Rebuilding index for {attr} - removing old CID {old_cid}")
+            
+            # Get current index
+            existing_index = retrieve_index(attr)
+            if not existing_index:
+                logger.warning(f"Index for {attr} not found, skipping")
+                continue
+            
+            # SOLUTION: Completely rebuild the index excluding the old CID
+            new_index_data = []
+            
+            # Get all unique values that need to be re-indexed
+            unique_values = set()
+            for record in all_records:
+                if attr in record and record[attr] is not None:
+                    attr_value = record[attr]
+                    if attr == 'Age' and isinstance(attr_value, (int, float)):
+                        attr_value = int(attr_value)
+                    elif isinstance(attr_value, (int, float)):
+                        attr_value = str(attr_value)
+                    unique_values.add(attr_value)
+            
+            # For each unique value, get current CIDs and filter out the old one
+            for value in unique_values:
+                try:
+                    current_cids = existing_index.query(value)
+                    # Remove the old CID from the list
+                    filtered_cids = [cid for cid in current_cids if cid != old_cid]
+                    
+                    # Add the new CID if this value still has records after deletion
+                    value_has_remaining_records = False
+                    for record in all_records:
+                        if (attr in record and 
+                            record[attr] == value and 
+                            not any(dr.get('PatientID') == record.get('PatientID') for dr in deleted_records)):
+                            value_has_remaining_records = True
+                            break
+                    
+                    if value_has_remaining_records and new_cid and new_cid != "EMPTY":
+                        if new_cid not in filtered_cids:
+                            filtered_cids.append(new_cid)
+                    
+                    # Add all valid CIDs for this value to the new index
+                    for cid in filtered_cids:
+                        new_index_data.append((value, cid))
+                        
+                except Exception as e:
+                    logger.error(f"Error processing value {value} for {attr}: {e}")
+                    continue
+            
+            # Create completely new index with filtered data
+            if new_index_data:
+                new_index = CIDIndex(new_index_data)
+            else:
+                new_index = CIDIndex()  # Empty index
+            
+            # Upload the rebuilt index
+            index_cid, _, _ = upload_encrypted_index(new_index, attr)
+            index_cids_to_update[attr] = index_cid
+            logger.info(f"Rebuilt clean index for {attr}: {index_cid}")
+            
+        except Exception as e:
+            logger.error(f"Error rebuilding index for {attr}: {e}")
+            continue
+    
+    # Batch update smart contract (same as upload API)
+    if index_cids_to_update:
+        batch_update_success = set_all_index_cids(index_cids_to_update)
+        if batch_update_success:
+            logger.info(f"Batch updated {len(index_cids_to_update)} index CIDs in smart contract")
+            return True
+        else:
+            logger.error("Batch update to smart contract failed")
+            return False
+    
+    return True
+
+@app.post("/delete")
+async def delete_records(request: DeleteRequest):
+    """
+    DELETE FROM patient_data WHERE PatientID = '323'
+    Process deletion by creating new versions of affected CIDs without deleted records
+    """
+    logger.info(f"POST /delete - Processing DELETE query for wallet: {request.wallet_address}")
+    
+    operation_start_time = time.time()
+    
+    try:
+        # Parse the DELETE query
+        table_name, where_clause, primary_key_value = parse_delete_query(request.delete_query)
+        
+        if not table_name or not where_clause:
+            return {"error": "Invalid DELETE query. Expected format: DELETE FROM table_name WHERE condition"}
+        
+        if table_name.lower() != 'patient_data':
+            return {"error": f"Unsupported table: {table_name}. Only 'patient_data' is supported."}
+        
+        logger.info(f"Parsed DELETE query - Table: {table_name}, WHERE: {where_clause}, Primary Key: {primary_key_value}")
+        
+        # Check access policies
+        success, policies = app.state.index_storage.get_access_policies(request.wallet_address)
+        if not success:
+            return {"error": "Failed to fetch access policies from smart contract"}
+        
+        if not policies:
+            return {
+                "error": "No access policies found for this wallet address",
+                "wallet_address": request.wallet_address
+            }
+        
+        # Find all CIDs that might contain records matching the WHERE clause
+        index_attribute = 'PatientID'  # Use PatientID as primary index
+        try:
+            relevant_cids = await find_cids_containing_records(where_clause, index_attribute)
+        except Exception as e:
+            logger.error(f"Error finding CIDs: {e}")
+            return {"error": f"Failed to find relevant CIDs: {str(e)}"}
+        
+        if not relevant_cids:
+            return {
+                "message": "No records found matching the DELETE criteria",
+                "deleted_count": 0,
+                "affected_cids": 0
+            }
+        
+        logger.info(f"Found {len(relevant_cids)} CIDs that might contain matching records")
+        
+        # Process each CID: decrypt, filter, re-encrypt
+        processed_results = []
+        total_deleted_count = 0
+        
+        logger.info(f"Starting processing of {len(relevant_cids)} CIDs...")
+        start_time = time.time()
+        
+        # Use simpler parallel processing to avoid hanging
+        try:
+            # Use ThreadPoolExecutor with reduced worker count
+            max_workers = min(4, len(relevant_cids))  # Conservative worker count
+            with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+                # Submit all CID processing tasks
+                future_to_cid = {
+                    executor.submit(process_cid_for_deletion, cid, where_clause, request.wallet_address): cid 
+                    for cid in relevant_cids
+                }
+                
+                # Collect results with shorter timeout
+                for future in concurrent.futures.as_completed(future_to_cid, timeout=30):
+                    cid = future_to_cid[future]
+                    try:
+                        new_cid, all_records, deleted_records = future.result(timeout=15)
+                        if new_cid is not None:  # Successfully processed
+                            processed_results.append({
+                                'old_cid': cid,
+                                'new_cid': new_cid,
+                                'all_records': all_records,
+                                'deleted_records': deleted_records
+                            })
+                            total_deleted_count += len(deleted_records)
+                            logger.info(f"CID {cid} -> {new_cid}, deleted {len(deleted_records)} records")
+                    except Exception as e:
+                        logger.error(f"Error processing CID {cid}: {e}")
+        
+        except concurrent.futures.TimeoutError:
+            logger.error("CID processing timed out")
+            return {"error": "DELETE operation timed out"}
+        except Exception as e:
+            logger.error(f"Parallel processing failed: {e}")
+            return {"error": f"CID processing failed: {str(e)}"}
+        
+        processing_time = time.time() - start_time
+        logger.info(f"CID processing completed in {processing_time:.2f} seconds")
+        
+        if not processed_results:
+            return {
+                "message": "No records were deleted (possibly due to access control restrictions)",
+                "deleted_count": 0,
+                "affected_cids": 0
+            }
+        
+        # Update indexes for all processed CIDs with timeout
+        logger.info("Updating indexes after deletion...")
+        index_update_success = True
+        
+        try:
+            # Use asyncio timeout to prevent hanging
+            import asyncio
+            
+            async def update_all_indexes():
+                success = True
+                for result in processed_results:
+                    individual_success = await update_indexes_after_deletion(
+                        result['old_cid'], 
+                        result['new_cid'], 
+                        result['all_records'], 
+                        result['deleted_records']
+                    )
+                    if not individual_success:
+                        success = False
+                        logger.error(f"Failed to update indexes for CID {result['old_cid']}")
+                return success
+            
+            # Apply timeout to index updates
+            index_update_success = await asyncio.wait_for(update_all_indexes(), timeout=30.0)
+            
+        except asyncio.TimeoutError:
+            logger.error("Index update timed out after 30 seconds")
+            index_update_success = False
+        except Exception as e:
+            logger.error(f"Index update failed: {e}")
+            index_update_success = False
+        
+        # Update deletion statistics
+        app.state.deletion_stats['total_deletions'] += total_deleted_count
+        app.state.deletion_stats['last_deletion'] = time.time()
+        
+        # Prepare response with timing and debug information
+        cid_mapping = {
+            result['old_cid']: result['new_cid'] for result in processed_results
+        }
+        
+        # Collect debug information
+        deleted_patient_ids = []
+        for result in processed_results:
+            for record in result['deleted_records']:
+                if 'PatientID' in record:
+                    deleted_patient_ids.append(record['PatientID'])
+        
+        return {
+            "message": "DELETE operation completed successfully",
+            "deleted_count": total_deleted_count,
+            "affected_cids": len(processed_results),
+            "cid_mapping": cid_mapping,
+            "wallet_address": request.wallet_address,
+            "query": request.delete_query,
+            "index_update_success": index_update_success,
+            "policy_count": len(policies),
+            "deletion_stats": app.state.deletion_stats,
+            "performance": {
+                "cid_processing_time_seconds": processing_time,
+                "records_processed": total_deleted_count
+            },
+            "debug_info": {
+                "deleted_patient_ids": deleted_patient_ids,
+                "old_cids_replaced": list(cid_mapping.keys()),
+                "new_cids_created": list(cid_mapping.values())
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"DELETE operation error: {e}")
+        return {"error": f"DELETE operation failed: {str(e)}"}
+
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
@@ -858,6 +1299,7 @@ async def root():
             "health": "GET /health",
             "query": "POST /query (requires wallet_address for access control)", 
             "query-count": "GET /query/count",
+            "delete": "POST /delete (requires wallet_address for access control)",
             "upload": "POST /upload/patient-data (supports CSV and SQL files)",
             "index-cids": "GET /index-cids",
             "schemas": "GET /schemas, POST /schemas",

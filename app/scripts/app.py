@@ -291,6 +291,10 @@ class DeleteRequest(BaseModel):
     delete_query: str  # "DELETE FROM patient_data WHERE PatientID = '323'"
     wallet_address: str  # Required wallet address for access control
 
+class UpdateRequest(BaseModel):
+    update_query: str  # "UPDATE patient_data SET Name = 'John Doe', Age = 30 WHERE PatientID = '323'"
+    wallet_address: str  # Required wallet address for access control
+
 def rewrite_query_with_access_policies(original_query: str, policies: List[dict], table_name: str = "patient_data") -> str:
     """
     Rewrite the original query to incorporate access control policies with subject validation.
@@ -926,6 +930,89 @@ def parse_delete_query(delete_query: str):
     
     return table_name, where_clause, primary_key_value
 
+
+def parse_update_query(update_query: str):
+    """
+    Parse UPDATE query to extract table name, SET clause, and WHERE conditions
+    UPDATE patient_data SET Name = 'John Doe', Age = 30 WHERE PatientID = '323'
+    """
+    import re
+    
+    # Extract table name
+    table_match = re.search(r'UPDATE\s+(\w+)', update_query, re.IGNORECASE)
+    table_name = table_match.group(1) if table_match else None
+    
+    # Extract SET clause
+    set_match = re.search(r'SET\s+(.*?)\s+WHERE', update_query, re.IGNORECASE | re.DOTALL)
+    if not set_match:
+        # If no WHERE clause, get everything after SET
+        set_match = re.search(r'SET\s+(.*)', update_query, re.IGNORECASE | re.DOTALL)
+    set_clause = set_match.group(1).strip() if set_match else None
+    
+    # Extract WHERE clause
+    where_match = re.search(r'WHERE\s+(.*)', update_query, re.IGNORECASE | re.DOTALL)
+    where_clause = where_match.group(1).strip() if where_match else None
+    
+    # Extract primary key condition (assuming PatientID is primary key)
+    primary_key_value = None
+    if where_clause:
+        # Look for PatientID = 'value' or PatientID = "value"
+        pk_match = re.search(r'PatientID\s*=\s*[\'"]([^\'"]+)[\'"]', where_clause, re.IGNORECASE)
+        if pk_match:
+            primary_key_value = pk_match.group(1)
+    
+    return table_name, set_clause, where_clause, primary_key_value
+
+
+def parse_set_clause(set_clause: str):
+    """
+    Parse SET clause to extract column-value pairs
+    Input: "Name = 'John Doe', Age = 30, Gender = 'Male'"
+    Output: {'Name': 'John Doe', 'Age': 30, 'Gender': 'Male'}
+    """
+    import re
+    
+    updates = {}
+    if not set_clause:
+        return updates
+    
+    # Split by comma, but be careful about quoted strings
+    parts = re.split(r',(?=(?:[^"]*"[^"]*")*[^"]*$)(?=(?:[^\']*\'[^\']*\')*[^\']*$)', set_clause)
+    
+    for part in parts:
+        part = part.strip()
+        # Match column = value pattern
+        match = re.match(r'(\w+)\s*=\s*(.+)', part, re.IGNORECASE)
+        if match:
+            column = match.group(1).strip()
+            value_str = match.group(2).strip()
+            
+            # Parse the value (remove quotes, convert types)
+            if value_str.startswith("'") and value_str.endswith("'"):
+                # String value
+                value = value_str[1:-1]
+            elif value_str.startswith('"') and value_str.endswith('"'):
+                # String value with double quotes
+                value = value_str[1:-1]
+            elif value_str.lower() == 'null':
+                # NULL value
+                value = None
+            else:
+                # Try to convert to number
+                try:
+                    if '.' in value_str:
+                        value = float(value_str)
+                    else:
+                        value = int(value_str)
+                except ValueError:
+                    # If conversion fails, treat as string
+                    value = value_str
+            
+            updates[column] = value
+    
+    return updates
+
+
 async def find_cids_containing_records(where_clause: str, index_attribute: str = 'PatientID'):
     """
     Find all CIDs that contain records matching the WHERE clause
@@ -1278,6 +1365,313 @@ async def delete_records(request: DeleteRequest):
         logger.error(f"DELETE operation error: {e}")
         return {"error": f"DELETE operation failed: {str(e)}"}
 
+
+def process_cid_for_update(cid: str, where_clause: str, update_fields: dict, wallet_address: str):
+    """
+    Process a single CID for UPDATE operation:
+    1. Fetch and decrypt the CID data
+    2. Apply access control policies
+    3. Find records matching WHERE clause
+    4. Apply UPDATE changes to matching records
+    5. Re-encrypt and upload the modified data
+    
+    Returns: (new_cid, all_records, updated_records)
+    """
+    try:
+        logger.info(f"Processing CID {cid} for update...")
+        
+        # Fetch and decrypt data from IPFS (same as DELETE)
+        encrypted_data = fetch_from_ipfs(cid)
+        if not encrypted_data:
+            logger.error(f"Failed to fetch CID {cid}")
+            return None, [], []
+        
+        decrypted_data = extract_and_decrypt_package(encrypted_data, app.state.encryption_key)
+        
+        # Load into DataFrame
+        df = pd.read_parquet(io.BytesIO(decrypted_data))
+        original_count = len(df)
+        logger.info(f"Processing CID {cid} with {original_count} records")
+        
+        # Get all records that will be affected (for index updates)
+        all_records_in_cid = df.to_dict('records')
+        
+        # SIMPLIFIED: Apply access control directly on DataFrame
+        # Filter by wallet's OwnerID (much faster than temp files)
+        accessible_df = df[df['OwnerID'] == wallet_address]
+        
+        if len(accessible_df) == 0:
+            logger.info(f"No accessible records in CID {cid} for wallet {wallet_address}")
+            return None, all_records_in_cid, []
+        
+        # Apply WHERE clause directly on accessible DataFrame
+        updatable_df = apply_where_clause_to_dataframe(accessible_df, where_clause)
+        
+        if len(updatable_df) == 0:
+            logger.info(f"No records match WHERE clause in CID {cid}")
+            return None, all_records_in_cid, []
+        
+        logger.info(f"Found {len(updatable_df)} matching records for update in CID {cid}")
+        
+        # Apply updates to matching records
+        updated_records = []
+        for idx in updatable_df.index:
+            # Store the original record for tracking
+            original_record = df.loc[idx].to_dict()
+            updated_record = original_record.copy()
+            
+            # Apply the updates
+            for column, value in update_fields.items():
+                if column in df.columns:
+                    df.loc[idx, column] = value
+                    updated_record[column] = value
+                else:
+                    logger.warning(f"Column {column} not found in data, skipping")
+            
+            updated_records.append(updated_record)
+        
+        # Convert updated DataFrame back to Parquet
+        buffer = io.BytesIO()
+        pq.write_table(pa.Table.from_pandas(df), buffer)
+        buffer.seek(0)
+        updated_parquet_data = buffer.read()
+        
+        # Encrypt the new data (same as DELETE and upload)
+        encrypted_package = create_encrypted_package(updated_parquet_data, app.state.encryption_key)
+        
+        # Upload to IPFS (same as DELETE and upload)
+        resp = requests.post("http://localhost:5001/api/v0/add", 
+                           files={"file": (f"updated_data_{int(time.time())}.enc", encrypted_package)})
+        resp.raise_for_status()
+        new_cid = resp.json()["Hash"]
+        
+        buffer.close()
+        logger.info(f"Successfully updated CID {cid} -> {new_cid}")
+        
+        # Return all records and updated records (updated df)
+        all_records = df.to_dict('records')
+        
+        return new_cid, all_records, updated_records
+        
+    except Exception as e:
+        logger.error(f"Error processing CID {cid} for update: {e}")
+        return None, [], []
+
+
+async def update_indexes_after_update(old_cid: str, new_cid: str, all_records: List[dict], updated_records: List[dict]):
+    """
+    Update indexes after UPDATE operation - use same exact logic as DELETE
+    """
+    try:
+        logger.info(f"Updating indexes after update: {old_cid} -> {new_cid}")
+        
+        # For UPDATE, we can use the same logic as DELETE since we're replacing one CID with another
+        # The key difference is that for UPDATE, we pass all_records (not deleted records)
+        # This ensures all records are preserved in the new CID
+        return await update_indexes_after_deletion(old_cid, new_cid, all_records, [])
+        
+    except Exception as e:
+        logger.error(f"Error in update_indexes_after_update: {e}")
+        return False
+
+
+@app.post("/update")
+async def update_records(request: UpdateRequest):
+    """
+    UPDATE patient_data SET Name = 'John Doe', Age = 30 WHERE PatientID = '323'
+    Process update by combining delete + insert operations
+    """
+    logger.info(f"POST /update - Processing UPDATE query for wallet: {request.wallet_address}")
+    
+    operation_start_time = time.time()
+    
+    try:
+        # Parse the UPDATE query
+        table_name, set_clause, where_clause, primary_key_value = parse_update_query(request.update_query)
+        
+        if not table_name or not set_clause or not where_clause:
+            return {"error": "Invalid UPDATE query. Expected format: UPDATE table_name SET column = value WHERE condition"}
+        
+        if table_name.lower() != 'patient_data':
+            return {"error": f"Unsupported table: {table_name}. Only 'patient_data' is supported."}
+        
+        logger.info(f"Parsed UPDATE query - Table: {table_name}, SET: {set_clause}, WHERE: {where_clause}, Primary Key: {primary_key_value}")
+        
+        # Parse SET clause to get update fields
+        update_fields = parse_set_clause(set_clause)
+        if not update_fields:
+            return {"error": "Invalid SET clause. Unable to parse column-value pairs."}
+        
+        logger.info(f"Update fields: {update_fields}")
+        
+        # Check access policies
+        success, policies = app.state.index_storage.get_access_policies(request.wallet_address)
+        if not success:
+            return {"error": "Failed to fetch access policies from smart contract"}
+        
+        if not policies:
+            return {
+                "error": "No access policies found for this wallet address",
+                "wallet_address": request.wallet_address
+            }
+        
+        # Find all CIDs that might contain records matching the WHERE clause
+        index_attribute = 'PatientID'  # Use PatientID as primary index
+        try:
+            relevant_cids = await find_cids_containing_records(where_clause, index_attribute)
+        except Exception as e:
+            logger.error(f"Error finding CIDs: {e}")
+            return {"error": f"Failed to find relevant CIDs: {str(e)}"}
+        
+        if not relevant_cids:
+            return {
+                "message": "No records found matching the UPDATE criteria",
+                "updated_count": 0,
+                "affected_cids": 0
+            }
+        
+        logger.info(f"Found {len(relevant_cids)} CIDs that might contain matching records")
+        
+        # Process each CID: decrypt, update records, re-encrypt
+        processed_results = []
+        total_updated_count = 0
+        
+        logger.info(f"Starting processing of {len(relevant_cids)} CIDs...")
+        start_time = time.time()
+        
+        # Use simpler parallel processing to avoid hanging
+        try:
+            # Use ThreadPoolExecutor with reduced worker count
+            max_workers = min(4, len(relevant_cids))  # Conservative worker count
+            with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+                # Submit all CID processing tasks
+                future_to_cid = {
+                    executor.submit(process_cid_for_update, cid, where_clause, update_fields, request.wallet_address): cid 
+                    for cid in relevant_cids
+                }
+                
+                # Collect results with shorter timeout
+                for future in concurrent.futures.as_completed(future_to_cid, timeout=30):
+                    cid = future_to_cid[future]
+                    try:
+                        new_cid, all_records, updated_records = future.result(timeout=15)
+                        if new_cid is not None:  # Successfully processed
+                            processed_results.append({
+                                'old_cid': cid,
+                                'new_cid': new_cid,
+                                'all_records': all_records,
+                                'updated_records': updated_records
+                            })
+                            total_updated_count += len(updated_records)
+                            logger.info(f"CID {cid} -> {new_cid}, updated {len(updated_records)} records")
+                    except Exception as e:
+                        logger.error(f"Error processing CID {cid}: {e}")
+        
+        except concurrent.futures.TimeoutError:
+            logger.error("CID processing timed out")
+            return {"error": "UPDATE operation timed out"}
+        except Exception as e:
+            logger.error(f"Parallel processing failed: {e}")
+            return {"error": f"CID processing failed: {str(e)}"}
+        
+        processing_time = time.time() - start_time
+        logger.info(f"CID processing completed in {processing_time:.2f} seconds")
+        
+        if not processed_results:
+            return {
+                "message": "No records were updated (possibly due to access control restrictions)",
+                "updated_count": 0,
+                "affected_cids": 0
+            }
+        
+        # Update indexes for all processed CIDs with timeout
+        logger.info("Updating indexes after update...")
+        index_update_success = True
+        
+        try:
+            # Use asyncio timeout to prevent hanging
+            import asyncio
+            
+            async def update_all_indexes():
+                success = True
+                for result in processed_results:
+                    individual_success = await update_indexes_after_update(
+                        result['old_cid'], 
+                        result['new_cid'], 
+                        result['all_records'], 
+                        result['updated_records']
+                    )
+                    if not individual_success:
+                        success = False
+                        logger.error(f"Failed to update indexes for CID {result['old_cid']}")
+                return success
+            
+            # Apply timeout to index updates
+            index_update_success = await asyncio.wait_for(update_all_indexes(), timeout=30.0)
+            
+        except asyncio.TimeoutError:
+            logger.error("Index update timed out after 30 seconds")
+            index_update_success = False
+        except Exception as e:
+            logger.error(f"Index update failed: {e}")
+            index_update_success = False
+        
+        # Update operation statistics
+        if not hasattr(app.state, 'update_stats'):
+            app.state.update_stats = {
+                'total_updates': 0,
+                'last_update': None
+            }
+        
+        app.state.update_stats['total_updates'] += total_updated_count
+        app.state.update_stats['last_update'] = time.time()
+        
+        # Prepare response with timing and debug information
+        cid_mapping = {
+            result['old_cid']: result['new_cid'] for result in processed_results
+        }
+        
+        # Collect debug information
+        updated_patient_ids = []
+        updated_fields_summary = {}
+        for result in processed_results:
+            for record in result['updated_records']:
+                if 'PatientID' in record:
+                    updated_patient_ids.append(record['PatientID'])
+                # Track which fields were updated
+                for field in update_fields.keys():
+                    if field not in updated_fields_summary:
+                        updated_fields_summary[field] = 0
+                    updated_fields_summary[field] += 1
+        
+        return {
+            "message": "UPDATE operation completed successfully",
+            "updated_count": total_updated_count,
+            "affected_cids": len(processed_results),
+            "cid_mapping": cid_mapping,
+            "wallet_address": request.wallet_address,
+            "query": request.update_query,
+            "update_fields": update_fields,
+            "index_update_success": index_update_success,
+            "policy_count": len(policies),
+            "update_stats": app.state.update_stats,
+            "performance": {
+                "cid_processing_time_seconds": processing_time,
+                "records_processed": total_updated_count
+            },
+            "debug_info": {
+                "updated_patient_ids": updated_patient_ids,
+                "updated_fields_summary": updated_fields_summary,
+                "old_cids_replaced": list(cid_mapping.keys()),
+                "new_cids_created": list(cid_mapping.values())
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"UPDATE operation error: {e}")
+        return {"error": f"UPDATE operation failed: {str(e)}"}
+
+
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
@@ -1285,8 +1679,44 @@ async def health_check():
         "status": "healthy",
         "message": "FastAPI server running inside SGX enclave",
         "timestamp": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()),
-        "sgx_enabled": True
+        "sgx_enabled": True,
+        "deletion_stats": app.state.deletion_stats if hasattr(app.state, 'deletion_stats') else {},
+        "update_stats": app.state.update_stats if hasattr(app.state, 'update_stats') else {}
     }
+
+@app.get("/debug/indexes")
+async def debug_indexes():
+    """Debug endpoint to check index status"""
+    try:
+        # Simple test: just check if PatientID index can find specific values
+        result = {
+            "patientid_index_tests": {},
+            "error": None
+        }
+        
+        if 'PatientID' in app.state.index_cids:
+            index = app.state.index_cids['PatientID']
+            
+            # Test specific PatientIDs that we know should exist
+            test_patient_ids = ['10', '12', '13']
+            for patient_id in test_patient_ids:
+                try:
+                    cids = index.query(patient_id)
+                    result["patientid_index_tests"][patient_id] = {
+                        "found_cids": cids if isinstance(cids, list) else [cids] if cids else [],
+                        "cid_count": len(cids) if cids else 0
+                    }
+                except Exception as e:
+                    result["patientid_index_tests"][patient_id] = {
+                        "error": str(e)
+                    }
+        else:
+            result["error"] = "PatientID index not loaded in memory"
+        
+        return result
+        
+    except Exception as e:
+        return {"error": f"Debug failed: {str(e)}"}
 
 @app.get("/")
 async def root():

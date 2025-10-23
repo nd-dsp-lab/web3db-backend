@@ -1690,7 +1690,34 @@ def shutdown_event():
         logger.info("Cleaning up smart contract connections...")
 
 # Multi-Table Endpoints
-IPFS_API = os.getenv("IPFS_API", "/ip4/127.0.0.1/tcp/5001/http")
+def _normalize_ipfs_endpoint(val: str) -> str:
+    """Normalize various IPFS endpoint formats into a usable http(s) URL.
+
+    Supports:
+    - Multiaddr: /ip4/127.0.0.1/tcp/5001/http -> http://127.0.0.1:5001
+    - Plain host:port -> http://host:port
+    - Full http(s) URL -> unchanged
+    """
+    if not val:
+        return "http://127.0.0.1:5001"
+    v = val.strip()
+    # Multiaddr pattern
+    m = re.search(r"/ip4/([^/]+)/tcp/(\d+)/(http|https)", v)
+    if m:
+        host, port, scheme = m.group(1), m.group(2), m.group(3)
+        return f"{scheme}://{host}:{port}"
+    # If it already looks like http(s) URL
+    if v.startswith("http://") or v.startswith("https://"):
+        return v.rstrip("/")
+    # If it's like host:port
+    m2 = re.match(r"^([^:/]+):(\d+)$", v)
+    if m2:
+        host, port = m2.group(1), m2.group(2)
+        return f"http://{host}:{port}"
+    # Fallback: try to prepend http://
+    return f"http://{v}"
+
+IPFS_API = _normalize_ipfs_endpoint(os.getenv("IPFS_API", "/ip4/127.0.0.1/tcp/5001/http"))
 REG_RPC  = os.getenv("REG_RPC", "http://localhost:8545")
 REG_ADDR = os.getenv("INDEX_REGISTRY_ADDRESS", "")
 REG_ABI  = os.getenv("INDEX_REGISTRY_ABI", "")

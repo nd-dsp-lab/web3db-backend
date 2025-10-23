@@ -256,7 +256,10 @@ def next_range(table: str, n_rows: int) -> Tuple[int, int]:
     _save_sequence_state(st)
     return frm, to
 
-ROOTS_FILE = os.getenv("INDEX_ROOTS_FILE", os.path.join(os.path.dirname(__file__)), ".index_roots.json")
+ROOTS_FILE = os.getenv(
+    "INDEX_ROOTS_FILE",
+    os.path.join(os.path.dirname(os.path.dirname(__file__)), ".index_roots.json"),
+)
 
 def _load_index_roots() -> dict:
     if os.path.exists(ROOTS_FILE):

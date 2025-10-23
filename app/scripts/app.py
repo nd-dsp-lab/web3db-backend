@@ -300,7 +300,7 @@ def _save_table_schemas(d: Dict[str, TableSchema]) -> None:
 
 def set_schema(table: str, columns: List[str], indexed: List[str]) -> None:
     d = _load_table_schemas()
-    d[table] = {"columns": columns, "indexed": indexed, "updated_at", time.time()}
+    d[table] = {"columns": columns, "indexed": indexed, "updated_at": time.time()}
     _save_table_schemas(d)
 
 def get_schema(table: str) -> Optional[TableSchema]:

@@ -11,7 +11,7 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 import duckdb
 from typing import List, Tuple, Optional
-from fastapi import FastAPI, UploadFile, File
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import concurrent.futures
@@ -186,6 +186,220 @@ def decrypt_to_file(encrypted_data: bytes, cid: str, key: bytes) -> Optional[str
     except Exception as e:
         logger.error(f"Failed to decrypt CID {cid}: {e}")
         return None
+    
+
+# Start Avery Integrated Code
+
+import json
+from typing import List, Tuple, Optional, Dict, Any, Iterable, TypedDict
+from web3 import Web3
+import hashlib
+import csv
+
+IPFS_ENDPOINT=("http://127.0.0.1:5001")
+
+def _ipfs_url(path: str) -> str:
+    return f"{IPFS_ENDPOINT}{path}"
+
+class IPFS:
+    def __init__(self):
+        pass
+    def add_bytes(self, data: bytes, pin: bool = True) -> str:
+        files = {"file": ("blob", data)}
+        params = {"pin": "true" if pin else "false", "wrap-with-directory": "false"}
+        r = requests.post(_ipfs_url("/api/v0/add"), params=params, files=files, timeout=120)
+        r.raise_for_status()
+        txt = r.text.strip()
+        try:
+            obj = json.loads(txt.splitlines()[-1])
+        except json.JSONDecodeError:
+            raise RuntimeError(f"IPFS add returned non-JSON: {txt[:200]}")
+        return obj["Hash"]
+    def add_json(self, obj: Dict[str, Any], pin: bool = True) -> str:
+        data = json.dumps(obj, separators=(",", ":"), ensure_ascii=False).encode()
+        return self.add_bytes(data, pin=pin)
+    
+    def add_file(self, path: str, pin: bool = True) -> str:
+        with open(path, "rb") as f:
+            files = {"file": (os.path.basename(path), f)}
+            params = {"pin": "true" if pin else "false", "wrap-with-directory": "false"}
+            r = requests.post(_ipfs_url("/api/v0/add"), params=params, files=files, timeout=300)
+            r.raise_for_status()
+            obj = json.loads(r.text.splitlines()[-1])
+            return obj["Hash"]
+    
+    def cat(self, cid: str) -> bytes:
+        r = requests.post(_ipfs_url("/api/v0/cat"), params={"arg": cid}, timeout=300, stream=True)
+        r.raise_for_status()
+        return r.conetent
+
+    def cat_json(self, cid: str) -> Dict[str, Any]:
+        raw = self.cat(cid)
+        return json.loads(raw.decode("uft-8", errors="replace"))
+     
+STATE_FILE = os.getenv("SEQUENCE_STATE_FILE", os.path.join(os.path.dirname(os.path.dirname(__file__)), ".seq_state.json"))
+
+def _load_sequence_state():
+    if not os.path.exists(STATE_FILE):
+        return {}
+    return json.load(open(STATE_FILE, "r"))
+def _save_sequence_state(obj):
+    with open(STATE_FILE, "w") as f:
+        json.dump(obj, f)
+
+def next_range(table: str, n_rows: int) -> Tuple[int, int]:
+    st = _load_sequence_state()
+    cur = int(st.get(table, 0))
+    frm = cur + 1
+    to = cur + n_rows
+    st[table] = to
+    _save_sequence_state(st)
+    return frm, to
+
+ROOTS_FILE = os.getenv("INDEX_ROOTS_FILE", os.path.join(os.path.dirname(__file__)), ".index_roots.json")
+
+def _load_index_roots() -> dict:
+    if os.path.exists(ROOTS_FILE):
+        try:
+            with open(ROOTS_FILE, "r") as f:
+                return json.load(f)
+        except Exception:
+            return {}
+        return {}
+def _save_index_roots(d: dict) -> None:
+    os.makedirs(os.path.dirname(ROOTS_FILE), exist_ok=True)
+    with open(ROOTS_FILE, "w") as f:
+        json.dump(d, f)
+def set_index_root(table: str, column: str, root_cid: str) -> None:
+    d = _load_index_roots()
+    d.setdefault(table, {})[column] = root_cid
+    _save_index_roots(d)
+def get_index_root(table: str, column: str) -> Optional[str]:
+    return _load_index_roots().get(table, {}).get(column)
+
+SCHEMA_FILE = os.getenv("TABLE_SCHEMA_FILE", os.path.join(os.path.dirname(__file__)), ".table_schema.json")
+
+class TableSchema(TypedDict):
+    columns: List[str]
+    indexed: List[str]
+    updated_at: float
+
+def _load_table_schemas() -> Dict[str, TableSchema]:
+    if os.path.exists(SCHEMA_FILE):
+        try:
+            with open(SCHEMA_FILE, "r") as f:
+                return json.load(f)
+        except Exception:
+            return {}
+        return {}    
+
+def _save_table_schemas(d: Dict[str, TableSchema]) -> None:
+    os.makedirs(os.path.dirname(SCHEMA_FILE), exist_ok=True)
+    with open(SCHEMA_FILE, "w") as f:
+        json.dump(d, f)
+
+def set_schema(table: str, columns: List[str], indexed: List[str]) -> None:
+    d = _load_table_schemas()
+    d[table] = {"columns": columns, "indexed": indexed, "updated_at", time.time()}
+    _save_table_schemas(d)
+
+def get_schema(table: str) -> Optional[TableSchema]:
+    return _load_table_schemas().get(table)
+def list_tables() -> List[str]:
+    return list(_load_table_schemas().keys())
+
+def _h2(s: str) -> str:
+    return hashlib.sha1(s.encode()).hexdigest()[:2]
+def build_equality_index_for_batch(table: str, column: str, values_iter: Iterable[str], data_cid: str, from_seq: int, to_seq: int, seg_id: str, ipfs: IPFS) -> str:
+    vset: Dict[str, None] = {}
+    count = 0
+    for v in values_iter:
+        vset[str(v)] = None
+        count += 1
+    shard_maps: Dict[str, Dict[str, List[str]]] = {}
+    for v in vset.keys():
+        shard = _h2(v)
+        shard_maps.setdefault(shard, {})
+        shard_maps[shard][v] = [seg_id]
+        shard_cids: Dict[str, str] = {}
+        for shard, mp in shard_maps.items():
+            shard_cids[shard] = ipfs.add_json(mp)
+
+    manifest = {
+                "table": table, 
+                "column": column, 
+                "segments": {
+                    seg_id: {
+                        "data_cid": data_cid, 
+                        "from_seq": from_seq, 
+                        "to_seq": to_seq, 
+                        "count": count
+            } 
+        }       
+    }
+    manifest_cid = ipfs.add_json(manifest)
+
+    root = {
+        "type": "equality_index_root",
+        "table": table,
+        "column": column,
+        "manifest_cid": manifest_cid,
+        "postings_shards": shard_cids,
+        "version": 1
+    }
+    return ipfs.add_json(root)
+
+def resolve_candidates_eq(root_cid: str, values: Iterable[str], ipfs: IPFS) -> Dict[str, dict]:
+    root = ipfs.cat_json(root_cid)
+    manifest = ipfs.cat_json(root["manifest_cid"])
+    seg_meta = manifest("segments")
+    shard_to_values: Dict[str, List[str]] = {}
+    for v in values:
+        shard_to_values.setdefault(_h2(str(v)), []).append(str(v))
+    seg_ids = set()
+    for shard, vlist in shard_to_values.items():
+        shard_cid = root["postings_shards"].get(shard)
+        if not shard_cid:
+            continue
+        shard_map = ipfs.cat_json(shard_cid)
+        for v in vlist:
+            for sid in shard_map.get(v, []):
+                seg_ids.add(sid)
+    
+    return {sid: seg_meta[sid] for sid in seg_ids if sid in seg_meta}
+
+def _inject_poa_middleware(w3: Web3) -> None:
+    try:
+        from web3.middleware import geth_poa_middleware
+        w3.middleware_onion.inject(geth_poa_middleware, layer=0)
+        return
+    except Exception:
+        pass
+    try:
+        from web3.middleware import ExtraDataToPOAMiddleware
+        w3.middleware_onion.inject(ExtraDataToPOAMiddleware, layer=0)
+        return
+    except Exception:
+        pass
+
+class IndexRegistryClient:
+    def __init__(self, rpc_url: str, contract_address: str, abi_path: str):
+        self.w3 = Web3(Web3.HTTPProvider(rpc_url))
+        _inject_poa_middleware(self.w3)
+        self.contract = self.w3.eth.contract(address=Web3.to_checksum_address(contract_address), abi=json.load(open(abi_path, "r")))
+        pk = os.getenv("INDEX_WRITER_PK")
+        self._acct = self.w3.eth.account.from_key(pk) if pk else None
+
+    def set_index_root(self, table: str, column: str, root_cid: str) -> Optional[str]:
+        if not self._acct:
+            return None
+        tx = self.contract.functions.setIndexRoot(table, column, root_cid).build_transactions({"from": self._acct.address, "nonce": self.w3.eth.get_transaction_count(self._acct.address)})
+        signed = self._acct.sign_transactions(tx)
+        return self.w3.eth.send_raw_transaction(signed.rawTransactions).hex()
+    
+    def get_index_root(self, table: str, column: str) -> Optional[str]:
+        root = self.contract.functions.getIndexRoot(table, column).call()
+        return root or None
 
 @app.post("/upload/patient-data")
 async def upload_patient_data(file: UploadFile = File(...)):
@@ -866,6 +1080,8 @@ async def root():
             "access-policies": "POST /access-policies, GET /access-policies/{object_address}, DELETE /access-policies",
             "policy-count": "GET /access-policies/{object_address}/count",
             "remove-all-policies": "DELETE /access-policies/{object_address}/all",
+            "multi-table-upload": "POST /multi-table/upload",
+            "multo-table-query": "GET /multi-table/query",
             "docs": "GET /docs"
         },
         "file_support": {
@@ -1463,6 +1679,349 @@ def shutdown_event():
     logger.info("Application shutting down...")
     if hasattr(app.state, 'index_storage'):
         logger.info("Cleaning up smart contract connections...")
+
+# Multi-Table Endpoints
+IPFS_API = os.getenv("IPFS_API", "/ip4/127.0.0.1/tcp/5001/http")
+REG_RPC  = os.getenv("REG_RPC", "http://localhost:8545")
+REG_ADDR = os.getenv("INDEX_REGISTRY_ADDRESS", "")
+REG_ABI  = os.getenv("INDEX_REGISTRY_ABI", "")
+REG_ENABLED = bool(REG_ADDR and REG_ADDR != "0x0000000000000000000000000000000000000000"
+                   and REG_ABI and os.path.exists(REG_ABI))
+INDEX_COLUMNS = [c.strip() for c in os.getenv("INDEX_COLUMNS").split(",") if c.strip()]
+
+@app.post("/multi-table/upload")
+async def upload_mt(table_name: str = Form(...), file: UploadFile = File(...), index_columns: str | None = Form(None)):
+    if not table_name:
+        raise HTTPException(400, "table_name required")
+    
+
+    existing_schema = get_schema(table_name)
+    if existing_schema:
+        raise HTTPException(400, f"table '{table_name}' already exists. Try another name.")
+    
+    raw = await file.read()
+    try:
+        rows = list(csv.DictReader(io.StringIO(raw.decode("utf-8"))))
+    except Exception as e:
+        raise HTTPException(400, f"invalid CSV: {e}")
+    if not rows:
+        raise HTTPException(400, "empty CSV")
+    
+    headers = [h for h in rows[0].keys()]
+
+    if index_columns:
+        cols_to_index = ( 
+            headers if index_columns.strip() in ("*", "ALL") else
+            [c.strip() for c in index_columns.split(",") if c.strip() in headers])
+    else:
+        env_cols = [c.strip() for c in os.getenv("INDEX_COLUMNS", "").split(",") if c.strip()]
+        cols_to_index = env_cols or headers
+
+    set_schema(table_name, headers, cols_to_index)
+
+    ipfs = IPFS(IPFS_API)
+
+    data_cid = ipfs.add_bytes(raw)
+    frm, to = next_range(table_name, len(rows))
+    seg_id = f"s-{frm-{to}}"
+    roots = Dict[str, str] = {}
+    txs: List[str] = []
+
+    for col in cols_to_index:
+        new_root_cid = build_equality_index_for_batch(
+            table=table_name,
+            column=col,
+            values_iter=(str(r.get(col, "")) for r in rows),
+            from_seq=frm,
+            to_seq=to,
+            seg_id=seg_id,
+            ipfs=ipfs
+        )
+
+
+        new_shard_maps: Dict[str, Dict[str, List[str]]] = {}
+        vset = set(str(r.get(col, "")) for r in rows)
+        for v in vset:
+            shard = _h2(v)
+            new_shard_maps.setdefault(shard, {})
+            new_shard_maps[shard][v] = [seg_id]
+
+        new_manifest = {
+            "table": table_name,
+            "column": col,
+            "segments": {
+                seg_id: {
+                    "data_cid": data_cid,
+                    "from_seq": frm,
+                    "to_set": to,
+                    "count": len(rows)
+                }
+            }
+        }
+
+        prev_root_cid = get_index_root(table_name, col)
+
+        if prev_root_cid:
+            try:
+                prev_root = ipfs.cat_json(prev_root_cid)
+                prev_manifest = ipfs.cat_json(prev_root["manifest_cid"])
+                prev_shards = prev.root.get("postings_shards", {})
+
+                merged_manifest = {
+                    "table": table_name,
+                    "column": col,
+                    "segments": {}
+                }
+
+                merged_manifest["segments"].update(prev_manifest.get("segments", {}))
+                merged_manifest["segments"].update(new_manifest["segments"])
+                merged_manifest_cid = ipfs.add_json(merged_manifest)
+
+                all_shards = set(prev_shards.keys()) | set(new_shard_maps.keys())
+                merged_shard_cids: Dict[str, str] = {}
+                for shard in all_shards:
+                    prev_map = {}
+                    if shard in prev_shards:
+                        prev_map = ipfs.cat_json(prev_shards[shard])
+
+                    add_map = new_shard_maps.get(shard, {})
+                    merged_map = prev_map.copy()
+                    for v, segs in add_map.items():
+                        if v in merged_map:
+                            merged_map[v] = list({*merged_map[v], *segs})
+                        else:
+                            merged_map[v] = segs
+                    merged_shard_cids[shard] = ipfs.add_json(merged_map)
+                merged_root = {
+                    "type": "equality_index_root",
+                    "table": table_name,
+                    "column": col,
+                    "manifest_cid": merged_manifest_cid,
+                    "postings_shards": merged_shard_cids,
+                    "version": 1
+                }
+                root_cid = ipfs.add_json(merged_root)
+
+            except Exception as e:
+                root_cid = new_root_cid
+        else:
+            root_cid = new_root_cid
+
+        set_index_root(table_name, col, root_cid)
+
+        if REG_ENABLED:
+            try:
+                reg = IndexRegistryClient(REG_RPC, REG_ADDR, REG_ABI)
+                txh = reg.set_index_root(table_name, col, root_cid)
+                if txh:
+                    txs.append(txh)
+            except Exception:
+                pass
+        roots[col] = root_cid
+
+    return {
+        "table_name": table_name,
+        "rows_ingested": len(rows),
+        "data_cid": data_cid,
+        "seq_range": [frm, to],
+        "index_roots": roots,
+        "txs": txs
+    }
+
+
+class Predicate(BaseModel):
+    column: str
+    op: str
+    value: Any | None = None
+    values: List[Any] | None = None
+
+class QueryReg(BaseModel):
+    table_name: str | None = None
+    predicates: List[Predicate] | None = None
+    projection: List[str] | None = None
+    limit: int | None = 200
+    query: str | None = None
+
+def _query_mt_sql(req: QueryReg):
+    if not req.query:
+        raise HTTPException(400, "query string required")
+    query_lower = req.query.lower()
+
+    from_match = re.search(r'\bfrom\s+(\w+)', query_lower)
+    if not from_match:
+        raise HTTPException(400, "invalid FROM clause")
+    table_name = from_match.group(1)
+
+    schema = get_schema(table_name)
+
+    if not schema:
+        raise HTTPException(400, f"unkown table '{table_name}'")
+    where_match = re.search(r'\bwhere\s+(.+?)(?:\s+(?:limit|order|group)\b|$)', req.query, re.IGNORECASE)
+
+    if not where_match:
+        raise HTTPException(400, "invalid WHERE clause")
+    where_clause = where_match.group(1).strip()
+
+    indexed_cols = schema.get("indexed", [])
+    if not indexed_cols:
+        raise HTTPException(400, f"table '{table_name}' has no indexed columns")
+    predicate_col = None
+    predicate_op = None
+    predicate_values = []
+
+
+    for col in indexed_cols:
+        eq_pattern = rf'\b{col}\s*=s*[\'"]([^\'"]+)[\'"]'
+        eq_match = re.search(eq_pattern, where_clause, re.IGNORECASE)
+        if eq_match:
+            predicate_col = col
+            predicate_op = "="
+            predicate_values = [eq_match.group(1)]
+            break
+
+        in_pattern = rf'\b{col}\s+in\s*\(([^)]+)\)'
+        in_match = re.search(in_pattern, where_clause, re.IGNORECASE)
+        if in_match:
+            predicate_col = col
+            predicate_op = "IN"
+            in_values_str = in_match.group(1)
+            predicate_values = [v.strip().strip('\'"') for v in in_values_str.split(',')]
+            break
+
+    if not predicate_col:
+        available = ", ".join(indexed_cols)
+        raise HTTPException(400, "WHERE clause must include at least one indexed column with = or IN operator")
+    
+    ipfs = IPFS(IPFS_API)
+
+    root_cid = None
+    if REG_ENABLED:
+        try:
+            reg = IndexRegistryClient(REG_RPC, REG_ADDR, REG_ABI)
+            root_cid = reg.get_index_root(table_name, predicate_col)
+        except Exception:
+            root_cid = None
+        if not root_cid:
+            root_cid = get_index_root(table_name, predicate_col)
+        if not root_cid:
+            raise HTTPException(400, f"no index for {table_name}.{predicate_col}")
+    segs = resolve_candidates_eq(root_cid, predicate_values, ipfs)
+    data_cids = list({m["data_cid"] for m in segs.values()})
+    if not data_cids:
+        return {"rows": [], "stats": {"segments_scanned": 0, "cids_fetched": 0}}
+    
+
+    all_rows: List[Dict[str, Any]] = []
+    for cid in data_cids:
+        raw = ipfs.cat(cid).decode("utf-8", errors="replace")
+        all_rows.extend(list(csv.DictReader(io.StringIO(raw))))
+
+    if not all_rows:
+        return {"rows": [], "stats": {"segmented_scanned": len(segs), "cids_fetched": len(data_cids)}}
+    df = pd.DataFrame(all_rows)
+    con = duckdb.connect()
+    con.register("t", df)
+
+
+    modified_query = re.sub(rf'\bfrom\s+{table_name}\b', 'FROM t', req.query, flags=re.IGNORECASE)
+
+    try:
+        out = con.execute(modified_query).df().to_dict(orient="records")
+    except Exception as e:
+        raise HTTPException(400, f"SQL execution error: {str(e)}")
+    return {
+        "rows": out,
+        "stats": {
+            "segments_scanned": len(segs),
+            "cids_fetched": len(data_cids)
+        }
+    }
+
+@app.post("/multi-table/query")
+def query_mt(req: QueryReq):
+    # Support both SQL query string and predicate-based queries
+    if req.query:
+        # SQL-like query mode
+        return _query_mt_sql(req)
+    
+    # Original predicate-based mode
+    if not req.predicates:
+        raise HTTPException(400, "either 'query' or 'predicates' required")
+    if not req.table_name:
+        raise HTTPException(400, "table_name required when using predicates")
+
+    # pick first equality/IN predicate
+    p = next((x for x in req.predicates if x.op in ("=", "IN")), None)
+    if not p:
+        raise HTTPException(400, "only '=' or 'IN' supported")
+    if p.op == "IN" and not p.values:
+        raise HTTPException(400, "'IN' requires non-empty 'values'")
+    
+    schema = get_schema(req.table_name)
+    if not schema:
+        raise HTTPException(404, f"unkown table {req.table_name}")
+    bad_pred_cols = [pr.column for pr in req.predicates if pr.column not in schema["columns"]]
+    if bad_pred_cols:
+        known = ",".join(schema["columns"])
+        raise HTTPException(400, f"unknown columns in predicates: {bad_pred_cols}; known columns: {known}")
+    if req.projection:
+        bad_proj = [c for c in req.projection if c not in schema["columns"]]
+        if bad_proj:
+            known = ",".join(schema["columns"])
+            raise HTTPException(400, f"unknown columns in projection: {bad_proj}; known columns: {known}")
+    ipfs = IPFS(IPFS_API)
+    
+    data_cids: List[str] = []
+    segs: Dict[str, Dict[str, Any]] = {}
+
+    # resolve index root: try chain (if configured) else local file
+    root_cid = None
+    if REG_ENABLED:
+        try:
+            reg = IndexRegistryClient(REG_RPC, REG_ADDR, REG_ABI)
+            root_cid = reg.get_index_root(req.table_name, p.column)
+        except Exception:
+            root_cid = None
+    if not root_cid:
+        root_cid = get_index_root(req.table_name, p.column)
+    if not root_cid:
+        raise HTTPException(404, f"no index for {req.table_name}.{p.column}")
+
+    # candidate segments -> data CIDs
+    values = [str(p.value)] if p.op == "=" else [str(v) for v in (p.values or [])]
+    segs = resolve_candidates_eq(root_cid, values, ipfs)  # seg_id -> meta
+    data_cids = list({m["data_cid"] for m in segs.values()})
+    if not data_cids:
+        return {"rows": [], "stats": {"segments_scanned": 0, "cids_fetched": 0}}
+
+    # load CSVs and filter with DuckDB
+    all_rows: List[Dict[str, Any]] = []
+    for cid in data_cids:
+        raw = ipfs.cat(cid).decode("utf-8", errors="replace")
+        all_rows.extend(list(csv.DictReader(io.StringIO(raw))))
+
+    df = pd.DataFrame(all_rows)
+    if df.empty:
+        return {"rows": [], "stats": {"segments_scanned": len(segs), "cids_fetched": len(data_cids)}}
+
+    con = duckdb.connect()
+    con.register("t", df)
+
+    clauses = []
+    for pr in req.predicates:
+        if pr.op == "=":
+            clauses.append(f"{pr.column} = '{pr.value}'")
+        elif pr.op == "IN":
+            vals = ",".join([f"'{v}'" for v in (pr.values or [])])
+            clauses.append(f"{pr.column} IN ({vals})")
+
+    where = " AND ".join(clauses) if clauses else "TRUE"
+    proj = ", ".join(req.projection) if req.projection else "*"
+    lim = req.limit or 200
+
+    out = con.execute(f"SELECT {proj} FROM t WHERE {where} LIMIT {lim}") \
+             .df().to_dict(orient="records")
+    return {"rows": out, "stats": {"segments_scanned": len(segs), "cids_fetched": len(data_cids)}}
 
 # Main execution block to start the FastAPI server
 if __name__ == "__main__":

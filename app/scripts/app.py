@@ -1941,7 +1941,7 @@ def _query_mt_sql(req: QueryReg):
     }
 
 @app.post("/multi-table/query")
-def query_mt(req: QueryReq):
+def query_mt(req: QueryReg):
     # Support both SQL query string and predicate-based queries
     if req.query:
         # SQL-like query mode

@@ -202,12 +202,16 @@ def _ipfs_url(path: str) -> str:
     return f"{IPFS_ENDPOINT}{path}"
 
 class IPFS:
-    def __init__(self):
-        pass
+    def __init__(self, endpoint: str | None = None):
+        # Allow overriding the global IPFS endpoint per-instance
+        self.endpoint = endpoint or IPFS_ENDPOINT
+
+    def _url(self, path: str) -> str:
+        return f"{self.endpoint}{path}"
     def add_bytes(self, data: bytes, pin: bool = True) -> str:
         files = {"file": ("blob", data)}
         params = {"pin": "true" if pin else "false", "wrap-with-directory": "false"}
-        r = requests.post(_ipfs_url("/api/v0/add"), params=params, files=files, timeout=120)
+        r = requests.post(self._url("/api/v0/add"), params=params, files=files, timeout=120)
         r.raise_for_status()
         txt = r.text.strip()
         try:
@@ -229,13 +233,13 @@ class IPFS:
             return obj["Hash"]
     
     def cat(self, cid: str) -> bytes:
-        r = requests.post(_ipfs_url("/api/v0/cat"), params={"arg": cid}, timeout=300, stream=True)
+        r = requests.post(self._url("/api/v0/cat"), params={"arg": cid}, timeout=300, stream=True)
         r.raise_for_status()
-        return r.conetent
+        return r.content
 
     def cat_json(self, cid: str) -> Dict[str, Any]:
         raw = self.cat(cid)
-        return json.loads(raw.decode("uft-8", errors="replace"))
+        return json.loads(raw.decode("utf-8", errors="replace"))
      
 STATE_FILE = os.getenv("SEQUENCE_STATE_FILE", os.path.join(os.path.dirname(os.path.dirname(__file__)), ".seq_state.json"))
 

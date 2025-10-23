@@ -1760,7 +1760,7 @@ async def upload_mt(table_name: str = Form(...), file: UploadFile = File(...), i
     data_cid = ipfs.add_bytes(raw)
     frm, to = next_range(table_name, len(rows))
     seg_id = f"s-{frm}-{to}"
-    roots = Dict[str, str] = {}
+    roots: Dict[str, str] = {}
     txs: List[str] = []
 
     for col in cols_to_index:

@@ -280,7 +280,7 @@ def set_index_root(table: str, column: str, root_cid: str) -> None:
 def get_index_root(table: str, column: str) -> Optional[str]:
     return _load_index_roots().get(table, {}).get(column)
 
-SCHEMA_FILE = os.getenv("TABLE_SCHEMA_FILE", os.path.join(os.path.dirname(__file__)), ".table_schema.json")
+SCHEMA_FILE = os.getenv("TABLE_SCHEMA_FILE", os.path.join(os.path.dirname(__file__), ".table_schema.json"))
 
 class TableSchema(TypedDict):
     columns: List[str]

@@ -1690,7 +1690,7 @@ REG_ADDR = os.getenv("INDEX_REGISTRY_ADDRESS", "")
 REG_ABI  = os.getenv("INDEX_REGISTRY_ABI", "")
 REG_ENABLED = bool(REG_ADDR and REG_ADDR != "0x0000000000000000000000000000000000000000"
                    and REG_ABI and os.path.exists(REG_ABI))
-INDEX_COLUMNS = [c.strip() for c in os.getenv("INDEX_COLUMNS").split(",") if c.strip()]
+INDEX_COLUMNS = [c.strip() for c in os.getenv("INDEX_COLUMNS", "").split(",") if c.strip()]
 
 @app.post("/multi-table/upload")
 async def upload_mt(table_name: str = Form(...), file: UploadFile = File(...), index_columns: str | None = Form(None)):

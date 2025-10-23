@@ -234,7 +234,16 @@ class IPFS:
     
     def cat(self, cid: str) -> bytes:
         r = requests.post(self._url("/api/v0/cat"), params={"arg": cid}, timeout=300, stream=True)
-        r.raise_for_status()
+        try:
+            r.raise_for_status()
+        except requests.HTTPError:
+            # Log the response body to help debugging invalid-CID / API errors
+            try:
+                body = r.text
+            except Exception:
+                body = "<unreadable response body>"
+            logger.error(f"IPFS cat failed for {cid}: status={r.status_code}, body={body}")
+            raise
         return r.content
 
     def cat_json(self, cid: str) -> Dict[str, Any]:
@@ -360,8 +369,8 @@ def build_equality_index_for_batch(table: str, column: str, values_iter: Iterabl
 
 def resolve_candidates_eq(root_cid: str, values: Iterable[str], ipfs: IPFS) -> Dict[str, dict]:
     root = ipfs.cat_json(root_cid)
-    manifest = ipfs.cat_json(root["manifest_cid"])
-    seg_meta = manifest("segments")
+    manifest = ipfs.cat_json(root["manifest_cid"]) if root.get("manifest_cid") else {}
+    seg_meta = manifest.get("segments", {}) if isinstance(manifest, dict) else {}
     shard_to_values: Dict[str, List[str]] = {}
     for v in values:
         shard_to_values.setdefault(_h2(str(v)), []).append(str(v))
@@ -1768,6 +1777,7 @@ async def upload_mt(table_name: str = Form(...), file: UploadFile = File(...), i
             table=table_name,
             column=col,
             values_iter=(str(r.get(col, "")) for r in rows),
+            data_cid=data_cid,
             from_seq=frm,
             to_seq=to,
             seg_id=seg_id,
@@ -1907,21 +1917,24 @@ def _query_mt_sql(req: QueryReg):
 
 
     for col in indexed_cols:
-        eq_pattern = rf'\b{col}\s*=s*[\'"]([^\'"]+)[\'"]'
+        # Match equality: e.g. OrderID = '123'
+        eq_pattern = rf"\b{col}\s*=\s*(['\"])([^'\"]+)\1"
         eq_match = re.search(eq_pattern, where_clause, re.IGNORECASE)
         if eq_match:
             predicate_col = col
             predicate_op = "="
-            predicate_values = [eq_match.group(1)]
+            # group 2 contains the value without quotes
+            predicate_values = [eq_match.group(2)]
             break
 
-        in_pattern = rf'\b{col}\s+in\s*\(([^)]+)\)'
+        # Match IN: e.g. OrderID IN ('1','2')
+        in_pattern = rf"\b{col}\s+in\s*\(([^)]+)\)"
         in_match = re.search(in_pattern, where_clause, re.IGNORECASE)
         if in_match:
             predicate_col = col
             predicate_op = "IN"
             in_values_str = in_match.group(1)
-            predicate_values = [v.strip().strip('\'"') for v in in_values_str.split(',')]
+            predicate_values = [v.strip().strip('\'\"') for v in in_values_str.split(',')]
             break
 
     if not predicate_col:

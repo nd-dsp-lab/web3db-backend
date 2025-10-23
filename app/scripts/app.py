@@ -268,7 +268,8 @@ def _load_index_roots() -> dict:
                 return json.load(f)
         except Exception:
             return {}
-        return {}
+    # If the file doesn't exist, return empty dict
+    return {}
 def _save_index_roots(d: dict) -> None:
     os.makedirs(os.path.dirname(ROOTS_FILE), exist_ok=True)
     with open(ROOTS_FILE, "w") as f:
@@ -294,7 +295,8 @@ def _load_table_schemas() -> Dict[str, TableSchema]:
                 return json.load(f)
         except Exception:
             return {}
-        return {}    
+    # If the schema file doesn't exist, return empty mapping
+    return {}
 
 def _save_table_schemas(d: Dict[str, TableSchema]) -> None:
     os.makedirs(os.path.dirname(SCHEMA_FILE), exist_ok=True)

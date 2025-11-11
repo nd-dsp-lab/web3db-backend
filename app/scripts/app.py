@@ -426,12 +426,21 @@ async def query(request: QueryRequest):
     index = retrieve_index(request.index_attribute, request.table_name)
 
     if not index:
-        return {"error": f"Index for {request.table_name}.{request.index_attribute} not found"}
+        return {
+            "error": f"Index for {request.table_name}.{request.index_attribute} not found",
+            "table_name": request.table_name,
+            "index_attribute": request.index_attribute,
+            "hint": f"Upload data to create index or check available indexes at GET /index-cids?table_name={request.table_name}"
+        }
 
     cids = query_index(index, request.query, request.index_attribute)  # Use original query for index lookup
 
     if not cids:
-        return {"message": "No matching CIDs found"}
+        return {
+            "message": "No matching CIDs found",
+            "table_name": request.table_name,
+            "index_attribute": request.index_attribute
+        }
 
     # Fetch all CIDs in parallel
     with concurrent.futures.ThreadPoolExecutor(max_workers=64) as executor:
@@ -1912,7 +1921,7 @@ async def root():
             "query-count": "GET /query/count?table_name=X&index_attribute=Y 🌟 GENERIC - get row count for any table",
             "delete": "POST /delete (supports multi-table DELETE queries with access control)",
             "update": "POST /update (supports multi-table UPDATE queries with access control)",
-            "index-cids": "GET /index-cids, PUT /index-cids",
+            "index-cids": "GET /index-cids, PUT /index-cids, DELETE /index-cids?index_key=table.attribute",
             "schemas": "GET /schemas, POST /schemas",
             "schema-tables": "GET /schemas/tables",
             "schema-by-table": "GET /schemas/{table_name}, DELETE /schemas/{table_name}",
@@ -1995,6 +2004,77 @@ async def update_index_cids(request: UpdateIndexCIDsRequest):
     except Exception as e:
         logger.error(f"Error updating index CIDs: {e}")
         return {"status": "error", "message": str(e)}
+
+
+@app.delete("/index-cids")
+async def delete_index(index_key: str):
+    """
+    Delete a specific index from the smart contract.
+    
+    Query Parameters:
+        index_key (str): Index key in format "table_name.attribute" (e.g., "orders.OrderID", "patient_data.PatientID")
+    
+    Examples:
+        DELETE /index-cids?index_key=orders.OrderID
+        DELETE /index-cids?index_key=patient_data.PatientID
+        DELETE /index-cids?index_key=users.UserID
+    """
+    logger.info(f"DELETE /index-cids - Removing index '{index_key}'")
+    try:
+        # Validate index key format
+        if '.' not in index_key:
+            return {
+                "status": "error",
+                "message": "Invalid index_key format. Expected 'table_name.attribute' (e.g., 'orders.OrderID')",
+                "index_key": index_key
+            }
+        
+        # Parse table and attribute
+        table_name, attribute = parse_index_key(index_key)
+        
+        # Remove from smart contract
+        try:
+            success = app.state.index_storage.remove_index(index_key)
+            if not success:
+                return {
+                    "status": "error",
+                    "message": f"Failed to remove index '{index_key}' from smart contract",
+                    "index_key": index_key,
+                    "table_name": table_name,
+                    "attribute": attribute
+                }
+            
+            logger.info(f"Successfully removed index: {index_key}")
+            
+        except Exception as e:
+            logger.error(f"Error removing index {index_key}: {e}")
+            return {
+                "status": "error",
+                "message": f"Exception removing index: {str(e)}",
+                "index_key": index_key
+            }
+        
+        # Clear from in-memory cache
+        if index_key in app.state.index_cids:
+            del app.state.index_cids[index_key]
+        if index_key in app.state.index_sizes:
+            del app.state.index_sizes[index_key]
+        
+        return {
+            "status": "success",
+            "index_key": index_key,
+            "table_name": table_name,
+            "attribute": attribute,
+            "message": f"Successfully removed index '{index_key}'"
+        }
+        
+    except Exception as e:
+        logger.error(f"Error deleting index {index_key}: {e}")
+        return {
+            "status": "error",
+            "index_key": index_key,
+            "message": str(e)
+        }
 
 
 class TableConfigRequest(BaseModel):

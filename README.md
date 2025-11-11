@@ -9,6 +9,8 @@ This repository contains the implementation and evaluation code for our research
 - **Blockchain (Ethereum)**: Metadata management and index integrity
 - **Advanced Indexing**: Delta-based updates for efficient querying
 - **Query Re-writer**: In-enclave fine-grained access control enforcement
+- **🆕 Generic Multi-Table Support**: Single API endpoint for unlimited tables
+- **🆕 Auto-Configuration**: Zero-config upload with automatic index detection
 
 > **Note**: For detailed technical information, please refer to our research paper.
 

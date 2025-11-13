@@ -23,6 +23,7 @@ import secrets
 import base64
 from dotenv import load_dotenv
 from web3db_contract import Web3dbContract
+import json
 
 # Load environment variables
 # Use absolute path to ensure .env is loaded regardless of current working directory
@@ -64,7 +65,7 @@ try:
         infura_api_key=os.getenv("INFURA_API_KEY", "eb1d43f1429e49fba50e18fbf5ebd4ab"),
         # private_key=os.getenv("PRIVATE_KEY")
         private_key="ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80",
-        abi_path="/Users/tangwenyi/Desktop/web3db-temp-test/web3db-backend/contracts/artifacts/contracts/Web3dbContract.sol/Web3dbContract.json"
+        abi_path="/Users/aaron/Documents/repos/web3db-backend/contracts/artifacts/contracts/Web3dbContract.sol/Web3dbContract.json"
     )
     logger.info("Smart contract connection initialized successfully")
 except Exception as e:
@@ -190,6 +191,8 @@ def decrypt_to_file(encrypted_data: bytes, cid: str, key: bytes) -> Optional[str
         logger.error(f"Failed to decrypt CID {cid}: {e}")
         return None
 
+
+#TODO: isolate this part
 @app.post("/upload/patient-data")
 async def upload_patient_data(file: UploadFile = File(...)):
     logger.info("POST /upload/patient-data - Processing patient data upload")
@@ -232,6 +235,7 @@ async def upload_patient_data(file: UploadFile = File(...)):
             else:
                 index = CIDIndex(data=data_to_add)
 
+            #TODO: update the index delta logic here
             # Upload encrypted index
             index_cid, _, _ = upload_encrypted_index(index, attr)
             # Collect index CID for batch update
@@ -509,10 +513,12 @@ def auto_detect_and_store_schema(df, table_name):
         logger.error(f"Failed to auto-detect and store schema: {e}")
         return None
 
+#TODO: Isolate this function, return the index
 def retrieve_index(name):
     """
     Retrieve and decrypt an index from IPFS.
     """
+    #TODO: Get list from sc and reconstruct the index
     cid = get_index_cid(name)
     if not cid:
         return None

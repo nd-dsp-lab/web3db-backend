@@ -4,9 +4,12 @@ agent:
   authtoken: 2o8KiZzYgAOmIXP2TM2DCS8UWWe_65NEjLV4Rrn3eqgPcZajP
 
 tunnels:
-  basic:
+  web3db-backend:
     proto: http
     addr: 129.74.154.215:8000
+  web3db-fs-backend:
+    proto: http
+    addr: 129.74.154.215:8090
   # tcp_tunnel:
   #   proto: tcp
   #   addr: 129.74.152.201:7077

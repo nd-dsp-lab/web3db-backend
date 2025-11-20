@@ -1,0 +1,13 @@
+# SSH keys (never commit these!)
+*.pem
+ec2.pem
+id_rsa
+*.key
+
+# Logs
+logs/
+*.log
+
+# Docker
+.dockerignore
+

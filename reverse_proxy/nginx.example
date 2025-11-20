@@ -1,0 +1,10 @@
+server {
+    listen 80;
+    server_name ec2-18-217-236-254.us-east-2.compute.amazonaws.com;  # ← CHANGE THIS
+    location /web3db/ {
+        proxy_pass http://127.0.0.1:8000/;  # ← Forward to tunnel port
+    }
+    location /web3fs/ {
+	    proxy_pass http://127.0.0.1:8090/;
+    }
+}

@@ -1,0 +1,32 @@
+services:
+  reverse-tunnel:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        # SSH key filename in build context (use copy-key.sh script first)
+        # Default: ec2.pem
+        SSH_KEY_FILE: ec2.pem
+    container_name: reverse-tunnel
+    restart: unless-stopped
+    environment:
+      # Tunnel configuration file (copied into image during build)
+      - TUNNEL_CONFIG=/app/tunnel.yml
+      
+      # SSH key path (copied into image during build)
+      - SSH_KEY_PATH=/app/ssh/ec2.pem
+      
+      # Target host for port forwarding (use 'localhost' for host network mode)
+      - TARGET_HOST=localhost
+      
+      # Logging directory
+      - LOG_DIR=/app/logs
+    volumes:
+      # Mount logs directory for persistence
+      - ./logs:/app/logs
+    network_mode: host
+    # Use host network mode to access host.docker.internal
+    # Alternative: use extra_hosts if not using host network mode
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+

@@ -16,6 +16,14 @@ This Docker container runs an autossh reverse SSH tunnel that forwards traffic f
 - Docker and Docker Compose installed
 - SSH private key for accessing the remote server
 - Remote server must allow SSH connections and port forwarding
+  - Set "GatewayPorts yes" in `/etc/ssh/sshd_config`
+  - Restart SSH service: `sudo systemctl restart sshd`
+- (Optional) Nginx installed to manage incoming requests with standard ports
+  - Site config file in `/etc/nginx/sites-enabled/`, and a soft link in `/etc/nginx/sites-available/` 
+  - `sudo ln -s /etc/nginx/sites-enabled/reverse_proxy /etc/nginx/sites-available/reverse_proxy`
+  - This container can update the nginx config automatically
+- Local services running on the host machine to forward traffic to
+- Security group rules of the remote server must allow incoming traffic on the specified ports if Nginx is not used (AWS settings)
 
 ## Quick Start
 
@@ -28,9 +36,9 @@ This Docker container runs an autossh reverse SSH tunnel that forwards traffic f
 2. **Configure your tunnels in `tunnel.yml`:**
    ```yaml
    server:
-     REMOTE_HOST: your-ec2-instance.compute.amazonaws.com
-     REMOTE_USER: ubuntu
-   
+     REMOTE_HOST: your-host-name.compute.amazonaws.com
+     REMOTE_USER: username
+
    tunnels:
      app1:
        local_port: 5000
@@ -69,19 +77,19 @@ The tunnel configuration is defined in `tunnel.yml`:
 
 ```yaml
 server:
-  REMOTE_HOST: ec2-18-217-236-254.us-east-2.compute.amazonaws.com
-  REMOTE_USER: ubuntu
+  REMOTE_HOST: your-host-name.compute.amazonaws.com
+  REMOTE_USER: username
 
 nginx:
   site_config_file: /etc/nginx/sites-enabled/reverse_proxy
-  server_name: ec2-18-217-236-254.us-east-2.compute.amazonaws.com
+  server_name: your-host-name.compute.amazonaws.com
 
 tunnels:
-  web3db_backend:
+  app1:
     local_port: 5000
     remote_port: 8000
-  
-  web3fs_backend:
+
+  app2:
     local_port: 4999
     remote_port: 8090
 ```
@@ -94,10 +102,10 @@ tunnels:
   - `site_config_file`: Path to nginx site configuration file on remote server
   - `server_name`: Server name for nginx config (defaults to `REMOTE_HOST` if not specified)
   - If configured, the container will automatically generate and deploy nginx config
-  - Each tunnel becomes a location block (e.g., `/web3db_backend/` → `http://127.0.0.1:8000/`)
+  - Each tunnel becomes a location block (e.g., `/app1/` → `http://127.0.0.1:8000/`)
   
 - **tunnels**: Define multiple tunnels
-  - Each tunnel has a unique name (e.g., `web3db_backend`, `web3fs_backend`)
+  - Each tunnel has a unique name (e.g., `app1`, `app2`)
   - `local_port`: Port on local machine to forward from
   - `remote_port`: Port on remote server to forward to
 
@@ -177,30 +185,31 @@ If you have multiple services running locally:
 
 ```yaml
 server:
-  REMOTE_HOST: ec2-18-217-236-254.us-east-2.compute.amazonaws.com
+  REMOTE_HOST: your-host-name.compute.amazonaws.com
   REMOTE_USER: ubuntu
 
 nginx:
   site_config_file: /etc/nginx/sites-enabled/reverse_proxy
-  server_name: ec2-18-217-236-254.us-east-2.compute.amazonaws.com
+  server_name: your-host-name.compute.amazonaws.com
 
 tunnels:
-  web3db_backend:
+  app1:
     local_port: 5000
     remote_port: 8000
-  
-  web3fs_backend:
+
+  app2:
     local_port: 4999
     remote_port: 8090
 ```
 
 With nginx configured, access your services via:
-- Web3DB backend: `http://ec2-18-217-236-254.us-east-2.compute.amazonaws.com/web3db_backend/`
-- Web3FS backend: `http://ec2-18-217-236-254.us-east-2.compute.amazonaws.com/web3fs_backend/`
+- Web3DB backend: `http://your-host-name.compute.amazonaws.com/app1/`
+- Web3FS backend: `http://your-host-name.compute.amazonaws.com/app2/`
 
 Without nginx (direct port access):
-- Web3DB backend: `http://ec2-18-217-236-254.us-east-2.compute.amazonaws.com:8000`
-- Web3FS backend: `http://ec2-18-217-236-254.us-east-2.compute.amazonaws.com:8090`
+- Web3DB backend: `http://your-host-name.compute.amazonaws.com:8000`
+- Web3FS backend: `http://your-host-name.compute.amazonaws.com:8090`
+- Make sure to adjust security group rules accordingly.
 
 ## Security Notes
 

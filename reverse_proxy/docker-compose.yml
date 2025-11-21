@@ -4,7 +4,6 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        # SSH key filename in build context (use copy-key.sh script first)
         # Default: ec2.pem
         SSH_KEY_FILE: ec2.pem
     container_name: reverse-tunnel

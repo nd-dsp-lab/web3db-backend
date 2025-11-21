@@ -1,16 +1,16 @@
 server:
-  REMOTE_HOST: ec2-18-217-236-254.us-east-2.compute.amazonaws.com
-  REMOTE_USER: ubuntu
+  REMOTE_HOST: your-host-name.compute.amazonaws.com
+  REMOTE_USER: username
 
 nginx:
   site_config_file: /etc/nginx/sites-enabled/reverse_proxy
-  server_name: ec2-18-217-236-254.us-east-2.compute.amazonaws.com
+  server_name: your-host-name.compute.amazonaws.com
 
 tunnels:
-  web3db_backend:
+  app1:
     local_port: 5000
     remote_port: 8000
 
-  web3fs_backend:
+  app2:
     local_port: 4999
     remote_port: 8090

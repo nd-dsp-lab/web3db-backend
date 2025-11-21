@@ -16,45 +16,57 @@ This Docker container runs an autossh reverse SSH tunnel that forwards traffic f
 - Docker and Docker Compose installed
 - SSH private key for accessing the remote server
 - Remote server must allow SSH connections and port forwarding
-  - Set "GatewayPorts yes" in `/etc/ssh/sshd_config`
-  - Restart SSH service: `sudo systemctl restart sshd`
-- (Optional) Nginx installed to manage incoming requests with standard ports
-  - Site config file in `/etc/nginx/sites-enabled/`, and a soft link in `/etc/nginx/sites-available/` 
-  - `sudo ln -s /etc/nginx/sites-enabled/reverse_proxy /etc/nginx/sites-available/reverse_proxy`
-  - This container can update the nginx config automatically
-- Local services running on the host machine to forward traffic to
-- Security group rules of the remote server must allow incoming traffic on the specified ports if Nginx is not used (AWS settings)
+
+## Server Setup
+
+Before running the reverse SSH tunnel container, you need to set up the remote server. Use the `set-server.sh` script to configure the server automatically.
+
+The script configures SSH GatewayPorts and optionally installs/configures nginx. Use `--no-nginx` flag to skip nginx setup.
 
 ## Quick Start
 
-1. **Copy your SSH key to the build context:**
+1. **Set up the remote server** (run this on your remote server):
+   ```bash
+   # Copy the setup script to your server
+   scp set-server.sh user@your-server:/tmp/
+   
+   # SSH into your server and run the setup
+   ssh user@your-server
+   sudo bash /tmp/set-server.sh
+   ```
+
+2. **Copy your SSH key to the build context:**
    ```bash
    cp ~/.ssh/ec2.pem ./ec2.pem
    chmod 600 ./ec2.pem
    ```
 
-2. **Configure your tunnels in `tunnel.yml`:**
+3. **Configure your tunnels in `tunnel.yml`:**
    ```yaml
    server:
-     REMOTE_HOST: your-host-name.compute.amazonaws.com
-     REMOTE_USER: username
-
+     REMOTE_HOST: your-host.com
+     REMOTE_USER: your-username
+   
+   nginx:
+     site_config_file_name: reverse_proxy
+     server_name: your-host.com
+   
    tunnels:
      app1:
        local_port: 5000
-       remote_port: 5000
+       remote_port: 8000
      app2:
        local_port: 4999
-       remote_port: 4999
+       remote_port: 8090
    ```
 
-3. **Build and start the container:**
+4. **Build and start the container:**
    ```bash
    docker compose build
    docker compose up -d
    ```
 
-4. **View logs:**
+5. **View logs:**
    ```bash
    # View all container logs
    docker compose logs -f
@@ -64,9 +76,9 @@ This Docker container runs an autossh reverse SSH tunnel that forwards traffic f
    tail -f logs/tunnel_app2.log
    ```
 
-5. **Stop the container:**
+6. **Stop the container:**
    ```bash
-   docker-compose down
+   docker compose down
    ```
 
 ## Configuration
@@ -77,18 +89,18 @@ The tunnel configuration is defined in `tunnel.yml`:
 
 ```yaml
 server:
-  REMOTE_HOST: your-host-name.compute.amazonaws.com
-  REMOTE_USER: username
+  REMOTE_HOST: your-host.com
+  REMOTE_USER: your-username
 
 nginx:
-  site_config_file: /etc/nginx/sites-enabled/reverse_proxy
-  server_name: your-host-name.compute.amazonaws.com
+  site_config_file_name: reverse_proxy
+  server_name: your-host.com
 
 tunnels:
   app1:
     local_port: 5000
     remote_port: 8000
-
+  
   app2:
     local_port: 4999
     remote_port: 8090
@@ -99,7 +111,7 @@ tunnels:
   - `REMOTE_USER`: SSH username (default: `ubuntu`)
   
 - **nginx**: Nginx configuration (optional)
-  - `site_config_file`: Path to nginx site configuration file on remote server
+  - `site_config_file_name`: Name of the nginx site configuration file (will be created in `/etc/nginx/sites-available/` with a symlink to `/etc/nginx/sites-enabled`)
   - `server_name`: Server name for nginx config (defaults to `REMOTE_HOST` if not specified)
   - If configured, the container will automatically generate and deploy nginx config
   - Each tunnel becomes a location block (e.g., `/app1/` → `http://127.0.0.1:8000/`)
@@ -133,9 +145,9 @@ tunnels:
 The container:
 1. Reads the `tunnel.yml` configuration file
 2. **If nginx configuration is specified:**
-   - Generates nginx config from `nginx.example` template
+   - Generates nginx config dynamically with location blocks for each tunnel
    - Creates location blocks for each tunnel (e.g., `/tunnel_name/` → `http://127.0.0.1:remote_port/`)
-   - Copies the config to the remote server via SSH
+   - Copies the config file to `/etc/nginx/sites-available/` and creates a symlink in `/etc/nginx/sites-enabled/`
    - Tests and reloads nginx service
 3. For each tunnel defined, starts a separate `autossh` process that:
    - Establishes an SSH connection to the remote server
@@ -158,10 +170,11 @@ The container uses `host` network mode to access services running on the host ma
 - Check that the remote port is not already in use
 - Verify AWS security group allows inbound traffic on `REMOTE_PORT`
 - Check SSH key permissions: `chmod 600 ~/.ssh/ec2.pem`
+- Ensure `set-server.sh` has been run on the remote server to configure SSH GatewayPorts
 
 ### Container exits immediately
 
-- Check logs: `docker-compose logs`
+- Check logs: `docker compose logs`
 - Verify `REMOTE_HOST` is set correctly
 - Ensure SSH key is mounted correctly
 
@@ -173,11 +186,13 @@ The container uses `host` network mode to access services running on the host ma
 
 ### Nginx configuration update fails
 
+- Ensure `set-server.sh` has been run on the remote server to install and configure nginx
 - Ensure the SSH user has sudo privileges on the remote server
 - Verify nginx is installed on the remote server
 - Check that the nginx config file path is writable (may need sudo)
 - Review container logs for specific SSH/SCP errors
 - The container will continue with tunnel setup even if nginx update fails
+- If you see errors about `server_names_hash_bucket_size`, ensure the script was run to configure it
 
 ## Example: Forwarding Multiple Services
 
@@ -185,31 +200,30 @@ If you have multiple services running locally:
 
 ```yaml
 server:
-  REMOTE_HOST: your-host-name.compute.amazonaws.com
-  REMOTE_USER: ubuntu
+  REMOTE_HOST: your-host.com
+  REMOTE_USER: your-username
 
 nginx:
-  site_config_file: /etc/nginx/sites-enabled/reverse_proxy
-  server_name: your-host-name.compute.amazonaws.com
+  site_config_file_name: reverse_proxy
+  server_name: your-host.com
 
 tunnels:
   app1:
     local_port: 5000
     remote_port: 8000
-
+  
   app2:
     local_port: 4999
     remote_port: 8090
 ```
 
 With nginx configured, access your services via:
-- Web3DB backend: `http://your-host-name.compute.amazonaws.com/app1/`
-- Web3FS backend: `http://your-host-name.compute.amazonaws.com/app2/`
+- App1: `http://your-host.com/app1/`
+- App2: `http://your-host.com/app2/`
 
 Without nginx (direct port access):
-- Web3DB backend: `http://your-host-name.compute.amazonaws.com:8000`
-- Web3FS backend: `http://your-host-name.compute.amazonaws.com:8090`
-- Make sure to adjust security group rules accordingly.
+- App1: `http://your-host.com:8000`
+- App2: `http://your-host.com:8090`
 
 ## Security Notes
 
@@ -217,6 +231,5 @@ Without nginx (direct port access):
 - Consider using Docker secrets or mounted volumes for production deployments
 - The container disables host key checking for automation (use with trusted hosts only)
 - **Never commit SSH keys to version control** - they are excluded via `.gitignore`
-- The `copy-key.sh` script helps copy keys without exposing them in your home directory structure
 - For production, consider using Docker secrets or environment-based key management
 

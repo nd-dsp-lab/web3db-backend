@@ -36,7 +36,7 @@ mkdir -p "$LOG_DIR"
 # Read server configuration from YAML
 REMOTE_HOST=$(yq eval '.server.REMOTE_HOST' "$TUNNEL_CONFIG")
 REMOTE_USER=$(yq eval '.server.REMOTE_USER' "$TUNNEL_CONFIG")
-NGINX_SITE_CONFIG=$(yq eval '.nginx.site_config_file' "$TUNNEL_CONFIG")
+NGINX_SITE_CONFIG_NAME=$(yq eval '.nginx.site_config_file_name' "$TUNNEL_CONFIG")
 NGINX_TEMPLATE="/app/nginx.example"
 
 if [ -z "$REMOTE_HOST" ] || [ "$REMOTE_HOST" = "null" ]; then
@@ -48,9 +48,14 @@ if [ -z "$REMOTE_USER" ] || [ "$REMOTE_USER" = "null" ]; then
     REMOTE_USER=${REMOTE_USER:-ubuntu}
 fi
 
-if [ -z "$NGINX_SITE_CONFIG" ] || [ "$NGINX_SITE_CONFIG" = "null" ]; then
-    echo "Warning: nginx.site_config_file not found in tunnel configuration, skipping nginx update"
+# Build nginx config paths if site_config_file_name is specified
+if [ -z "$NGINX_SITE_CONFIG_NAME" ] || [ "$NGINX_SITE_CONFIG_NAME" = "null" ]; then
+    echo "Warning: nginx.site_config_file_name not found in tunnel configuration, skipping nginx update"
     NGINX_SITE_CONFIG=""
+else
+    SITES_AVAILABLE="/etc/nginx/sites-available"
+    SITES_ENABLED="/etc/nginx/sites-enabled"
+    NGINX_SITE_CONFIG="$SITES_ENABLED/$NGINX_SITE_CONFIG_NAME"
 fi
 
 # Read nginx server_name, default to REMOTE_HOST if not specified
@@ -69,7 +74,8 @@ echo "SSH Key: $SSH_KEY_PATH"
 echo "Target Host: $TARGET_HOST"
 echo "Config File: $TUNNEL_CONFIG"
 if [ -n "$NGINX_SITE_CONFIG" ]; then
-    echo "Nginx Config: $NGINX_SITE_CONFIG"
+    echo "Nginx Config (sites-available): $SITES_AVAILABLE/$NGINX_SITE_CONFIG_NAME"
+    echo "Nginx Symlink (sites-enabled): $NGINX_SITE_CONFIG"
 fi
 echo "=========================================="
 echo ""
@@ -122,7 +128,11 @@ if [ -n "$NGINX_SITE_CONFIG" ] && [ -f "$NGINX_TEMPLATE" ]; then
     
     # Copy config to remote server (disable set -e for this section)
     set +e
-    echo "Copying nginx config to $REMOTE_USER@$REMOTE_HOST:$NGINX_SITE_CONFIG"
+    # Build paths: config file goes to sites-available, symlink goes to sites-enabled
+    SITES_AVAILABLE_FILE="$SITES_AVAILABLE/$NGINX_SITE_CONFIG_NAME"
+    echo "Copying nginx config to $REMOTE_USER@$REMOTE_HOST"
+    echo "Will install config file to: $SITES_AVAILABLE_FILE"
+    echo "Will create symlink at: $NGINX_SITE_CONFIG -> $SITES_AVAILABLE_FILE"
     scp -i "$SSH_KEY_PATH" \
         -o StrictHostKeyChecking=no \
         -o UserKnownHostsFile=/dev/null \
@@ -130,13 +140,27 @@ if [ -n "$NGINX_SITE_CONFIG" ] && [ -f "$NGINX_TEMPLATE" ]; then
         ${REMOTE_USER}@${REMOTE_HOST}:/tmp/nginx_config_temp > /dev/null 2>&1
     
     if [ $? -eq 0 ]; then
-        # Move the file to the final location and reload nginx
-        echo "Installing nginx config and reloading service..."
+        # NGINX_SITE_CONFIG is already set to $SITES_ENABLED/$NGINX_SITE_CONFIG_NAME (the symlink location)
+        # SITES_AVAILABLE_FILE is already set above
+        
+        # 1. Move config file to sites-available
+        # 2. Create/update symlink in sites-enabled pointing to sites-available
+        # 3. Test and reload nginx
+        echo "Installing nginx config..."
         ssh -i "$SSH_KEY_PATH" \
             -o StrictHostKeyChecking=no \
             -o UserKnownHostsFile=/dev/null \
             ${REMOTE_USER}@${REMOTE_HOST} \
-            "sudo mv /tmp/nginx_config_temp $NGINX_SITE_CONFIG && sudo nginx -t && sudo systemctl reload nginx" 2>&1
+            "sudo mv /tmp/nginx_config_temp $SITES_AVAILABLE_FILE && \
+             if [ ! -L $NGINX_SITE_CONFIG ]; then \
+                 echo 'Creating symbolic link in sites-enabled pointing to sites-available...'; \
+                 sudo ln -sf $SITES_AVAILABLE_FILE $NGINX_SITE_CONFIG; \
+             else \
+                 echo 'Updating existing symbolic link...'; \
+                 sudo ln -sf $SITES_AVAILABLE_FILE $NGINX_SITE_CONFIG; \
+             fi && \
+             sudo nginx -t && \
+             sudo systemctl reload nginx" 2>&1
         
         if [ $? -eq 0 ]; then
             echo "✓ Nginx configuration updated and reloaded successfully"
@@ -215,6 +239,33 @@ if [ -n "$FAILED_TUNNELS" ]; then
 fi
 echo "=========================================="
 echo ""
+
+# Print service URLs
+if [ -n "$NGINX_SITE_CONFIG" ]; then
+    echo "=========================================="
+    echo "Services are available at:"
+    echo "=========================================="
+    for TUNNEL_NAME in $TUNNEL_NAMES; do
+        REMOTE_PORT=$(yq eval ".tunnels.$TUNNEL_NAME.remote_port" "$TUNNEL_CONFIG")
+        if [ -n "$REMOTE_PORT" ] && [ "$REMOTE_PORT" != "null" ]; then
+            echo "  http://${NGINX_SERVER_NAME}/${TUNNEL_NAME}/"
+        fi
+    done
+    echo "=========================================="
+    echo ""
+else
+    echo "=========================================="
+    echo "Services are available at:"
+    echo "=========================================="
+    for TUNNEL_NAME in $TUNNEL_NAMES; do
+        REMOTE_PORT=$(yq eval ".tunnels.$TUNNEL_NAME.remote_port" "$TUNNEL_CONFIG")
+        if [ -n "$REMOTE_PORT" ] && [ "$REMOTE_PORT" != "null" ]; then
+            echo "  http://${REMOTE_HOST}:${REMOTE_PORT}"
+        fi
+    done
+    echo "=========================================="
+    echo ""
+fi
 
 # Monitor tunnel health
 echo "Monitoring tunnel health..."

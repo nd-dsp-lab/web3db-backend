@@ -1,10 +1,10 @@
 server:
-  REMOTE_HOST: your-host-name.compute.amazonaws.com
-  REMOTE_USER: username
+  REMOTE_HOST: your-host.com
+  REMOTE_USER: your-username
 
 nginx:
-  site_config_file: /etc/nginx/sites-enabled/reverse_proxy
-  server_name: your-host-name.compute.amazonaws.com
+  site_config_file_name: reverse_proxy
+  server_name: your-host.com
 
 tunnels:
   app1:

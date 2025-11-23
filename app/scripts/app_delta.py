@@ -24,6 +24,8 @@ import base64
 from dotenv import load_dotenv
 from web3db_contract_index import Web3dbContract
 import json
+import threading
+from collections import deque
 
 # Load environment variables
 # Use absolute path to ensure .env is loaded regardless of current working directory
@@ -77,7 +79,14 @@ app.state.index_cids = {
     'HospitalID': None,
     'Age': None,
 }
+INDEX_UPDATE_INTERVAL = 5 # seconds
+app.state.indexes = {
+    'PatientID': None,
+    'HospitalID': None,
+    'Age': None,
+}
 app.state.index_sizes = {}
+app.state.lock = threading.Lock()
 
 # Encryption key management
 # In production, use a proper key management service
@@ -92,6 +101,74 @@ logger.info("Initializing DuckDB Connection")
 duckdb_conn = duckdb.connect(':memory:')
 logger.info("DuckDB Connection created")
 
+# --- Background Thread for Index updating ---
+background_thread = None 
+stop_event = threading.Event()
+
+def your_background_task_function(stop_flag: threading.Event):
+    """
+    The main loop that runs until the stop_flag is set.
+    """
+    print("Background Thread started.")
+    
+    # Loop continuously until the shutdown signal is received
+    while not stop_flag.is_set():
+        update_indexes()
+        
+        stop_flag.wait(INDEX_UPDATE_INTERVAL) 
+        
+    print("Background Thread exiting gracefully.")
+
+# Helper function for the slow, unlocked work
+def update_indexes():
+    logger.info("Getting all indexes")
+    for attr in ["PatientID", "HospitalID", "Age"]:
+        # fetch cids from smart contract
+        logger.info(f"Retrieving {attr} from Smart Contract")
+        success, delta_cids = app.state.index_storage.get_index(attr)
+        if not success:
+            logger.error(f"Failed to retrieve {attr} from Smart Contract")
+            continue
+        logger.info(f"Succesfully retrieved {attr} from Smart Contract")
+
+        # filter to only have new cids (continue if no new) (or update last cid)
+        n = len(delta_cids)
+        i = n - 1
+        while i >= 0:
+            if delta_cids[i] == app.state.index_cids[attr]:
+                break
+            i-=1
+        delta_cids = delta_cids[i+1:]
+        
+        if not delta_cids:
+            continue
+        app.state.index_cids[attr] = delta_cids[-1]
+        
+        # fetch all info from delta files and store in list
+        data = []
+        for delta_cid in delta_cids:
+            delta = fetch_and_decrypt(delta_cid)
+            if delta["status"] != "success":
+                continue
+            delta = delta["content"]
+            cid, *values = delta.decode().split(',')
+            data += [(v, cid) for v in values]
+
+        # lock index and update list
+        with app.state.lock:
+            if attr not in app.state.indexes or app.state.indexes[attr] == None:
+                app.state.indexes[attr] = CIDIndex(data)
+            else:
+                app.state.indexes[attr].update(data)
+        logger.info(f"Succesfully retrieved {attr} deltas from IPFS")
+
+background_thread = threading.Thread(
+    target=your_background_task_function, 
+    args=(stop_event,),
+    daemon=True # Allows main process to exit even if thread is stuck
+)
+background_thread.start()
+print("Background Thread started on server startup.")
 # --- Encryption/Decryption Helper Functions ---
 
 def encrypt_data(data: bytes, key: bytes) -> "Tuple[bytes, bytes]":
@@ -158,6 +235,7 @@ def extract_and_decrypt_package(package: bytes, key: bytes) -> bytes:
     encrypted_data = package[16:]
     return decrypt_data(encrypted_data, key, iv)
 
+
 # --- Helper Functions ---
 
 def fetch_from_ipfs(cid: str) -> Optional[bytes]:
@@ -209,6 +287,20 @@ def upload_encrypted_delta(delta, attr):
         logger.error(f"Failed to upload encrypted index for {attr}: {e}")
         raise
   
+def decrypt_to_file(encrypted_data: bytes, cid: str, key: bytes) -> Optional[str]:
+    """
+    Decrypt data and save to a file.
+    Returns file path or None on failure.
+    """
+    try:
+        decrypted_data = extract_and_decrypt_package(encrypted_data, key)
+        path = os.path.join(SHARED_TMP_DIR, f"{cid}.parquet")
+        with open(path, "wb") as f:
+            f.write(decrypted_data)
+        return path
+    except Exception as e:
+        logger.error(f"Failed to decrypt CID {cid}: {e}")
+        return None
 # --- app routes ---
 @app.post("/upload/patient-data")
 async def upload_patient_data(file: UploadFile = File(...)):
@@ -276,33 +368,106 @@ async def fetch_from_ipfs_endpoint(cid: str):
 
 @app.get("/index")
 async def get_indexes():
-    indexes = {}
-    logger.info("Getting all indexes")
-    for attr in ["PatientID", "HospitalID", "Age"]:
-        logger.info(f"Retrieving {attr} from Smart Contract")
-        success, delta_cids = app.state.index_storage.get_index(attr)
-        if not success:
-            logger.error(f"Failed to retrieve {attr} from Smart Contract")
-            continue
-        logger.info(f"Succesfully retrieved {attr} from Smart Contract")
-        for delta_cid in delta_cids:
-            delta = fetch_and_decrypt(delta_cid)
-            if delta["status"] != "success":
-                continue
-            delta = delta["content"]
-            cid, *values = delta.decode().split(',')
-            data = [(v, cid) for v in values]
-            if attr not in indexes:
-                indexes[attr] = CIDIndex(data)
-            else:
-                indexes[attr].update(data)
-        logger.info(f"Succesfully retrieved {attr} deltas from IPFS")
-        print(indexes[attr].index)
-    logger.info(indexes)
-    return indexes
+    print(app.state.indexes)
+    print(app.state.indexes["PatientID"])
+    return {"success": True}
 
 
+# TODO: get query stuff, ignore policies for now
+# retrieve index reads file locally, another script updates that file
+def query_index(index, query, attr) -> List[str]:
+    where = re.search(r"where\s+(.*)", query, re.IGNORECASE)
+    if not where:
+        return index.query_range()
+    conds = [c.strip() for c in re.split(r"\s+and\s+", where.group(1)) if attr in c]
+    if not conds:
+        return index.query_range()
+    out = set()
+    for c in conds:
+        op = ">=" if ">=" in c else "<=" if "<=" in c else ">" if ">" in c else "<" if "<" in c else "!=" if "!=" in c else "="
+        key = c.split(op)[1].strip().strip("'\"")
+        key = int(key) if index.index_type == "bplustree" else key
+        if op == "=": out.update(index.query(key))
+        elif op == ">": out.update(index.query_range(key + 1, inf))
+        elif op == "<": out.update(index.query_range(-inf, key - 1))
+        elif op == ">=": out.update(index.query_range(key, inf))
+        elif op == "<=": out.update(index.query_range(-inf, key))
+        elif op == "!=": out.update(set(index.query_range()) - set(index.query(key)))
+    return list(out)
+class QueryRequest(BaseModel):
+    index_attribute: str = 'PatientID'
+    query: str = "select * from patient_data where PatientID = 'X'"
+    wallet_address: str  # Required wallet address for access control
 
+@app.post("/query")
+async def query(request: QueryRequest):
+    logger.info("POST /query - Processing query with access control")
+
+    # Step 4: Continue with normal query processing using the rewritten query
+    # Retrieve and decrypt index
+    index = app.state.indexes[request.index_attribute]
+    # did not actually rewrite query in this version
+    rewritten_query = request.query
+
+    if not index:
+        return {"error": f"Index for {request.index_attribute} not found"}
+    with app.state.lock:
+        cids = query_index(index, request.query, request.index_attribute)  # Use original query for index lookup
+
+    if not cids:
+        return {"message": "No matching CIDs found"}
+
+    # Fetch all CIDs in parallel
+    with concurrent.futures.ThreadPoolExecutor(max_workers=64) as executor:
+        encrypted_data_list = list(executor.map(fetch_from_ipfs, cids))
+
+    # Decrypt all data sequentially (or in parallel if needed)
+    paths = []
+    for cid, encrypted_data in zip(cids, encrypted_data_list):
+        if encrypted_data:
+            path = decrypt_to_file(encrypted_data, cid, app.state.encryption_key)
+            if path:
+                paths.append(path)
+
+    if not paths:
+        return {"error": "No valid Parquet files retrieved"}
+
+    # Apply DuckDB SQL using the rewritten query with access control
+    try:
+        # For large number of files, use glob pattern or process in batches
+        if len(paths) == 1:
+            query_with_table = rewritten_query.replace("patient_data", f"'{paths[0]}'")
+            result = duckdb_conn.execute(query_with_table)
+        else:
+            # Method 1: Use glob pattern if files are in same directory
+            # This is more efficient for many files
+            glob_pattern = os.path.join(SHARED_TMP_DIR, "*.parquet")
+            query_with_table = rewritten_query.replace("patient_data", f"read_parquet('{glob_pattern}')")
+            result = duckdb_conn.execute(query_with_table)
+
+        # Fetch all results and convert to list of dictionaries
+        columns = [desc[0] for desc in result.description]
+        rows = result.fetchall()
+        results = [dict(zip(columns, row)) for row in rows]
+    except Exception as e:
+        logger.error(f"Query error with rewritten query: {e}")
+        logger.error(f"Rewritten query was: {rewritten_query}")
+        return {"error": f"Query execution failed: {str(e)}"}
+    finally:
+        # Delete temporary files
+        for p in paths:
+            try:
+                os.remove(p)
+            except Exception as e:
+                logger.warning(f"Failed to delete {p}: {e}")
+    
+    return {
+        "wallet_address": request.wallet_address,
+        "rewritten_query": rewritten_query,
+        "cids": len(cids),
+        "records": len(results),
+        "results": results
+    }
 
 @app.get("/health")
 async def health_check():
@@ -344,8 +509,18 @@ async def root():
 @app.on_event("shutdown")
 def shutdown_event():
     logger.info("Application shutting down...")
+    global background_thread, stop_event
+    
+    print("Server shutting down. Signaling background thread...")
+    
+    stop_event.set()
+
     if hasattr(app.state, 'index_storage'):
         logger.info("Cleaning up smart contract connections...")
+
+    if background_thread:
+        background_thread.join()
+        print("Background Thread successfully joined.")
 
 # Main execution block to start the FastAPI server
 if __name__ == "__main__":

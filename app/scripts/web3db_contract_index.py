@@ -252,27 +252,25 @@ if __name__ == "__main__":
         infura_api_key="eb1d43f1429e49fba50e18fbf5ebd4ab",
         private_key="0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
     )
-    test_batch_get(index_storage)
-    
-    sys.exit(0)
-    # Test single operations first
-    print("\n--- Testing Single Operations ---")
-    print("\nTesting update_index...")
+
+    # # Test single operations first
+    # print("\n--- Testing Single Operations ---")
+    # print("\nTesting update_index...")
     attribute = "PatientID"
-    success, current_cid = index_storage.get_index(attribute)
-    print(f"Current {attribute} CID: {current_cid if success else 'Error retrieving'}")
+    # success, current_cid = index_storage.get_index(attribute)
+    # print(f"Current {attribute} CID: {current_cid if success else 'Error retrieving'}")
     
-    # Update a single index
-    single_new_cid = "test1"
-    print(f"Updating {attribute} index to: {single_new_cid}")
-    success = index_storage.update_index(attribute, single_new_cid)
+    # # Update a single index
+    # single_new_cid = "test1"
+    # print(f"Updating {attribute} index to: {single_new_cid}")
+    # success = index_storage.update_index(attribute, single_new_cid)
     
-    if success:
+    # if success:
         # Verify the update
-        print("\nTesting get_index...")
-        success, updated_cid = index_storage.get_index(attribute)
-        print(f"Updated {attribute} Index CID: {updated_cid if success else 'Error retrieving'}")
-        
+    print("\nTesting get_index...")
+    success, updated_cid = index_storage.get_index(attribute)
+    print(f"Updated {attribute} Index CID: {updated_cid if success else 'Error retrieving'}")
+    sys.exit(0)
     # Test batch operations
     print("\n--- Testing Batch Operations ---")
     attributes = ["PatientID", "HospitalID", "Age"]

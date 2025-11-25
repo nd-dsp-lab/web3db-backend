@@ -1,16 +1,16 @@
 server:
-  REMOTE_HOST: your-host.com
-  REMOTE_USER: your-username
+  REMOTE_HOST: ec2-3-144-34-23.us-east-2.compute.amazonaws.com
+  REMOTE_USER: ubuntu
 
 nginx:
   site_config_file_name: reverse_proxy
-  server_name: your-host.com
+  server_name: proxy.web3db.org
 
 tunnels:
-  app1:
-    local_port: 5000
+  web3db-backend:
+    local_port: 8000
     remote_port: 8000
 
-  app2:
-    local_port: 4999
+  web3db-fs-backend:
+    local_port: 8090
     remote_port: 8090

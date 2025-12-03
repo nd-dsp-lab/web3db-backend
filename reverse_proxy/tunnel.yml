@@ -14,3 +14,7 @@ tunnels:
   web3db-fs-backend:
     local_port: 8090
     remote_port: 8090
+
+  nasa_project:
+    local_port: 8001
+    remote_port: 8001

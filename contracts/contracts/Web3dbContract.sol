@@ -10,7 +10,7 @@ contract Web3dbContract {
     }
     
     // Mapping from attribute name (like "PatientID") to its current index CID
-    mapping(string => string) private indexCIDs;
+    mapping(string => string[]) private indexCIDs;
     
     // Mapping from table name to its schema (stored as JSON string)
     mapping(string => string) private tableSchemas;
@@ -19,7 +19,7 @@ contract Web3dbContract {
     mapping(address => AccessPolicy[]) private accessPolicies;
 
     // Event to log index updates
-    event IndexUpdated(string attribute, string oldCID, string newCID);
+    event IndexUpdated(string attribute, string newCID);
 
     // Event to log batch updates
     event BatchIndexUpdated(string[] attributes, string[] newCIDs);
@@ -36,9 +36,8 @@ contract Web3dbContract {
         string memory attribute,
         string memory newCID
     ) public {
-        string memory oldCID = indexCIDs[attribute];
-        indexCIDs[attribute] = newCID;
-        emit IndexUpdated(attribute, oldCID, newCID);
+        indexCIDs[attribute].push(newCID);
+        emit IndexUpdated(attribute, newCID);
     }
 
     // Function to update multiple index CIDs in one transaction
@@ -52,9 +51,8 @@ contract Web3dbContract {
         );
 
         for (uint i = 0; i < attributes.length; i++) {
-            string memory oldCID = indexCIDs[attributes[i]];
-            indexCIDs[attributes[i]] = newCIDs[i];
-            emit IndexUpdated(attributes[i], oldCID, newCIDs[i]);
+            indexCIDs[attributes[i]].push(newCIDs[i]);
+            // emit IndexUpdated(attributes[i], newCIDs[i]);
         }
 
         emit BatchIndexUpdated(attributes, newCIDs);
@@ -63,28 +61,44 @@ contract Web3dbContract {
     // Function to get the current index CID for an attribute
     function getIndexCID(
         string memory attribute
-    ) public view returns (string memory) {
+    ) public view returns (string[] memory) {
         return indexCIDs[attribute];
     }
 
     // Function to get multiple index CIDs in one call
+    // function batchGetIndexCIDs(
+    //     string[] memory attributes
+    // ) public view returns (string[][] memory) {
+    //     string[] memory results = new string[](attributes.length);
+
+    //     for (uint i = 0; i < attributes.length; i++) {
+    //         results[i] = indexCIDs[attributes[i]];
+    //     }
+
+    //     return results;
+    // }
+
     function batchGetIndexCIDs(
         string[] memory attributes
-    ) public view returns (string[] memory) {
-        string[] memory results = new string[](attributes.length);
+    ) public view returns (string[][] memory) {
+        string[][] memory results = new string[][](attributes.length);
 
         for (uint i = 0; i < attributes.length; i++) {
-            results[i] = indexCIDs[attributes[i]];
+            string[] storage arr = indexCIDs[attributes[i]];
+            // Copy storage array → memory array
+            string[] memory temp = new string[](arr.length);
+            for (uint j = 0; j < arr.length; j++) {
+                temp[j] = arr[j];
+            }
+            results[i] = temp;
         }
 
         return results;
     }
-
     // Function to remove an index CID
     function removeIndex(string memory attribute) public {
-        string memory oldCID = indexCIDs[attribute];
         delete indexCIDs[attribute];
-        emit IndexUpdated(attribute, oldCID, "");
+        emit IndexUpdated(attribute, "");
     }
     
     // Schema management functions

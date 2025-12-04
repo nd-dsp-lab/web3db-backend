@@ -5,7 +5,10 @@ services:
     restart: unless-stopped
     volumes:
       - ./data/ipfs:/data/ipfs
-    network_mode: host
+    ports:
+      - "5001:5001"   # API
+      - "8082:8082"   # Gateway
+      - "4001:4001"   # Swarm
     environment:
       - IPFS_PROFILE=server  # Optimized for server use
       - IPFS_PATH=/data/ipfs
@@ -15,7 +18,7 @@ services:
         ipfs init --profile server || true && \
 
         # API - bind to localhost only for security
-        ipfs config Addresses.API /ip4/127.0.0.1/tcp/5001 && \
+        ipfs config Addresses.API /ip4/0.0.0.0/tcp/5001 && \
 
         # Gateway - public read access
         ipfs config Addresses.Gateway /ip4/0.0.0.0/tcp/8082 && \

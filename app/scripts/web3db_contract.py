@@ -1,10 +1,10 @@
-import os
+import os, sys
 from web3 import Web3
 from dotenv import load_dotenv
 import json
 
 class Web3dbContract:
-    def __init__(self, contract_address=None, infura_api_key=None, private_key=None, abi_path="./artifacts/contracts/Web3dbContract.sol/Web3dbContract.json", network_url="http://localhost:8545"):
+    def __init__(self, contract_address=None, infura_api_key=None, private_key=None, abi_path="../../contracts/artifacts/contracts/Web3dbContract.sol/Web3dbContract.json", network_url="http://localhost:8545"):
         self.infura_api_key = infura_api_key
         self.private_key = private_key
         self.contract_address = contract_address
@@ -605,9 +605,9 @@ if __name__ == "__main__":
     try:
         # Initialize the Web3dbContract instance
         index_storage = Web3dbContract(
-            contract_address="0x041da68BD3F1bf13C5d75E3bA80ab6bB8B136BFd",
+            contract_address="0x5FbDB2315678afecb367f032d93F642f64180aa3",
             infura_api_key="eb1d43f1429e49fba50e18fbf5ebd4ab",
-            private_key="34cf59aaa5ef0a24e65b4e4dbe6fb23c2bd23a4d9a6b584d7995a141de719d53"
+            private_key="0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
         )
         
         # Test single operations first
@@ -630,24 +630,27 @@ if __name__ == "__main__":
         print("\n--- Testing Batch Operations ---")
         attributes = ["PatientID", "HospitalID", "Age"]
 
-        # Test batch update
-        new_cids = [
-            "QmBatchTest1CIDPatientID123456789abcdefghijklmnopqrst",
-            "QmBatchTest2CIDHospitalID123456789abcdefghijklmnopqrs",
-            "QmBatchTest3CIDAge123456789abcdefghijklmnopqrstuvwxyz"
-        ]
-        
-        print("\nTesting batch update_indices...")
-        print(f"Updating {len(attributes)} indices in a single transaction")
-        for i, (attr, cid) in enumerate(zip(attributes, new_cids)):
-            print(f"  {attr} -> {cid}")
-        
+        for i in [1,2,3]:
+            # Test batch update
+            new_cids = [
+                "QmBatchTest1CIDPatientID123456789abcdefghijklmnopqrst",
+                "QmBatchTest2CIDHospitalID123456789abcdefghijklmnopqrs",
+                "QmBatchTest3CIDAge123456789abcdefghijklmnopqrstuvwxyz"
+            ]
+            
+            print("\nTesting batch update_indices...")
+            print(f"Updating {len(attributes)} indices in a single transaction")
+            for i, (attr, cid) in enumerate(zip(attributes, new_cids)):
+                print(f"  {attr} -> {cid}")
+            
         success = index_storage.batch_update_indices(attributes, new_cids)
         
         if success:
             # Verify the batch update
             print("\nVerifying batch update...")
             success, updated_cids = index_storage.batch_get_indices(attributes)
+            print("\n\n\n")
+            print(updated_cids)
             if success:
                 print("Updated CIDs:")
                 for attr, cid in updated_cids.items():
@@ -655,9 +658,10 @@ if __name__ == "__main__":
             else:
                 print("Failed to retrieve updated batch indices")
         
+        sys.exit(0)
         # Test access policy management
         print("\n--- Testing Access Policy Management ---")
-        test_wallet = "0x68ef100cC9dAdE0bb67a0aE99A02CDd1eaE54A2f"
+        test_wallet = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
         test_table = "patient_data"
         test_policy = "SELECT * FROM patient_data WHERE PatientID = '38'"
         

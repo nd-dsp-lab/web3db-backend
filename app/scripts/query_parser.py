@@ -132,7 +132,7 @@ class ParsedQuery:
     query_type: str  # SELECT, INSERT, UPDATE, DELETE
     tables: List[str]
     columns: List[str]  # ["*"] for SELECT *
-    predicates: PredicateGroup
+    predicates: PredicateGroup  # Combined predicates (CTE + outer)
     join_conditions: List[JoinCondition]
     group_by: List[str]
     order_by: List[Tuple[str, str]]  # [(column, ASC/DESC), ...]
@@ -141,6 +141,8 @@ class ParsedQuery:
     aggregations: List[str]  # ["COUNT(*)", "AVG(Age)", ...]
     has_cte: bool  # Common Table Expression (WITH clause)
     cte_name: Optional[str]
+    cte_predicates: PredicateGroup = field(default_factory=PredicateGroup)  # Access control predicates from CTE
+    outer_predicates: PredicateGroup = field(default_factory=PredicateGroup)  # User filter predicates from outer WHERE
     
     def to_dict(self) -> dict:
         return {
@@ -158,9 +160,26 @@ class ParsedQuery:
         }
     
     def generate_signature(self) -> str:
-        """Generate a unique signature for cache key"""
+        """Generate a unique signature for cache key (includes all predicates)"""
         sig_dict = self.to_dict()
         # Sort for consistent hashing
+        sig_str = json.dumps(sig_dict, sort_keys=True)
+        return hashlib.sha256(sig_str.encode()).hexdigest()[:32]
+    
+    def generate_base_signature(self) -> str:
+        """Generate a base signature for cache lookup (CTE/access control predicates only).
+        
+        This allows queries with different user filters to match the same cache entry,
+        enabling subset detection and filtering on cached data.
+        """
+        sig_dict = {
+            "query_type": self.query_type,
+            "tables": [t.lower() for t in self.tables],
+            "columns": [c.lower() for c in self.columns],
+            "cte_predicates": self.cte_predicates.to_dict() if not self.cte_predicates.is_empty() else self.predicates.to_dict(),
+            "join_conditions": [jc.to_dict() for jc in self.join_conditions],
+            "has_cte": self.has_cte
+        }
         sig_str = json.dumps(sig_dict, sort_keys=True)
         return hashlib.sha256(sig_str.encode()).hexdigest()[:32]
     
@@ -234,8 +253,8 @@ class QueryParser:
         # Parse JOIN conditions
         join_conditions = self._parse_joins(normalized)
         
-        # Parse WHERE predicates
-        predicates = self._parse_where(normalized)
+        # Parse WHERE predicates (returns combined, cte_predicates, outer_predicates)
+        predicates, cte_predicates, outer_predicates = self._parse_where(normalized)
         
         # Parse GROUP BY
         group_by = self._parse_group_by(normalized)
@@ -264,7 +283,9 @@ class QueryParser:
             offset=offset,
             aggregations=aggregations,
             has_cte=has_cte,
-            cte_name=cte_name
+            cte_name=cte_name,
+            cte_predicates=cte_predicates,
+            outer_predicates=outer_predicates
         )
     
     def _parse_columns(self, query: str) -> List[str]:
@@ -338,13 +359,55 @@ class QueryParser:
         return joins
     
     def _parse_where(self, query: str) -> PredicateGroup:
-        """Extract WHERE clause predicates"""
+        """Extract WHERE clause predicates.
+        
+        For CTE queries (WITH ... AS (...) SELECT ... WHERE ...):
+        - Extract predicates from BOTH the CTE's WHERE clause AND the outer query's WHERE clause
+        - Combine them with AND (both must be satisfied)
+        """
+        # Check if this is a CTE query
+        cte_pattern = re.compile(r'WITH\s+(\w+)\s+AS\s*\((.+?)\)\s*(SELECT.+)', re.IGNORECASE | re.DOTALL)
+        cte_match = cte_pattern.search(query)
+        
+        if cte_match:
+            # CTE query: extract predicates from both inner and outer queries
+            cte_body = cte_match.group(2)
+            outer_query = cte_match.group(3)
+            
+            # Get predicates from CTE body
+            cte_where_match = self.WHERE_PATTERN.search(cte_body)
+            cte_predicates = PredicateGroup()
+            if cte_where_match:
+                cte_where_clause = cte_where_match.group(1).strip()
+                cte_predicates = self._parse_predicate_group(cte_where_clause)
+            
+            # Get predicates from outer query
+            outer_where_match = self.WHERE_PATTERN.search(outer_query)
+            outer_predicates = PredicateGroup()
+            if outer_where_match:
+                outer_where_clause = outer_where_match.group(1).strip()
+                outer_predicates = self._parse_predicate_group(outer_where_clause)
+            
+            # Combine both predicate groups
+            if cte_predicates.is_empty():
+                return outer_predicates, cte_predicates, outer_predicates
+            elif outer_predicates.is_empty():
+                return cte_predicates, cte_predicates, outer_predicates
+            else:
+                # Combine with AND - both CTE and outer predicates must be satisfied
+                combined = PredicateGroup(operator=LogicalOperator.AND)
+                combined.subgroups.append(cte_predicates)
+                combined.subgroups.append(outer_predicates)
+                return combined, cte_predicates, outer_predicates
+        
+        # Non-CTE query: use existing logic
         match = self.WHERE_PATTERN.search(query)
         if not match:
-            return PredicateGroup()
+            return PredicateGroup(), PredicateGroup(), PredicateGroup()
         
         where_clause = match.group(1).strip()
-        return self._parse_predicate_group(where_clause)
+        predicates = self._parse_predicate_group(where_clause)
+        return predicates, predicates, PredicateGroup()  # All predicates are "CTE" predicates for non-CTE queries
     
     def _parse_predicate_group(self, clause: str) -> PredicateGroup:
         """Parse a predicate clause into structured predicates"""

@@ -53,11 +53,11 @@ class CacheEntry:
             "table_name": self.table_name,
             "duckdb_table": self.duckdb_table,
             "signature": self.signature,
-            "row_count": self.row_count,
+            "row_count": int(self.row_count),  # Convert to native int for JSON serialization
             "created_at": datetime.fromtimestamp(self.created_at).isoformat(),
             "last_accessed": datetime.fromtimestamp(self.last_accessed).isoformat(),
-            "access_count": self.access_count,
-            "size_bytes": self.size_bytes
+            "access_count": int(self.access_count),  # Convert to native int for JSON serialization
+            "size_bytes": int(self.size_bytes)  # Convert to native int for JSON serialization
         }
 
 
@@ -96,19 +96,19 @@ class CacheMetrics:
     
     def to_dict(self) -> dict:
         return {
-            "total_queries": self.total_queries,
-            "cache_hits": self.cache_hits,
-            "cache_misses": self.cache_misses,
-            "exact_hits": self.exact_hits,
-            "subset_hits": self.subset_hits,
-            "hit_rate": round(self.hit_rate * 100, 2),
-            "avg_hit_latency_ms": round(self.avg_hit_latency_ms, 3),
-            "avg_miss_latency_ms": round(self.avg_miss_latency_ms, 3),
-            "evictions": self.evictions,
-            "invalidations": self.invalidations,
-            "current_entries": self.current_entries,
-            "current_size_bytes": self.current_size_bytes,
-            "current_size_mb": round(self.current_size_bytes / (1024 * 1024), 2)
+            "total_queries": int(self.total_queries),
+            "cache_hits": int(self.cache_hits),
+            "cache_misses": int(self.cache_misses),
+            "exact_hits": int(self.exact_hits),
+            "subset_hits": int(self.subset_hits),
+            "hit_rate": round(float(self.hit_rate) * 100, 2),
+            "avg_hit_latency_ms": round(float(self.avg_hit_latency_ms), 3),
+            "avg_miss_latency_ms": round(float(self.avg_miss_latency_ms), 3),
+            "evictions": int(self.evictions),
+            "invalidations": int(self.invalidations),
+            "current_entries": int(self.current_entries),
+            "current_size_bytes": int(self.current_size_bytes),
+            "current_size_mb": round(float(self.current_size_bytes) / (1024 * 1024), 2)
         }
 
 
@@ -197,6 +197,12 @@ class SemanticCache:
             
         Returns:
             CacheLookupResult with hit status and cache entry if found
+            
+        Cache Lookup Strategy:
+        1. Check for exact match (same full signature, or base signature for queries without outer predicates)
+        2. Check for base match (same CTE/access control predicates, different outer predicates)
+           - If new query has outer predicates but cached query doesn't, use outer as filter
+        3. Check for subset match using predicate analysis
         """
         start_time = time.time()
         
@@ -205,14 +211,20 @@ class SemanticCache:
             
             # Parse the query
             parsed = self._parser.parse(rewritten_query)
-            signature = parsed.generate_signature()
-            cache_id = self._generate_cache_id(table_name, signature)
+            full_signature = parsed.generate_signature()
+            base_signature = parsed.generate_base_signature()
+            cache_id = self._generate_cache_id(table_name, full_signature)
+            base_cache_id = self._generate_cache_id(table_name, base_signature)
             
             # Check for exact match
-            if cache_id in self._cache:
-                entry = self._cache[cache_id]
+            # For queries without outer predicates, check base_cache_id (that's how we store them)
+            # For queries with outer predicates, check cache_id first (full signature)
+            exact_lookup_id = base_cache_id if parsed.outer_predicates.is_empty() else cache_id
+            
+            if exact_lookup_id in self._cache:
+                entry = self._cache[exact_lookup_id]
                 # Move to end for LRU
-                self._cache.move_to_end(cache_id)
+                self._cache.move_to_end(exact_lookup_id)
                 entry.last_accessed = time.time()
                 entry.access_count += 1
                 
@@ -221,7 +233,7 @@ class SemanticCache:
                 self._metrics.exact_hits += 1
                 self._metrics.total_hit_latency_ms += lookup_time
                 
-                logger.info(f"Cache HIT (exact): {cache_id}, {entry.row_count} rows")
+                logger.info(f"Cache HIT (exact): {exact_lookup_id}, {entry.row_count} rows")
                 
                 return CacheLookupResult(
                     hit=True,
@@ -231,7 +243,37 @@ class SemanticCache:
                     lookup_time_ms=lookup_time
                 )
             
-            # Check for subset match if enabled
+            # Check for base match (same CTE predicates, different outer predicates)
+            # This handles the case where we cached "SELECT * FROM table" and now query 
+            # "SELECT * FROM table WHERE Age > 90"
+            if base_cache_id in self._cache and not parsed.outer_predicates.is_empty():
+                entry = self._cache[base_cache_id]
+                # Verify the cached entry has no outer predicates (it's the base/superset)
+                if entry.parsed_query.outer_predicates.is_empty():
+                    # Move to end for LRU
+                    self._cache.move_to_end(base_cache_id)
+                    entry.last_accessed = time.time()
+                    entry.access_count += 1
+                    
+                    # Generate SQL filter from outer predicates
+                    additional_filter = parsed.outer_predicates.to_sql()
+                    
+                    lookup_time = (time.time() - start_time) * 1000
+                    self._metrics.cache_hits += 1
+                    self._metrics.subset_hits += 1
+                    self._metrics.total_hit_latency_ms += lookup_time
+                    
+                    logger.info(f"Cache HIT (base+filter): {base_cache_id}, filter: {additional_filter}")
+                    
+                    return CacheLookupResult(
+                        hit=True,
+                        hit_type="subset",
+                        cache_entry=entry,
+                        additional_filter=additional_filter,
+                        lookup_time_ms=lookup_time
+                    )
+            
+            # Check for subset match if enabled (using predicate analysis)
             if self.enable_subset_detection:
                 subset_result = self._find_superset_entry(parsed, table_name)
                 if subset_result:
@@ -261,7 +303,7 @@ class SemanticCache:
             self._metrics.cache_misses += 1
             self._metrics.total_miss_latency_ms += lookup_time
             
-            logger.info(f"Cache MISS: {table_name}, signature={signature[:16]}")
+            logger.info(f"Cache MISS: {table_name}, signature={full_signature[:16]}, base_sig={base_signature[:16]}")
             
             return CacheLookupResult(
                 hit=False,
@@ -319,11 +361,23 @@ class SemanticCache:
             
         Returns:
             The created CacheEntry
+            
+        Storage Strategy:
+        - If query has no outer predicates (e.g., SELECT * FROM table), store with base_signature
+          so that queries with outer predicates can find and filter from it
+        - If query has outer predicates, store with full signature for exact match
         """
         with self._lock:
             # Parse query and generate IDs
             parsed = self._parser.parse(rewritten_query)
-            signature = parsed.generate_signature()
+            
+            # Use base signature if no outer predicates (makes this a reusable base cache)
+            # Use full signature if there are outer predicates (specific filtered result)
+            if parsed.outer_predicates.is_empty():
+                signature = parsed.generate_base_signature()
+            else:
+                signature = parsed.generate_signature()
+            
             cache_id = self._generate_cache_id(table_name, signature)
             duckdb_table = self._generate_duckdb_table_name(cache_id)
             

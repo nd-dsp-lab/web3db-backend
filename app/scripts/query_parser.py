@@ -658,36 +658,40 @@ def predicates_are_subset(cached: PredicateGroup, new: PredicateGroup) -> Tuple[
     if new.is_empty():
         return False, None
     
-    # For AND predicates, check if each cached predicate is satisfied
-    # and if new has additional predicates
-    if cached.operator == LogicalOperator.AND and new.operator == LogicalOperator.AND:
-        # All new predicates must be subsets of (or exactly match) some cached predicate
-        additional_filters = []
-        
-        for new_pred in new.predicates:
-            matched = False
-            for cached_pred in cached.predicates:
-                is_subset, extra = predicate_is_subset(cached_pred, new_pred)
-                if is_subset:
-                    matched = True
-                    if extra:
-                        additional_filters.append(extra)
-                    break
-            
-            if not matched:
-                # New predicate is NOT a subset of any cached predicate
-                # This means we can't derive the result from cache
-                return False, None
-        
-        # All new predicates are subsets of cached predicates
-        if additional_filters:
-            return True, " AND ".join(additional_filters)
-        return True, None
+    # Flatten predicates from both groups for comparison
+    cached_flat = _flatten_predicates(cached)
+    new_flat = _flatten_predicates(new)
     
-    # For OR predicates, it's more complex - for now, require exact match
-    # TODO: Implement OR subset detection
+    # For AND predicates, check if each new predicate is a subset of some cached predicate
+    additional_filters = []
     
-    return False, None
+    for new_pred in new_flat:
+        matched = False
+        for cached_pred in cached_flat:
+            is_subset, extra = predicate_is_subset(cached_pred, new_pred)
+            if is_subset:
+                matched = True
+                if extra:
+                    additional_filters.append(extra)
+                break
+        
+        if not matched:
+            # New predicate is NOT a subset of any cached predicate
+            # This means we can't derive the result from cache
+            return False, None
+    
+    # All new predicates are subsets of cached predicates
+    if additional_filters:
+        return True, " AND ".join(additional_filters)
+    return True, None
+
+
+def _flatten_predicates(group: PredicateGroup) -> List[Predicate]:
+    """Flatten a predicate group into a list of individual predicates."""
+    result = list(group.predicates)
+    for subgroup in group.subgroups:
+        result.extend(_flatten_predicates(subgroup))
+    return result
 
 
 def predicate_is_subset(cached: Predicate, new: Predicate) -> Tuple[bool, Optional[str]]:

@@ -11,7 +11,7 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 import duckdb
 from typing import List, Tuple, Optional
-from fastapi import FastAPI, UploadFile, File
+from fastapi import FastAPI, UploadFile, File, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import concurrent.futures
@@ -23,6 +23,7 @@ import secrets
 import base64
 from dotenv import load_dotenv
 from web3db_contract import Web3dbContract
+from semantic_cache import SemanticCache, init_semantic_cache, get_semantic_cache
 
 # Load environment variables
 # Use absolute path to ensure .env is loaded regardless of current working directory
@@ -98,6 +99,21 @@ logger.info("Initializing DuckDB Connection")
 # Use in-memory database for better performance
 duckdb_conn = duckdb.connect(':memory:')
 logger.info("DuckDB Connection created")
+
+# Initialize Semantic Cache
+# Cache configuration for 128GB EPC SGX enclave
+CACHE_MAX_SIZE_GB = int(os.getenv("CACHE_MAX_SIZE_GB", "64"))  # Default 64GB for cache
+CACHE_MAX_ENTRIES = int(os.getenv("CACHE_MAX_ENTRIES", "10000"))
+CACHE_ENABLE_SUBSET = os.getenv("CACHE_ENABLE_SUBSET", "true").lower() == "true"
+
+logger.info(f"Initializing Semantic Cache: max_size={CACHE_MAX_SIZE_GB}GB, max_entries={CACHE_MAX_ENTRIES}, subset_detection={CACHE_ENABLE_SUBSET}")
+semantic_cache = init_semantic_cache(
+    duckdb_conn=duckdb_conn,
+    max_size_bytes=CACHE_MAX_SIZE_GB * 1024 * 1024 * 1024,
+    max_entries=CACHE_MAX_ENTRIES,
+    enable_subset_detection=CACHE_ENABLE_SUBSET
+)
+logger.info("Semantic Cache initialized")
 
 # --- Encryption/Decryption Helper Functions ---
 
@@ -381,6 +397,10 @@ def rewrite_query_with_access_policies(original_query: str, policies: List[dict]
 @app.post("/query")
 async def query(request: QueryRequest):
     logger.info(f"POST /query - Processing query for table '{request.table_name}' with access control")
+    
+    query_start_time = time.time()
+    cache_status = "disabled"
+    cache_lookup_time_ms = 0.0
 
     # Step 1: Fetch access policies for the wallet address
     try:
@@ -421,7 +441,59 @@ async def query(request: QueryRequest):
     
     logger.info(f"Rewritten query for wallet {request.wallet_address}: {rewritten_query}")
 
-    # Step 5: Continue with normal query processing using the rewritten query
+    # Step 5: Check Semantic Cache FIRST
+    cache = get_semantic_cache()
+    if cache:
+        cache_lookup_result = cache.lookup(rewritten_query, request.table_name)
+        cache_lookup_time_ms = cache_lookup_result.lookup_time_ms
+        
+        if cache_lookup_result.hit:
+            # CACHE HIT - Return from cache
+            cache_status = f"hit_{cache_lookup_result.hit_type}"
+            logger.info(f"Cache {cache_status}: serving from cache")
+            
+            try:
+                # Query cached data with optional additional filter
+                df = cache.query_cached(
+                    cache_lookup_result.cache_entry, 
+                    cache_lookup_result.additional_filter
+                )
+                results = df.to_dict('records')
+                
+                total_time_ms = (time.time() - query_start_time) * 1000
+                
+                return {
+                    "wallet_address": request.wallet_address,
+                    "table_name": request.table_name,
+                    "policy_count": len(table_policies),
+                    "policies_applied": [
+                        {
+                            "subject": p.get('subject'), 
+                            "object": p.get('object'), 
+                            "table": p.get('tableName'), 
+                            "original_sql": p.get('policySql'),
+                            "enforced_condition": f"OwnerID = '{p.get('subject')}' AND ({p.get('policySql', '').split('WHERE')[-1].strip() if 'WHERE' in p.get('policySql', '').upper() else '1=1'})"
+                        } for p in table_policies
+                    ],
+                    "rewritten_query": rewritten_query,
+                    "cids": 0,  # No CIDs fetched from cache hit
+                    "records": len(results),
+                    "results": results,
+                    "cache": {
+                        "status": cache_status,
+                        "lookup_time_ms": round(cache_lookup_time_ms, 3),
+                        "total_time_ms": round(total_time_ms, 3),
+                        "additional_filter": cache_lookup_result.additional_filter,
+                        "cached_entry_id": cache_lookup_result.cache_entry.cache_id if cache_lookup_result.cache_entry else None
+                    }
+                }
+            except Exception as e:
+                logger.error(f"Error querying cache: {e}, falling back to IPFS")
+                cache_status = "error_fallback"
+    
+    # Step 6: CACHE MISS - Continue with normal query processing
+    cache_status = "miss" if cache else "disabled"
+    
     # Retrieve and decrypt index
     index = retrieve_index(request.index_attribute, request.table_name)
 
@@ -443,23 +515,30 @@ async def query(request: QueryRequest):
         }
 
     # Fetch all CIDs in parallel
+    ipfs_fetch_start = time.time()
     with concurrent.futures.ThreadPoolExecutor(max_workers=64) as executor:
         encrypted_data_list = list(executor.map(fetch_from_ipfs, cids))
+    ipfs_fetch_time_ms = (time.time() - ipfs_fetch_start) * 1000
 
     # Decrypt all data sequentially (or in parallel if needed)
+    decrypt_start = time.time()
     paths = []
     for cid, encrypted_data in zip(cids, encrypted_data_list):
         if encrypted_data:
             path = decrypt_to_file(encrypted_data, cid, app.state.encryption_key)
             if path:
                 paths.append(path)
+    decrypt_time_ms = (time.time() - decrypt_start) * 1000
 
     if not paths:
         return {"error": "No valid Parquet files retrieved"}
 
     # Apply DuckDB SQL using the rewritten query with access control
+    results = []
+    results_df = None
     try:
         # For large number of files, use glob pattern or process in batches
+        duckdb_start = time.time()
         if len(paths) == 1:
             query_with_table = rewritten_query.replace(request.table_name, f"'{paths[0]}'")
             result = duckdb_conn.execute(query_with_table)
@@ -470,10 +549,11 @@ async def query(request: QueryRequest):
             query_with_table = rewritten_query.replace(request.table_name, f"read_parquet('{glob_pattern}')")
             result = duckdb_conn.execute(query_with_table)
 
-        # Fetch all results and convert to list of dictionaries
-        columns = [desc[0] for desc in result.description]
-        rows = result.fetchall()
-        results = [dict(zip(columns, row)) for row in rows]
+        # Fetch all results as DataFrame for caching
+        results_df = result.fetchdf()
+        results = results_df.to_dict('records')
+        duckdb_time_ms = (time.time() - duckdb_start) * 1000
+        
     except Exception as e:
         logger.error(f"Query error with rewritten query: {e}")
         logger.error(f"Rewritten query was: {rewritten_query}")
@@ -485,6 +565,21 @@ async def query(request: QueryRequest):
                 os.remove(p)
             except Exception as e:
                 logger.warning(f"Failed to delete {p}: {e}")
+    
+    # Step 7: Store results in cache for future queries
+    cache_store_time_ms = 0.0
+    cached_entry_id = None
+    if cache and results_df is not None and len(results_df) > 0:
+        try:
+            cache_store_start = time.time()
+            entry = cache.store(rewritten_query, request.table_name, results_df)
+            cache_store_time_ms = (time.time() - cache_store_start) * 1000
+            cached_entry_id = entry.cache_id
+            logger.info(f"Stored query results in cache: {entry.cache_id}, {len(results_df)} rows")
+        except Exception as e:
+            logger.error(f"Failed to store results in cache: {e}")
+    
+    total_time_ms = (time.time() - query_start_time) * 1000
     
     return {
         "wallet_address": request.wallet_address,
@@ -502,7 +597,89 @@ async def query(request: QueryRequest):
         "rewritten_query": rewritten_query,
         "cids": len(cids),
         "records": len(results),
-        "results": results
+        "results": results,
+        "cache": {
+            "status": cache_status,
+            "lookup_time_ms": round(cache_lookup_time_ms, 3),
+            "ipfs_fetch_time_ms": round(ipfs_fetch_time_ms, 3),
+            "decrypt_time_ms": round(decrypt_time_ms, 3),
+            "duckdb_time_ms": round(duckdb_time_ms, 3),
+            "cache_store_time_ms": round(cache_store_time_ms, 3),
+            "total_time_ms": round(total_time_ms, 3),
+            "cached_entry_id": cached_entry_id
+        }
+    }
+
+
+# ============ CACHE MANAGEMENT ENDPOINTS ============
+
+@app.get("/cache/stats")
+async def get_cache_stats():
+    """Get comprehensive cache statistics and metrics"""
+    cache = get_semantic_cache()
+    if not cache:
+        return {"error": "Cache not initialized"}
+    
+    return cache.get_stats()
+
+
+@app.get("/cache/entries")
+async def get_cache_entries(table_name: Optional[str] = Query(None, description="Filter by table name")):
+    """Get all cache entries, optionally filtered by table"""
+    cache = get_semantic_cache()
+    if not cache:
+        return {"error": "Cache not initialized"}
+    
+    entries = cache.get_entries(table_name)
+    return {
+        "total_entries": len(entries),
+        "table_filter": table_name,
+        "entries": [e.to_dict() for e in entries]
+    }
+
+
+@app.get("/cache/metrics")
+async def get_cache_metrics():
+    """Get cache performance metrics for benchmarking"""
+    cache = get_semantic_cache()
+    if not cache:
+        return {"error": "Cache not initialized"}
+    
+    metrics = cache.get_metrics()
+    return metrics.to_dict()
+
+
+@app.post("/cache/invalidate/{table_name}")
+async def invalidate_cache_table(table_name: str):
+    """Invalidate all cache entries for a specific table"""
+    cache = get_semantic_cache()
+    if not cache:
+        return {"error": "Cache not initialized"}
+    
+    entries_before = len(cache.get_entries(table_name))
+    cache.invalidate_table(table_name)
+    entries_after = len(cache.get_entries(table_name))
+    
+    return {
+        "status": "success",
+        "table_name": table_name,
+        "entries_invalidated": entries_before - entries_after
+    }
+
+
+@app.post("/cache/clear")
+async def clear_cache():
+    """Clear all cache entries"""
+    cache = get_semantic_cache()
+    if not cache:
+        return {"error": "Cache not initialized"}
+    
+    entries_before = len(cache.get_entries())
+    cache.clear()
+    
+    return {
+        "status": "success",
+        "entries_cleared": entries_before
     }
 
 
@@ -1493,6 +1670,15 @@ async def delete_records(request: DeleteRequest):
         app.state.deletion_stats['total_deletions'] += total_deleted_count
         app.state.deletion_stats['last_deletion'] = time.time()
         
+        # Invalidate cache for this table after DELETE
+        cache = get_semantic_cache()
+        cache_invalidated = 0
+        if cache:
+            entries_before = len(cache.get_entries(table_name))
+            cache.invalidate_table(table_name)
+            cache_invalidated = entries_before
+            logger.info(f"Cache invalidated for table {table_name}: {cache_invalidated} entries removed")
+        
         # Prepare response with timing and debug information
         cid_mapping = {
             result['old_cid']: result['new_cid'] for result in processed_results
@@ -1517,6 +1703,7 @@ async def delete_records(request: DeleteRequest):
             "index_update_success": index_update_success,
             "policy_count": len(table_policies),
             "deletion_stats": app.state.deletion_stats,
+            "cache_invalidated": cache_invalidated,
             "performance": {
                 "cid_processing_time_seconds": processing_time,
                 "records_processed": total_deleted_count
@@ -1804,6 +1991,15 @@ async def update_records(request: UpdateRequest):
         app.state.update_stats['total_updates'] += total_updated_count
         app.state.update_stats['last_update'] = time.time()
         
+        # Invalidate cache for this table after UPDATE
+        cache = get_semantic_cache()
+        cache_invalidated = 0
+        if cache:
+            entries_before = len(cache.get_entries(table_name))
+            cache.invalidate_table(table_name)
+            cache_invalidated = entries_before
+            logger.info(f"Cache invalidated for table {table_name}: {cache_invalidated} entries removed")
+        
         # Prepare response with timing and debug information
         cid_mapping = {
             result['old_cid']: result['new_cid'] for result in processed_results
@@ -1835,6 +2031,7 @@ async def update_records(request: UpdateRequest):
             "index_update_success": index_update_success,
             "policy_count": len(table_policies),
             "update_stats": app.state.update_stats,
+            "cache_invalidated": cache_invalidated,
             "performance": {
                 "cid_processing_time_seconds": processing_time,
                 "records_processed": total_updated_count
@@ -2759,4 +2956,4 @@ def shutdown_event():
 if __name__ == "__main__":
     import uvicorn
     logger.info("Starting FastAPI server...")
-    uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info")
+    uvicorn.run(app, host="0.0.0.0", port=8002, log_level="info")

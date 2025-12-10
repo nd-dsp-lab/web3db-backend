@@ -53,6 +53,8 @@ class CacheEntry:
             "table_name": self.table_name,
             "duckdb_table": self.duckdb_table,
             "signature": self.signature,
+            "original_query": self.parsed_query.original_query,  # Show what query created this cache
+            "outer_filter": self.parsed_query.outer_predicates.to_sql() if not self.parsed_query.outer_predicates.is_empty() else None,
             "row_count": int(self.row_count),  # Convert to native int for JSON serialization
             "created_at": datetime.fromtimestamp(self.created_at).isoformat(),
             "last_accessed": datetime.fromtimestamp(self.last_accessed).isoformat(),

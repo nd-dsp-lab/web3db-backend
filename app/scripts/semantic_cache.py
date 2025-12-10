@@ -324,6 +324,11 @@ class SemanticCache:
         Find a cached entry that is a superset of the given query.
         
         Returns (CacheEntry, additional_filter) if found, None otherwise.
+        
+        For a cache hit, the cached entry must contain ALL data the new query needs.
+        This means:
+        - CTE predicates (access control) should be equivalent (matched by base_signature lookup)
+        - Cached outer predicates must be equal to or LESS restrictive than new's outer predicates
         """
         # Get all cache entries for this table
         if table_name not in self._table_index:
@@ -336,11 +341,15 @@ class SemanticCache:
                 continue
             
             entry = self._cache[cache_id]
-            cached_predicates = entry.parsed_query.predicates
-            new_predicates = parsed.predicates
             
-            # Check if new predicates are a subset of cached predicates
-            is_subset, additional_filter = predicates_are_subset(cached_predicates, new_predicates)
+            # Use the new outer predicate comparison for precise subset detection
+            # This compares just the outer (user-specified) filters, not access control
+            is_subset, additional_filter = predicates_are_subset(
+                entry.parsed_query.predicates,
+                parsed.predicates,
+                cached_outer=entry.parsed_query.outer_predicates,
+                new_outer=parsed.outer_predicates
+            )
             
             if is_subset:
                 return entry, additional_filter

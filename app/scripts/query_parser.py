@@ -638,14 +638,39 @@ class QueryParser:
 
 # Utility functions for cache operations
 
-def predicates_are_subset(cached: PredicateGroup, new: PredicateGroup) -> Tuple[bool, Optional[str]]:
+def predicates_are_subset(
+    cached: PredicateGroup, 
+    new: PredicateGroup,
+    cached_outer: Optional[PredicateGroup] = None,
+    new_outer: Optional[PredicateGroup] = None
+) -> Tuple[bool, Optional[str]]:
     """
-    Check if new query predicates are a subset of cached predicates.
+    Check if new query results can be derived from cached query results.
     Returns (is_subset, additional_filter_sql)
     
-    If is_subset is True, the new query can be satisfied by filtering the cached results
-    with additional_filter_sql.
+    For a cache hit, the cached data must be a SUPERSET of what the new query needs.
+    This means:
+    1. CTE predicates (access control) must be equivalent
+    2. Cached outer predicates must be equal to or LESS restrictive than new's outer
+    3. If cached has outer predicates that new doesn't, new wants more data than cached has
+    
+    Args:
+        cached: All predicates from cached query (CTE + outer combined)
+        new: All predicates from new query (CTE + outer combined)
+        cached_outer: Just the outer predicates from cached query (optional but recommended)
+        new_outer: Just the outer predicates from new query (optional but recommended)
+    
+    Example:
+    - Cached outer: Age > 95 (has rows where Age > 95)
+    - New outer: Age > 100 → CAN derive (filter cache with Age > 100)
+    - New outer: Age > 50 → CANNOT derive (cache is missing Ages 51-95)
+    - New outer: (no filter) → CANNOT derive (cache is missing Ages <= 95)
     """
+    # If we have separate outer predicates, use them for more precise comparison
+    if cached_outer is not None and new_outer is not None:
+        return _compare_outer_predicates(cached_outer, new_outer)
+    
+    # Fallback to comparing all predicates (legacy behavior)
     # Empty cached predicates means we have all data
     if cached.is_empty():
         if new.is_empty():
@@ -654,7 +679,7 @@ def predicates_are_subset(cached: PredicateGroup, new: PredicateGroup) -> Tuple[
             # New has predicates, cached has all data - can filter
             return True, new.to_sql()
     
-    # If cached has predicates but new doesn't, we don't have all data
+    # If cached has predicates but new doesn't, cached might be missing data
     if new.is_empty():
         return False, None
     
@@ -662,9 +687,9 @@ def predicates_are_subset(cached: PredicateGroup, new: PredicateGroup) -> Tuple[
     cached_flat = _flatten_predicates(cached)
     new_flat = _flatten_predicates(new)
     
-    # For AND predicates, check if each new predicate is a subset of some cached predicate
     additional_filters = []
     
+    # Check that every NEW predicate can be satisfied by cached data
     for new_pred in new_flat:
         matched = False
         for cached_pred in cached_flat:
@@ -676,11 +701,79 @@ def predicates_are_subset(cached: PredicateGroup, new: PredicateGroup) -> Tuple[
                 break
         
         if not matched:
-            # New predicate is NOT a subset of any cached predicate
-            # This means we can't derive the result from cache
             return False, None
     
-    # All new predicates are subsets of cached predicates
+    # All checks passed
+    if additional_filters:
+        return True, " AND ".join(additional_filters)
+    return True, None
+
+
+def _compare_outer_predicates(
+    cached_outer: PredicateGroup, 
+    new_outer: PredicateGroup
+) -> Tuple[bool, Optional[str]]:
+    """
+    Compare just the outer predicates (user-specified filters, not access control).
+    
+    Rules:
+    1. If cached has no outer predicates (all data), we can serve any new query with filtering
+    2. If cached has outer predicates but new doesn't, cached is missing data new needs → MISS
+    3. If both have outer predicates, new must be MORE restrictive or equal to cached
+    """
+    cached_is_empty = cached_outer.is_empty()
+    new_is_empty = new_outer.is_empty()
+    
+    # Case 1: Cached has no outer filter (all accessible data cached)
+    if cached_is_empty:
+        if new_is_empty:
+            return True, None  # Both want all data
+        else:
+            return True, new_outer.to_sql()  # Filter cached data
+    
+    # Case 2: Cached has outer filter, but new doesn't want any filter
+    # This means new wants ALL data, but cached only has FILTERED data
+    if new_is_empty:
+        return False, None  # Cannot serve - cached is missing data
+    
+    # Case 3: Both have outer filters - check compatibility
+    cached_flat = _flatten_predicates(cached_outer)
+    new_flat = _flatten_predicates(new_outer)
+    
+    additional_filters = []
+    
+    # For each CACHED outer predicate, new must have an equal or MORE restrictive version
+    # (This ensures cached data contains what new needs)
+    for cached_pred in cached_flat:
+        has_compatible = False
+        for new_pred in new_flat:
+            if cached_pred.attribute.lower() != new_pred.attribute.lower():
+                continue
+            # Check if new predicate is more restrictive than or equal to cached
+            is_subset, extra = predicate_is_subset(cached_pred, new_pred)
+            if is_subset:
+                has_compatible = True
+                if extra:
+                    additional_filters.append(extra)
+                break
+        
+        if not has_compatible:
+            # Cached has a restriction (e.g., Age > 95) that new doesn't have for this attribute
+            # or new has a less restrictive version
+            return False, None
+    
+    # Also check if new has additional predicates on different attributes
+    for new_pred in new_flat:
+        has_cached_version = False
+        for cached_pred in cached_flat:
+            if cached_pred.attribute.lower() == new_pred.attribute.lower():
+                has_cached_version = True
+                break
+        if not has_cached_version:
+            # New has a predicate on an attribute cached doesn't filter on
+            # Need to apply this as additional filter
+            additional_filters.append(new_pred.to_sql())
+    
     if additional_filters:
         return True, " AND ".join(additional_filters)
     return True, None

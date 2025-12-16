@@ -27,8 +27,15 @@ from query_parser import (
     QueryParser, 
     ParsedQuery, 
     PredicateGroup,
-    predicates_are_subset
 )
+
+# Import Z3 containment checker
+try:
+    from z3_containment import Z3ContainmentChecker, is_z3_available
+    Z3_ENABLED = is_z3_available()
+except ImportError:
+    Z3_ENABLED = False
+    Z3ContainmentChecker = None
 
 logger = logging.getLogger(__name__)
 
@@ -77,6 +84,9 @@ class CacheMetrics:
     invalidations: int = 0
     current_entries: int = 0
     current_size_bytes: int = 0
+    # Z3 metrics
+    z3_checks: int = 0
+    z3_total_latency_ms: float = 0.0
     
     @property
     def hit_rate(self) -> float:
@@ -110,7 +120,9 @@ class CacheMetrics:
             "invalidations": int(self.invalidations),
             "current_entries": int(self.current_entries),
             "current_size_bytes": int(self.current_size_bytes),
-            "current_size_mb": round(float(self.current_size_bytes) / (1024 * 1024), 2)
+            "current_size_mb": round(float(self.current_size_bytes) / (1024 * 1024), 2),
+            "z3_checks": int(self.z3_checks),
+            "z3_avg_latency_ms": round(float(self.z3_total_latency_ms / max(1, self.z3_checks)), 3)
         }
 
 
@@ -173,6 +185,14 @@ class SemanticCache:
         
         # Thread safety
         self._lock = threading.RLock()
+        
+        # Z3 containment checker
+        self._z3_checker = None
+        if Z3_ENABLED and Z3ContainmentChecker:
+            self._z3_checker = Z3ContainmentChecker(timeout_ms=1000)
+            logger.info("Z3 containment checker enabled")
+        else:
+            logger.warning("Z3 not available, containment checking disabled")
         
         logger.info(f"SemanticCache initialized: max_size={max_size_bytes/(1024**3):.1f}GB, max_entries={max_entries}")
     
@@ -321,18 +341,18 @@ class SemanticCache:
         table_name: str
     ) -> Optional[Tuple[CacheEntry, Optional[str]]]:
         """
-        Find a cached entry that is a superset of the given query.
+        Find a cached entry that is a superset of the given query using Z3 SMT solver.
         
         Returns (CacheEntry, additional_filter) if found, None otherwise.
         
-        For a cache hit, the cached entry must contain ALL data the new query needs.
-        This means:
-        - CTE predicates (access control) should be equivalent (matched by base_signature lookup)
-        - Cached outer predicates must be equal to or LESS restrictive than new's outer predicates
+        Uses Z3 to verify: new_predicates ⊆ cached_predicates
         """
         # Get all cache entries for this table
         if table_name not in self._table_index:
             return None
+        
+        if not self._z3_checker:
+            return None  # Z3 not available
         
         cache_ids = self._table_index[table_name]
         
@@ -342,16 +362,19 @@ class SemanticCache:
             
             entry = self._cache[cache_id]
             
-            # Use the new outer predicate comparison for precise subset detection
-            # This compares just the outer (user-specified) filters, not access control
-            is_subset, additional_filter = predicates_are_subset(
-                entry.parsed_query.predicates,
-                parsed.predicates,
-                cached_outer=entry.parsed_query.outer_predicates,
-                new_outer=parsed.outer_predicates
+            # Use Z3 to check containment of outer predicates
+            z3_start = time.time()
+            is_contained, additional_filter = self._z3_checker.is_contained(
+                entry.parsed_query.outer_predicates,
+                parsed.outer_predicates
             )
+            z3_time = (time.time() - z3_start) * 1000
             
-            if is_subset:
+            # Update Z3 metrics
+            self._metrics.z3_checks += 1
+            self._metrics.z3_total_latency_ms += z3_time
+            
+            if is_contained:
                 return entry, additional_filter
         
         return None

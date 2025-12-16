@@ -244,6 +244,10 @@ class SemanticCache:
             # For queries with outer predicates, check cache_id first (full signature)
             exact_lookup_id = base_cache_id if parsed.outer_predicates.is_empty() else cache_id
             
+            # Debug logging
+            logger.info(f"Cache LOOKUP: table={table_name}, exact_lookup_id={exact_lookup_id}")
+            logger.info(f"Cache LOOKUP: cache_keys={list(self._cache.keys())}")
+            
             if exact_lookup_id in self._cache:
                 entry = self._cache[exact_lookup_id]
                 # Move to end for LRU
@@ -459,6 +463,7 @@ class SemanticCache:
             
             # Store in cache
             self._cache[cache_id] = entry
+            logger.info(f"Cache STORE: stored with cache_id={cache_id}, now cache_keys={list(self._cache.keys())}")
             
             # Update table index
             if table_name not in self._table_index:
@@ -487,18 +492,33 @@ class SemanticCache:
             entry: The cache entry to query
             additional_filter: Optional SQL WHERE clause to apply
             columns: Optional list of columns to select (default: all)
-            parsed_query: Optional ParsedQuery to apply ORDER BY, LIMIT, OFFSET
+            parsed_query: Optional ParsedQuery to apply SELECT columns, GROUP BY, ORDER BY, LIMIT, OFFSET
             
         Returns:
             Query results as DataFrame
         """
         with self._lock:
-            # Build query
-            cols = ", ".join(columns) if columns else "*"
+            # For exact cache hits (no additional_filter), the data is already in the correct format
+            # including any aggregations. For subset hits, we need to re-apply aggregations.
+            needs_reaggregation = additional_filter is not None
+            
+            # Build query - use parsed_query columns if available (for aggregations)
+            if needs_reaggregation and parsed_query and parsed_query.columns and parsed_query.columns != ["*"]:
+                # Use the original SELECT columns (includes aggregations like COUNT(*))
+                cols = ", ".join(parsed_query.columns)
+            elif columns:
+                cols = ", ".join(columns)
+            else:
+                cols = "*"
+            
             sql = f"SELECT {cols} FROM {entry.duckdb_table}"
             
             if additional_filter:
                 sql += f" WHERE {additional_filter}"
+            
+            # Apply GROUP BY only if we're re-aggregating subset data
+            if needs_reaggregation and parsed_query and parsed_query.group_by:
+                sql += f" GROUP BY {', '.join(parsed_query.group_by)}"
             
             # Apply ORDER BY from parsed query
             if parsed_query and parsed_query.order_by:
@@ -512,6 +532,8 @@ class SemanticCache:
             # Apply OFFSET from parsed query
             if parsed_query and parsed_query.offset:
                 sql += f" OFFSET {parsed_query.offset}"
+            
+            logger.debug(f"Cache query SQL: {sql}")
             
             try:
                 result = self.conn.execute(sql).fetchdf()

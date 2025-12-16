@@ -370,6 +370,20 @@ class SemanticCache:
             
             entry = self._cache[cache_id]
             
+            # Check compatibility: Don't match aggregated cache with non-aggregated query
+            # If cached query has GROUP BY/aggregations but new query doesn't, skip
+            cached_has_aggregation = bool(entry.parsed_query.group_by) or bool(entry.parsed_query.aggregations)
+            new_has_aggregation = bool(parsed.group_by) or bool(parsed.aggregations)
+            
+            if cached_has_aggregation and not new_has_aggregation:
+                # Can't serve SELECT * from aggregated cache (e.g., COUNT(*) GROUP BY)
+                continue
+            
+            if not cached_has_aggregation and new_has_aggregation:
+                # Can serve aggregation from raw data, but need to re-aggregate
+                # This is handled by query_cached with needs_reaggregation
+                pass
+            
             # Use Z3 to check containment of outer predicates
             z3_start = time.time()
             is_contained, additional_filter = self._z3_checker.is_contained(

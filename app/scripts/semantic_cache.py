@@ -134,6 +134,7 @@ class CacheLookupResult:
     cache_entry: Optional[CacheEntry] = None
     additional_filter: Optional[str] = None  # SQL filter to apply on cached data
     lookup_time_ms: float = 0.0
+    parsed_query: Optional[ParsedQuery] = None  # For ORDER BY, LIMIT, OFFSET
 
 
 class SemanticCache:
@@ -262,7 +263,8 @@ class SemanticCache:
                     hit_type="exact",
                     cache_entry=entry,
                     additional_filter=None,
-                    lookup_time_ms=lookup_time
+                    lookup_time_ms=lookup_time,
+                    parsed_query=parsed
                 )
             
             # Check for base match (same CTE predicates, different outer predicates)
@@ -292,7 +294,8 @@ class SemanticCache:
                         hit_type="subset",
                         cache_entry=entry,
                         additional_filter=additional_filter,
-                        lookup_time_ms=lookup_time
+                        lookup_time_ms=lookup_time,
+                        parsed_query=parsed
                     )
             
             # Check for subset match if enabled (using predicate analysis)
@@ -317,7 +320,8 @@ class SemanticCache:
                         hit_type="subset",
                         cache_entry=entry,
                         additional_filter=additional_filter,
-                        lookup_time_ms=lookup_time
+                        lookup_time_ms=lookup_time,
+                        parsed_query=parsed
                     )
             
             # Cache miss
@@ -473,15 +477,17 @@ class SemanticCache:
         self, 
         entry: CacheEntry, 
         additional_filter: Optional[str] = None,
-        columns: Optional[List[str]] = None
+        columns: Optional[List[str]] = None,
+        parsed_query: Optional[ParsedQuery] = None
     ) -> pd.DataFrame:
         """
-        Query cached data, optionally with additional filters.
+        Query cached data, optionally with additional filters and ordering.
         
         Args:
             entry: The cache entry to query
             additional_filter: Optional SQL WHERE clause to apply
             columns: Optional list of columns to select (default: all)
+            parsed_query: Optional ParsedQuery to apply ORDER BY, LIMIT, OFFSET
             
         Returns:
             Query results as DataFrame
@@ -493,6 +499,19 @@ class SemanticCache:
             
             if additional_filter:
                 sql += f" WHERE {additional_filter}"
+            
+            # Apply ORDER BY from parsed query
+            if parsed_query and parsed_query.order_by:
+                order_clauses = [f"{col} {direction}" for col, direction in parsed_query.order_by]
+                sql += f" ORDER BY {', '.join(order_clauses)}"
+            
+            # Apply LIMIT from parsed query
+            if parsed_query and parsed_query.limit:
+                sql += f" LIMIT {parsed_query.limit}"
+            
+            # Apply OFFSET from parsed query
+            if parsed_query and parsed_query.offset:
+                sql += f" OFFSET {parsed_query.offset}"
             
             try:
                 result = self.conn.execute(sql).fetchdf()

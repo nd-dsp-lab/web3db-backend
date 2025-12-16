@@ -453,10 +453,11 @@ async def query(request: QueryRequest):
             logger.info(f"Cache {cache_status}: serving from cache")
             
             try:
-                # Query cached data with optional additional filter
+                # Query cached data with optional additional filter and ORDER BY
                 df = cache.query_cached(
                     cache_lookup_result.cache_entry, 
-                    cache_lookup_result.additional_filter
+                    cache_lookup_result.additional_filter,
+                    parsed_query=cache_lookup_result.parsed_query
                 )
                 results = df.to_dict('records')
                 

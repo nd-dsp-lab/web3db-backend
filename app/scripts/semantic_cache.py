@@ -82,6 +82,7 @@ class CacheMetrics:
     total_miss_latency_ms: float = 0.0
     evictions: int = 0
     invalidations: int = 0
+    subsumption_evictions: int = 0  # Entries evicted because subsumed by new entry
     current_entries: int = 0
     current_size_bytes: int = 0
     # Z3 metrics
@@ -118,6 +119,7 @@ class CacheMetrics:
             "avg_miss_latency_ms": round(float(self.avg_miss_latency_ms), 3),
             "evictions": int(self.evictions),
             "invalidations": int(self.invalidations),
+            "subsumption_evictions": int(self.subsumption_evictions),
             "current_entries": int(self.current_entries),
             "current_size_bytes": int(self.current_size_bytes),
             "current_size_mb": round(float(self.current_size_bytes) / (1024 * 1024), 2),
@@ -484,6 +486,10 @@ class SemanticCache:
                 self._table_index[table_name] = []
             self._table_index[table_name].append(cache_id)
             
+            # Subsumption-based eviction: evict entries that are now subsumed by this new entry
+            # E.g., if we cache Age > 40, evict existing Age > 50 (since Age > 50 ⊆ Age > 40)
+            self._evict_subsumed_entries(entry, table_name, parsed)
+            
             # Update metrics
             self._metrics.current_entries = len(self._cache)
             self._metrics.current_size_bytes += size_bytes
@@ -491,6 +497,59 @@ class SemanticCache:
             logger.info(f"Cache STORE: {cache_id}, {len(df)} rows, {size_bytes/(1024*1024):.2f}MB")
             
             return entry
+    
+    def _evict_subsumed_entries(
+        self, 
+        new_entry: CacheEntry, 
+        table_name: str,
+        new_parsed: ParsedQuery
+    ):
+        """
+        Evict cache entries that are subsumed by the new entry.
+        
+        If we cache Age > 40, and Age > 50 exists in cache, we evict Age > 50
+        because all data in Age > 50 is contained within Age > 40.
+        
+        This prevents cache duplication from overlapping queries.
+        """
+        if not self._z3_checker:
+            return
+        
+        if table_name not in self._table_index:
+            return
+        
+        to_evict = []
+        
+        for cache_id in self._table_index[table_name]:
+            if cache_id == new_entry.cache_id:
+                continue  # Don't check against self
+            
+            if cache_id not in self._cache:
+                continue
+            
+            existing_entry = self._cache[cache_id]
+            
+            # Check compatibility: both must have same aggregation status
+            new_has_agg = bool(new_parsed.group_by) or bool(new_parsed.aggregations)
+            existing_has_agg = bool(existing_entry.parsed_query.group_by) or bool(existing_entry.parsed_query.aggregations)
+            
+            if new_has_agg != existing_has_agg:
+                continue  # Can't compare aggregated vs non-aggregated
+            
+            # Check if existing entry's predicates are subsumed by new entry's predicates
+            # i.e., existing ⊆ new (all data in existing is also in new)
+            is_subsumed, _ = self._z3_checker.is_contained(
+                new_entry.parsed_query.outer_predicates,  # new is the "cached" (superset)
+                existing_entry.parsed_query.outer_predicates  # existing is the "new" (subset)
+            )
+            
+            if is_subsumed:
+                to_evict.append(cache_id)
+                logger.info(f"Subsumption: {cache_id} is subsumed by {new_entry.cache_id}")
+        
+        # Evict subsumed entries
+        for cache_id in to_evict:
+            self._evict_entry(cache_id, table_name, reason="subsumed")
     
     def query_cached(
         self, 
@@ -578,6 +637,20 @@ class SemanticCache:
         self._remove_entry(cache_id)
         self._metrics.evictions += 1
         logger.info(f"Cache EVICT (LRU): {cache_id}")
+    
+    def _evict_entry(self, cache_id: str, table_name: str, reason: str = "evicted"):
+        """Evict a specific cache entry with reason tracking"""
+        if cache_id not in self._cache:
+            return
+        
+        self._remove_entry(cache_id)
+        
+        if reason == "subsumed":
+            self._metrics.subsumption_evictions += 1
+            logger.info(f"Cache EVICT (SUBSUMED): {cache_id}")
+        else:
+            self._metrics.evictions += 1
+            logger.info(f"Cache EVICT ({reason}): {cache_id}")
     
     def _remove_entry(self, cache_id: str):
         """Remove a cache entry"""

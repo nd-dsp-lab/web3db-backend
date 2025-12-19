@@ -230,6 +230,49 @@ fi
 
 echo ""
 
+# Step 2.75: Install certbot
+if command -v tput >/dev/null 2>&1 && [ -t 1 ]; then
+    echo "${BOLD}Step 2.75:${RESET} Installing certbot..."
+else
+    echo "Step 2.75: Installing certbot..."
+fi
+
+# Check if certbot is already installed
+if command -v certbot &> /dev/null; then
+    print_warning "Certbot is already installed"
+    CERTBOT_VERSION=$(certbot --version 2>&1 | head -n1)
+    print_info "Current version: $CERTBOT_VERSION"
+else
+    print_info "Installing certbot..."
+    
+    case $OS in
+        ubuntu|debian)
+            apt-get update
+            apt-get install -y certbot python3-certbot-nginx
+            ;;
+        centos|rhel|fedora|rocky|almalinux)
+            if command -v dnf &> /dev/null; then
+                dnf install -y certbot python3-certbot-nginx
+            else
+                yum install -y certbot python3-certbot-nginx
+            fi
+            ;;
+        *)
+            print_error "Unsupported OS: $OS"
+            exit 1
+            ;;
+    esac
+    
+    if [ $? -eq 0 ]; then
+        print_success "Certbot installed successfully"
+    else
+        print_error "Failed to install certbot"
+        exit 1
+    fi
+fi
+
+echo ""
+
 # Step 3: Start/Reload nginx
 if command -v tput >/dev/null 2>&1 && [ -t 1 ]; then
     echo "${BOLD}Step 3:${RESET} Starting nginx service..."
@@ -266,6 +309,7 @@ else
     print_success "SSH service restarted"
     print_success "Nginx installed"
     print_success "server_names_hash_bucket_size set to 256"
+    print_success "Certbot installed"
     print_success "Nginx service started"
 fi
 echo ""

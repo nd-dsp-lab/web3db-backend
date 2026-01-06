@@ -156,9 +156,12 @@ class ParsedQuery:
     offset: Optional[int]
     aggregations: List[str]  # ["COUNT(*)", "AVG(Age)", ...]
     has_cte: bool  # Common Table Expression (WITH clause)
-    cte_name: Optional[str]
+    cte_name: Optional[str]  # First CTE name (backward compat)
     cte_predicates: PredicateGroup = field(default_factory=PredicateGroup)  # Access control predicates from CTE
     outer_predicates: PredicateGroup = field(default_factory=PredicateGroup)  # User filter predicates from outer WHERE
+    # Multi-CTE support
+    cte_names: List[str] = field(default_factory=list)  # All CTE names in order
+    cte_bodies: Dict[str, str] = field(default_factory=dict)  # CTE name -> body SQL
     
     def to_dict(self) -> dict:
         return {
@@ -252,13 +255,9 @@ class QueryParser:
         else:
             query_type = 'UNKNOWN'
         
-        # Parse CTE (WITH clause)
-        has_cte = False
-        cte_name = None
-        cte_match = self.CTE_PATTERN.search(normalized)
-        if cte_match:
-            has_cte = True
-            cte_name = cte_match.group(1)
+        # Parse CTEs (WITH clause) - multi-CTE support
+        has_cte, cte_names, cte_bodies, outer_query = self._parse_ctes(normalized)
+        cte_name = cte_names[0] if cte_names else None  # Backward compat
         
         # Parse SELECT columns
         columns = self._parse_columns(normalized)
@@ -301,8 +300,75 @@ class QueryParser:
             has_cte=has_cte,
             cte_name=cte_name,
             cte_predicates=cte_predicates,
-            outer_predicates=outer_predicates
+            outer_predicates=outer_predicates,
+            cte_names=cte_names,
+            cte_bodies=cte_bodies
         )
+    
+    def _parse_ctes(self, query: str) -> Tuple[bool, List[str], Dict[str, str], str]:
+        """
+        Parse multiple CTEs from WITH clause.
+        
+        Handles: WITH cte1 AS (...), cte2 AS (...) SELECT ...
+        
+        Returns:
+            (has_cte, cte_names, cte_bodies, outer_query)
+        """
+        # Check if query starts with WITH
+        if not query.strip().upper().startswith('WITH'):
+            return False, [], {}, query
+        
+        cte_names = []
+        cte_bodies = {}
+        
+        # Remove WITH keyword
+        remaining = query.strip()[4:].strip()
+        
+        while True:
+            # Find CTE name (next word before AS)
+            as_match = re.match(r'(\w+)\s+AS\s*\(', remaining, re.IGNORECASE)
+            if not as_match:
+                break
+            
+            cte_name = as_match.group(1)
+            cte_names.append(cte_name)
+            
+            # Find the matching closing parenthesis using balanced matching
+            start_paren = as_match.end() - 1  # Position of '('
+            depth = 1
+            pos = start_paren + 1
+            
+            while pos < len(remaining) and depth > 0:
+                if remaining[pos] == '(':
+                    depth += 1
+                elif remaining[pos] == ')':
+                    depth -= 1
+                pos += 1
+            
+            if depth != 0:
+                # Unbalanced parentheses, return what we have
+                break
+            
+            # Extract CTE body (without parentheses)
+            cte_body = remaining[start_paren + 1:pos - 1].strip()
+            cte_bodies[cte_name] = cte_body
+            
+            # Move past the closing paren
+            remaining = remaining[pos:].strip()
+            
+            # Check for comma (more CTEs) or SELECT (end of CTEs)
+            if remaining.startswith(','):
+                remaining = remaining[1:].strip()
+            elif remaining.upper().startswith('SELECT'):
+                break
+            else:
+                # Unexpected token, stop parsing CTEs
+                break
+        
+        # Outer query is what remains
+        outer_query = remaining
+        
+        return len(cte_names) > 0, cte_names, cte_bodies, outer_query
     
     def _parse_columns(self, query: str) -> List[str]:
         """Extract SELECT columns"""
@@ -378,24 +444,34 @@ class QueryParser:
         """Extract WHERE clause predicates.
         
         For CTE queries (WITH ... AS (...) SELECT ... WHERE ...):
-        - Extract predicates from BOTH the CTE's WHERE clause AND the outer query's WHERE clause
-        - Combine them with AND (both must be satisfied)
+        - Extract predicates from ALL CTEs' WHERE clauses AND the outer query's WHERE clause
+        - Combine them with AND (all must be satisfied)
         """
-        # Check if this is a CTE query
-        cte_pattern = re.compile(r'WITH\s+(\w+)\s+AS\s*\((.+?)\)\s*(SELECT.+)', re.IGNORECASE | re.DOTALL)
-        cte_match = cte_pattern.search(query)
+        # Use _parse_ctes for multi-CTE support
+        has_cte, cte_names, cte_bodies, outer_query = self._parse_ctes(query)
         
-        if cte_match:
-            # CTE query: extract predicates from both inner and outer queries
-            cte_body = cte_match.group(2)
-            outer_query = cte_match.group(3)
+        if has_cte:
+            # Collect predicates from all CTE bodies
+            all_cte_predicates = []
             
-            # Get predicates from CTE body
-            cte_where_match = self.WHERE_PATTERN.search(cte_body)
-            cte_predicates = PredicateGroup()
-            if cte_where_match:
-                cte_where_clause = cte_where_match.group(1).strip()
-                cte_predicates = self._parse_predicate_group(cte_where_clause)
+            for cte_name in cte_names:
+                cte_body = cte_bodies.get(cte_name, "")
+                cte_where_match = self.WHERE_PATTERN.search(cte_body)
+                if cte_where_match:
+                    cte_where_clause = cte_where_match.group(1).strip()
+                    preds = self._parse_predicate_group(cte_where_clause)
+                    if not preds.is_empty():
+                        all_cte_predicates.append(preds)
+            
+            # Combine all CTE predicates
+            if len(all_cte_predicates) == 0:
+                cte_predicates = PredicateGroup()
+            elif len(all_cte_predicates) == 1:
+                cte_predicates = all_cte_predicates[0]
+            else:
+                cte_predicates = PredicateGroup(operator=LogicalOperator.AND)
+                for p in all_cte_predicates:
+                    cte_predicates.subgroups.append(p)
             
             # Get predicates from outer query
             outer_where_match = self.WHERE_PATTERN.search(outer_query)
@@ -404,13 +480,12 @@ class QueryParser:
                 outer_where_clause = outer_where_match.group(1).strip()
                 outer_predicates = self._parse_predicate_group(outer_where_clause)
             
-            # Combine both predicate groups
+            # Combine CTE + outer predicates
             if cte_predicates.is_empty():
                 return outer_predicates, cte_predicates, outer_predicates
             elif outer_predicates.is_empty():
                 return cte_predicates, cte_predicates, outer_predicates
             else:
-                # Combine with AND - both CTE and outer predicates must be satisfied
                 combined = PredicateGroup(operator=LogicalOperator.AND)
                 combined.subgroups.append(cte_predicates)
                 combined.subgroups.append(outer_predicates)

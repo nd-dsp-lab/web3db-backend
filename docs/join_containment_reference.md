@@ -97,10 +97,47 @@ LEFT JOIN results cannot serve INNER JOIN queries (and vice versa) due to NULL r
 2. **Per-table containment**: Predicates checked independently for each table
 3. **Conservative LEFT JOIN**: Cross-type blocked to preserve NULL semantics
 4. **Normalized join keys**: Handles `A.x=B.y ≡ B.y=A.x`
+5. **Table-qualified Z3 variables**: `users.id` → `z3.Int('users_id')` to avoid collision
+
+---
+
+## Semantic Weakness: Separable Containment
+
+Our implementation enforces **Separable Containment**, checking predicates per-table independently:
+
+```
+P_A ⊆ Q_A  AND  P_B ⊆ Q_B
+```
+
+This is a **sound approximation** of full joint containment, but **incomplete**:
+
+### Missed Opportunity Example
+
+```sql
+-- Cached: SELECT * FROM A JOIN B ON A.id = B.id WHERE A.val > 10
+-- New:    SELECT * FROM A JOIN B ON A.id = B.id WHERE B.val > 10
+```
+
+| Checker | Result | Reason |
+|---------|--------|--------|
+| **Separable (current)** | MISS | `A.val > 10` vs `∅` on A fails |
+| **Full joint** | HIT | `A.id = B.id` correlates A.val and B.val |
+
+
+> *"Our Z3JoinContainmentChecker enforces **Separable Containment** (checking P_A ⊆ Q_A and P_B ⊆ Q_B independently), which is a sound approximation of full joint containment. This design trades completeness for predictable O(n) Z3 checks per table, avoiding the complexity of cross-table predicate propagation through join conditions."*
+
+### Future Work (Full Joint Containment)
+
+To achieve full joint containment would require:
+1. Join condition propagation: If `A.id = B.id`, propagate predicates across the join
+2. Cross-table Z3 encoding: Model correlated tuples in the SMT formula
+3. Complexity tradeoff: May increase Z3 solving time significantly
+
+---
 
 ## Key Points
 
 - **Point 1**: Cache Lookup Algorithm (use algorithm box above)
 - **Point 2**: Formal Correctness (theorems + proof sketches)
 - **Point 3**: Experimental Evaluation (test coverage, latency)
-- **Point 4**: Limitations (non-equi joins, cross-type conversion)
+- **Point 4**: Limitations (non-equi joins, cross-type conversion, separable containment)

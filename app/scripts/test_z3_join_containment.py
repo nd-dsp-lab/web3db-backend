@@ -402,6 +402,82 @@ class TestJoinConditionHelpers(unittest.TestCase):
         
         self.assertTrue(jc1.is_equivalent_to(jc2))
 
+@unittest.skipUnless(Z3_AVAILABLE, "Z3 not available")
+class TestVariableCollision(unittest.TestCase):
+    """Tests for variable collision fix (users.id vs orders.id)"""
+    
+    def setUp(self):
+        self.checker = Z3JoinContainmentChecker()
+    
+    def test_same_column_different_tables_not_confused(self):
+        """users.id and orders.id should be different Z3 variables"""
+        # Cached: users.id = 1 (only filters users table)
+        # New: orders.id = 1 (needs filter on orders table)
+        # These should NOT be satisfied because cache doesn't have orders.id filter
+        cached_tables = ["users", "orders"]
+        new_tables = ["users", "orders"]
+        cached_joins = [JoinCondition("users", "id", "orders", "user_id", "INNER")]
+        new_joins = [JoinCondition("users", "id", "orders", "user_id", "INNER")]
+        
+        # Cached has filter on users.id, new has filter on orders.id
+        # Cached only has users with id=1, but new wants orders with id=1
+        # Since cached has no filter on orders table, it should be able to 
+        # serve the new query with an additional filter on orders.id
+        cached_where = {
+            "users": PredicateGroup(predicates=[
+                Predicate("id", PredicateOperator.EQ, 1, table="users")
+            ])
+        }
+        new_where = {
+            "users": PredicateGroup(predicates=[
+                Predicate("id", PredicateOperator.EQ, 1, table="users")  # Same as cached
+            ]),
+            "orders": PredicateGroup(predicates=[
+                Predicate("id", PredicateOperator.EQ, 1, table="orders")  # Additional filter
+            ])
+        }
+        
+        is_contained, filter_sql = self.checker.check_join_containment(
+            cached_tables, new_tables,
+            cached_joins, new_joins,
+            cached_where, new_where
+        )
+        
+        # This SHOULD be contained because:
+        # - users.id = 1 on both (exact match)
+        # - orders.id = 1 is an additional filter on cached data (which has all orders)
+        self.assertTrue(is_contained)
+        # New should apply orders.id = 1 as additional filter
+        self.assertIn("id", filter_sql)
+    
+    def test_different_tables_different_id_predicates(self):
+        """Stricter 'id' on different tables should be independent"""
+        cached_tables = ["users", "orders"]
+        new_tables = ["users", "orders"]
+        cached_joins = [JoinCondition("users", "id", "orders", "user_id", "INNER")]
+        new_joins = [JoinCondition("users", "id", "orders", "user_id", "INNER")]
+        
+        # Cached: users.id > 10
+        # New: users.id > 20 (stricter on same table - should be contained)
+        cached_where = {
+            "users": PredicateGroup(predicates=[
+                Predicate("id", PredicateOperator.GT, 10, table="users")
+            ])
+        }
+        new_where = {
+            "users": PredicateGroup(predicates=[
+                Predicate("id", PredicateOperator.GT, 20, table="users")
+            ])
+        }
+        
+        is_contained, filter_sql = self.checker.check_join_containment(
+            cached_tables, new_tables,
+            cached_joins, new_joins,
+            cached_where, new_where
+        )
+        
+        self.assertTrue(is_contained)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

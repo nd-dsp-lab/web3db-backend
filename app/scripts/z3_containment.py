@@ -120,10 +120,18 @@ class Z3QueryEncoder:
         
         Examples:
             Age > 40  →  z3.Int('age') > 40
+            users.id = 1 → z3.Int('users_id') == 1
             Name = 'John'  →  z3.String('name') == StringVal('John')
             ID IN (1,2,3)  →  z3.Or(id == 1, id == 2, id == 3)
         """
-        var = self._get_variable(pred.attribute, pred.value)
+        # Use table-qualified name to avoid variable collision
+        # e.g., users.id and orders.id should be different Z3 variables
+        if pred.table:
+            var_name = f"{pred.table}_{pred.attribute}"
+        else:
+            var_name = pred.attribute
+        
+        var = self._get_variable(var_name, pred.value)
         op = pred.operator
         val = pred.value
         

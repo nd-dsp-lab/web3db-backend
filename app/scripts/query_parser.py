@@ -259,14 +259,30 @@ class QueryParser:
         has_cte, cte_names, cte_bodies, outer_query = self._parse_ctes(normalized)
         cte_name = cte_names[0] if cte_names else None  # Backward compat
         
+        # For CTE queries, parse columns/tables/joins from outer query only
+        # This ensures we get the actual tables being queried, not tables from CTE bodies
+        query_to_parse = outer_query if has_cte else normalized
+        
         # Parse SELECT columns
-        columns = self._parse_columns(normalized)
+        columns = self._parse_columns(query_to_parse)
         
-        # Parse tables (FROM clause)
-        tables = self._parse_tables(normalized)
+        # Parse tables (FROM clause) from outer query
+        tables = self._parse_tables(query_to_parse)
         
-        # Parse JOIN conditions
-        join_conditions = self._parse_joins(normalized)
+        # Filter out CTE names from tables - they're transient, not physical tables
+        # Also collect physical tables from CTE bodies for cache invalidation
+        physical_tables = set()
+        for cte_body in cte_bodies.values():
+            body_tables = self._parse_tables(cte_body)
+            physical_tables.update(body_tables)
+        
+        # Remove CTE names from parsed tables, add physical tables from CTE bodies
+        cte_names_lower = {name.lower() for name in cte_names}
+        tables = [t for t in tables if t.lower() not in cte_names_lower]
+        tables.extend([t for t in physical_tables if t.lower() not in cte_names_lower and t not in tables])
+        
+        # Parse JOIN conditions from outer query
+        join_conditions = self._parse_joins(query_to_parse)
         
         # Parse WHERE predicates (returns combined, cte_predicates, outer_predicates)
         predicates, cte_predicates, outer_predicates = self._parse_where(normalized)

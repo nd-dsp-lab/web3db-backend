@@ -197,7 +197,8 @@ class ParsedQuery:
             "columns": [c.lower() for c in self.columns],
             "cte_predicates": self.cte_predicates.to_dict() if not self.cte_predicates.is_empty() else self.predicates.to_dict(),
             "join_conditions": [jc.to_dict() for jc in self.join_conditions],
-            "has_cte": self.has_cte
+            "has_cte": self.has_cte,
+            "cte_bodies": self.cte_bodies  # Include CTE body text to prevent signature collisions
         }
         sig_str = json.dumps(sig_dict, sort_keys=True)
         return hashlib.sha256(sig_str.encode()).hexdigest()[:32]
@@ -281,8 +282,8 @@ class QueryParser:
         tables = [t for t in tables if t.lower() not in cte_names_lower]
         tables.extend([t for t in physical_tables if t.lower() not in cte_names_lower and t not in tables])
         
-        # Parse JOIN conditions from outer query
-        join_conditions = self._parse_joins(query_to_parse)
+        # Parse JOIN conditions from FULL query to capture JOINs inside CTEs
+        join_conditions = self._parse_joins(normalized)
         
         # Parse WHERE predicates (returns combined, cte_predicates, outer_predicates)
         predicates, cte_predicates, outer_predicates = self._parse_where(normalized)

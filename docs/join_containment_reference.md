@@ -125,6 +125,7 @@ This is a **sound approximation** of full joint containment, but **incomplete**:
 
 
 > *"Our Z3JoinContainmentChecker enforces **Separable Containment** (checking P_A ⊆ Q_A and P_B ⊆ Q_B independently), which is a sound approximation of full joint containment. This design trades completeness for predictable O(n) Z3 checks per table, avoiding the complexity of cross-table predicate propagation through join conditions."*
+> We explicitly chose Separable Containment (checking predicates per-table) over Joint Containment. While this is theoretically incomplete (misses some transitive constraints), it guarantees linear verification time O(T) with respect to the number of tables, whereas full joint verification would be exponential in the worst case
 
 ### Future Work (Full Joint Containment)
 

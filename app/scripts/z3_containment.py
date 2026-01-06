@@ -410,6 +410,275 @@ def is_z3_available() -> bool:
     return Z3_AVAILABLE
 
 
+# JOIN type compatibility matrix
+# (cached_type, new_type) -> is_compatible
+# For containment to hold, the new query's join must be compatible with cached
+JOIN_TYPE_COMPATIBLE = {
+    ("INNER", "INNER"): True,
+    ("LEFT", "LEFT"): True,
+    ("RIGHT", "RIGHT"): True,
+    ("FULL", "FULL"): True,
+    # Cross-type: generally not compatible due to NULL semantics
+    ("LEFT", "INNER"): False,   # LEFT has NULLs that INNER doesn't want
+    ("INNER", "LEFT"): False,   # INNER is missing NULL rows that LEFT produces
+    ("RIGHT", "INNER"): False,
+    ("INNER", "RIGHT"): False,
+    ("LEFT", "RIGHT"): False,
+    ("RIGHT", "LEFT"): False,
+    ("FULL", "INNER"): False,
+    ("INNER", "FULL"): False,
+    ("FULL", "LEFT"): False,
+    ("LEFT", "FULL"): False,
+    ("FULL", "RIGHT"): False,
+    ("RIGHT", "FULL"): False,
+}
+
+
+class Z3JoinContainmentChecker:
+    """
+    Checks JOIN query containment with formal correctness guarantees.
+    
+    Containment Algorithm:
+    1. Tables must match exactly (same set of tables)
+    2. Join type must match or be compatible
+    3. Join conditions must be equivalent (not subset - join structure must match)
+    4. WHERE predicates use standard containment semantics per-table
+    
+    Formal Guarantee (Soundness):
+    If this returns (True, filter), then applying the filter to cached results
+    will produce exactly the rows that the new query would return.
+    """
+    
+    def __init__(self, timeout_ms: int = 1000):
+        """
+        Initialize the JOIN containment checker.
+        
+        Args:
+            timeout_ms: Z3 solver timeout in milliseconds
+        """
+        if not Z3_AVAILABLE:
+            raise ImportError("z3-solver is not installed. Run: pip install z3-solver")
+        
+        self.timeout_ms = timeout_ms
+        self._predicate_checker = Z3ContainmentChecker(timeout_ms=timeout_ms)
+    
+    def check_join_structure_equivalence(
+        self, 
+        cached_joins: List['JoinCondition'],
+        new_joins: List['JoinCondition']
+    ) -> bool:
+        """
+        Verify join structures are semantically equivalent.
+        
+        Two join structures are equivalent if:
+        1. Same number of join conditions
+        2. Each join condition in one has an equivalent in the other
+        3. All join types are compatible
+        
+        Args:
+            cached_joins: Join conditions from cached query
+            new_joins: Join conditions from new query
+            
+        Returns:
+            True if join structures are equivalent
+        """
+        if len(cached_joins) != len(new_joins):
+            return False
+        
+        # Get normalized keys for comparison
+        cached_keys = set(jc.get_normalized_key() for jc in cached_joins)
+        new_keys = set(jc.get_normalized_key() for jc in new_joins)
+        
+        return cached_keys == new_keys
+    
+    def check_join_types_compatible(
+        self,
+        cached_joins: List['JoinCondition'],
+        new_joins: List['JoinCondition']
+    ) -> bool:
+        """
+        Check if join types are compatible for containment.
+        
+        For each join, the cached and new join types must be compatible.
+        """
+        if len(cached_joins) != len(new_joins):
+            return False
+        
+        # Match joins by their column pairs (ignoring type)
+        cached_by_key = {}
+        for jc in cached_joins:
+            left = (jc.left_table.lower(), jc.left_column.lower())
+            right = (jc.right_table.lower(), jc.right_column.lower())
+            if left > right:
+                left, right = right, left
+            cached_by_key[(left, right)] = jc.join_type.upper()
+        
+        for jc in new_joins:
+            left = (jc.left_table.lower(), jc.left_column.lower())
+            right = (jc.right_table.lower(), jc.right_column.lower())
+            if left > right:
+                left, right = right, left
+            key = (left, right)
+            
+            if key not in cached_by_key:
+                return False
+            
+            cached_type = cached_by_key[key]
+            new_type = jc.join_type.upper()
+            
+            if not JOIN_TYPE_COMPATIBLE.get((cached_type, new_type), False):
+                return False
+        
+        return True
+    
+    def get_tables_from_joins(self, joins: List['JoinCondition']) -> set:
+        """Extract all table names from join conditions."""
+        tables = set()
+        for jc in joins:
+            tables.add(jc.left_table.lower())
+            tables.add(jc.right_table.lower())
+        return tables
+    
+    def check_per_table_containment(
+        self,
+        cached_preds_by_table: Dict[str, PredicateGroup],
+        new_preds_by_table: Dict[str, PredicateGroup]
+    ) -> Tuple[bool, Optional[str]]:
+        """
+        Check predicate containment for each table separately.
+        
+        For containment to hold:
+        - For each table, new query's predicates must be contained in cached predicates
+        
+        Args:
+            cached_preds_by_table: Table name -> predicates from cached query
+            new_preds_by_table: Table name -> predicates from new query
+            
+        Returns:
+            (is_contained, additional_filter_sql)
+        """
+        additional_filters = []
+        
+        # Get all tables mentioned in either query
+        all_tables = set(cached_preds_by_table.keys()) | set(new_preds_by_table.keys())
+        
+        for table in all_tables:
+            cached_preds = cached_preds_by_table.get(table, PredicateGroup())
+            new_preds = new_preds_by_table.get(table, PredicateGroup())
+            
+            # Check containment for this table's predicates
+            is_contained, filter_sql = self._predicate_checker.is_contained(
+                cached_preds, 
+                new_preds
+            )
+            
+            if not is_contained:
+                logger.debug(f"Table {table}: predicates not contained")
+                return False, None
+            
+            if filter_sql:
+                additional_filters.append(filter_sql)
+        
+        combined_filter = " AND ".join(additional_filters) if additional_filters else None
+        return True, combined_filter
+    
+    def check_join_containment(
+        self,
+        cached_tables: List[str],
+        new_tables: List[str],
+        cached_joins: List['JoinCondition'],
+        new_joins: List['JoinCondition'],
+        cached_where_by_table: Dict[str, PredicateGroup],
+        new_where_by_table: Dict[str, PredicateGroup]
+    ) -> Tuple[bool, Optional[str]]:
+        """
+        Check if new JOIN query results are contained in cached JOIN query results.
+        
+        This is the main entry point for JOIN containment checking.
+        
+        Args:
+            cached_tables: Tables from cached query
+            new_tables: Tables from new query  
+            cached_joins: Join conditions from cached query
+            new_joins: Join conditions from new query
+            cached_where_by_table: WHERE predicates grouped by table (cached)
+            new_where_by_table: WHERE predicates grouped by table (new)
+            
+        Returns:
+            (is_contained, additional_filter_sql)
+            - is_contained: True if new ⊆ cached
+            - additional_filter_sql: SQL filter to apply on cached data (if contained)
+        """
+        import time
+        start_time = time.time()
+        
+        # Step 1: Tables must match
+        cached_table_set = set(t.lower() for t in cached_tables)
+        new_table_set = set(t.lower() for t in new_tables)
+        
+        if cached_table_set != new_table_set:
+            logger.debug(f"JOIN containment: tables don't match. "
+                        f"Cached: {cached_table_set}, New: {new_table_set}")
+            return False, None
+        
+        # Step 2: Join conditions must be equivalent
+        if not self.check_join_structure_equivalence(cached_joins, new_joins):
+            logger.debug(f"JOIN containment: join structure not equivalent")
+            return False, None
+        
+        # Step 3: Join types must be compatible  
+        if not self.check_join_types_compatible(cached_joins, new_joins):
+            logger.debug(f"JOIN containment: join types not compatible")
+            return False, None
+        
+        # Step 4: Per-table WHERE predicate containment
+        is_contained, filter_sql = self.check_per_table_containment(
+            cached_where_by_table,
+            new_where_by_table
+        )
+        
+        check_time = (time.time() - start_time) * 1000
+        
+        if is_contained:
+            logger.info(f"JOIN containment: CONTAINED, filter={filter_sql}, time={check_time:.2f}ms")
+        else:
+            logger.info(f"JOIN containment: NOT CONTAINED, time={check_time:.2f}ms")
+        
+        return is_contained, filter_sql
+
+
+def check_join_containment(
+    cached_tables: List[str],
+    new_tables: List[str],
+    cached_joins: List['JoinCondition'],
+    new_joins: List['JoinCondition'],
+    cached_where_by_table: Dict[str, PredicateGroup],
+    new_where_by_table: Dict[str, PredicateGroup],
+    timeout_ms: int = 1000
+) -> Tuple[bool, Optional[str]]:
+    """
+    Convenience function to check JOIN query containment.
+    
+    Args:
+        cached_tables: Tables from cached query
+        new_tables: Tables from new query
+        cached_joins: Join conditions from cached query
+        new_joins: Join conditions from new query
+        cached_where_by_table: WHERE predicates grouped by table (cached)
+        new_where_by_table: WHERE predicates grouped by table (new)
+        timeout_ms: Solver timeout in milliseconds
+        
+    Returns:
+        (is_contained, additional_filter_sql)
+    """
+    checker = Z3JoinContainmentChecker(timeout_ms=timeout_ms)
+    return checker.check_join_containment(
+        cached_tables, new_tables,
+        cached_joins, new_joins,
+        cached_where_by_table, new_where_by_table
+    )
+
+
 # Test the module
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)

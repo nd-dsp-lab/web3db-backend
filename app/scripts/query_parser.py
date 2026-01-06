@@ -107,7 +107,7 @@ class PredicateGroup:
 
 @dataclass 
 class JoinCondition:
-    """Represents a JOIN condition"""
+    """Represents a JOIN condition (equi-join on columns)"""
     left_table: str
     left_column: str
     right_table: str
@@ -122,6 +122,22 @@ class JoinCondition:
             "right_column": self.right_column.lower(),
             "join_type": self.join_type.upper()
         }
+    
+    def get_normalized_key(self) -> tuple:
+        """
+        Get a normalized key for comparing join conditions.
+        Sorts table.column pairs to handle A.x = B.y vs B.y = A.x equivalence.
+        """
+        left = (self.left_table.lower(), self.left_column.lower())
+        right = (self.right_table.lower(), self.right_column.lower())
+        # Sort to normalize order
+        if left > right:
+            left, right = right, left
+        return (left, right, self.join_type.upper())
+    
+    def is_equivalent_to(self, other: 'JoinCondition') -> bool:
+        """Check if this join condition is semantically equivalent to another"""
+        return self.get_normalized_key() == other.get_normalized_key()
 
 
 @dataclass

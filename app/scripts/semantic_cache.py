@@ -31,11 +31,12 @@ from query_parser import (
 
 # Import Z3 containment checker
 try:
-    from z3_containment import Z3ContainmentChecker, is_z3_available
+    from z3_containment import Z3ContainmentChecker, Z3JoinContainmentChecker, is_z3_available
     Z3_ENABLED = is_z3_available()
 except ImportError:
     Z3_ENABLED = False
     Z3ContainmentChecker = None
+    Z3JoinContainmentChecker = None
 
 logger = logging.getLogger(__name__)
 
@@ -356,6 +357,7 @@ class SemanticCache:
         Returns (CacheEntry, additional_filter) if found, None otherwise.
         
         Uses Z3 to verify: new_predicates ⊆ cached_predicates
+        For JOIN queries, also verifies join structure equivalence.
         """
         # Get all cache entries for this table
         if table_name not in self._table_index:
@@ -365,6 +367,9 @@ class SemanticCache:
             return None  # Z3 not available
         
         cache_ids = self._table_index[table_name]
+        
+        # Check if this is a JOIN query
+        is_join_query = bool(parsed.join_conditions)
         
         for cache_id in cache_ids:
             if cache_id not in self._cache:
@@ -386,12 +391,28 @@ class SemanticCache:
                 # This is handled by query_cached with needs_reaggregation
                 pass
             
-            # Use Z3 to check containment of outer predicates
+            # Check if cached query is also a JOIN query
+            cached_is_join = bool(entry.parsed_query.join_conditions)
+            
+            # JOIN compatibility check
+            if is_join_query != cached_is_join:
+                # Can't match JOIN with non-JOIN query
+                continue
+            
             z3_start = time.time()
-            is_contained, additional_filter = self._z3_checker.is_contained(
-                entry.parsed_query.outer_predicates,
-                parsed.outer_predicates
-            )
+            
+            if is_join_query:
+                # Use JOIN containment checker
+                is_contained, additional_filter = self._check_join_containment(
+                    entry.parsed_query, parsed
+                )
+            else:
+                # Use regular predicate containment for single-table queries
+                is_contained, additional_filter = self._z3_checker.is_contained(
+                    entry.parsed_query.outer_predicates,
+                    parsed.outer_predicates
+                )
+            
             z3_time = (time.time() - z3_start) * 1000
             
             # Update Z3 metrics
@@ -402,6 +423,65 @@ class SemanticCache:
                 return entry, additional_filter
         
         return None
+    
+    def _check_join_containment(
+        self,
+        cached_query: ParsedQuery,
+        new_query: ParsedQuery
+    ) -> Tuple[bool, Optional[str]]:
+        """
+        Check containment for JOIN queries.
+        
+        Delegates to Z3JoinContainmentChecker with per-table predicates.
+        """
+        if not Z3JoinContainmentChecker:
+            return False, None
+        
+        checker = Z3JoinContainmentChecker(timeout_ms=1000)
+        
+        # For now, use outer_predicates as the main filter predicates
+        # In a more complete implementation, we'd parse predicates per-table
+        cached_where = self._group_predicates_by_table(cached_query)
+        new_where = self._group_predicates_by_table(new_query)
+        
+        return checker.check_join_containment(
+            cached_query.tables,
+            new_query.tables,
+            cached_query.join_conditions,
+            new_query.join_conditions,
+            cached_where,
+            new_where
+        )
+    
+    def _group_predicates_by_table(
+        self,
+        parsed: ParsedQuery
+    ) -> Dict[str, PredicateGroup]:
+        """
+        Group predicates by table name.
+        
+        For predicates without explicit table prefix, assigns to primary table.
+        """
+        result = {}
+        primary_table = parsed.tables[0].lower() if parsed.tables else "default"
+        
+        # Get all predicates from outer_predicates
+        all_preds = self._flatten_predicates(parsed.outer_predicates)
+        
+        for pred in all_preds:
+            table = (pred.table.lower() if pred.table else primary_table)
+            if table not in result:
+                result[table] = PredicateGroup()
+            result[table].predicates.append(pred)
+        
+        return result
+    
+    def _flatten_predicates(self, group: PredicateGroup) -> list:
+        """Flatten a predicate group into a list of predicates."""
+        result = list(group.predicates)
+        for subgroup in group.subgroups:
+            result.extend(self._flatten_predicates(subgroup))
+        return result
     
     def store(
         self, 

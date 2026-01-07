@@ -38,6 +38,15 @@ except ImportError:
     Z3ContainmentChecker = None
     Z3JoinContainmentChecker = None
 
+# Import CAA admission policy
+try:
+    from admission_policy import CAAScorer, CAAConfig
+    CAA_ENABLED = True
+except ImportError:
+    CAA_ENABLED = False
+    CAAScorer = None
+    CAAConfig = None
+
 logger = logging.getLogger(__name__)
 
 
@@ -89,6 +98,10 @@ class CacheMetrics:
     # Z3 metrics
     z3_checks: int = 0
     z3_total_latency_ms: float = 0.0
+    # CAA metrics
+    caa_admissions: int = 0
+    caa_rejections: int = 0
+    caa_scores_sum: float = 0.0
     
     @property
     def hit_rate(self) -> float:
@@ -197,6 +210,14 @@ class SemanticCache:
             logger.info("Z3 containment checker enabled")
         else:
             logger.warning("Z3 not available, containment checking disabled")
+        
+        # CAA admission policy
+        self._caa_scorer = None
+        self._caa_enabled = False
+        if CAA_ENABLED and CAAScorer:
+            self._caa_scorer = CAAScorer()
+            self._caa_enabled = True
+            logger.info("CAA admission policy enabled")
         
         logger.info(f"SemanticCache initialized: max_size={max_size_bytes/(1024**3):.1f}GB, max_entries={max_entries}")
     
@@ -487,8 +508,9 @@ class SemanticCache:
         self, 
         rewritten_query: str, 
         table_name: str, 
-        df: pd.DataFrame
-    ) -> CacheEntry:
+        df: pd.DataFrame,
+        cost_ms: float = 0.0
+    ) -> Optional[CacheEntry]:
         """
         Store query results in the cache.
         
@@ -496,9 +518,10 @@ class SemanticCache:
             rewritten_query: The query after access control rewriting
             table_name: The table being queried
             df: The query results as a DataFrame
+            cost_ms: Query execution time in milliseconds (for CAA scoring)
             
         Returns:
-            The created CacheEntry
+            The created CacheEntry, or None if rejected by CAA
             
         Storage Strategy:
         - If query has no outer predicates (e.g., SELECT * FROM table), store with base_signature
@@ -508,6 +531,21 @@ class SemanticCache:
         with self._lock:
             # Parse query and generate IDs
             parsed = self._parser.parse(rewritten_query)
+            
+            # Estimate size
+            size_bytes = self._estimate_dataframe_size(df)
+            
+            # CAA admission check
+            if self._caa_enabled and self._caa_scorer:
+                caa_score = self._caa_scorer.compute_score(parsed, cost_ms, size_bytes)
+                self._metrics.caa_scores_sum += caa_score
+                
+                if not self._caa_scorer.should_admit(caa_score):
+                    logger.debug(f"CAA rejected query (score={caa_score:.3f})")
+                    self._metrics.caa_rejections += 1
+                    return None
+                
+                self._metrics.caa_admissions += 1
             
             # Use base signature if no outer predicates (makes this a reusable base cache)
             # Use full signature if there are outer predicates (specific filtered result)
@@ -523,9 +561,6 @@ class SemanticCache:
             if cache_id in self._cache:
                 logger.debug(f"Cache entry already exists: {cache_id}")
                 return self._cache[cache_id]
-            
-            # Estimate size
-            size_bytes = self._estimate_dataframe_size(df)
             
             # Evict if necessary
             self._evict_if_needed(size_bytes)

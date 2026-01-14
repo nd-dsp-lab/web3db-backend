@@ -38,14 +38,14 @@ except ImportError:
     Z3ContainmentChecker = None
     Z3JoinContainmentChecker = None
 
-# Import CAA admission policy
+# Import utility scorer for Semantic Sieve
 try:
-    from admission_policy import CAAScorer, CAAConfig
-    CAA_ENABLED = True
+    from utility_scorer import UtilityScorer, UtilityConfig
+    UTILITY_SCORER_ENABLED = True
 except ImportError:
-    CAA_ENABLED = False
-    CAAScorer = None
-    CAAConfig = None
+    UTILITY_SCORER_ENABLED = False
+    UtilityScorer = None
+    UtilityConfig = None
 
 logger = logging.getLogger(__name__)
 
@@ -63,6 +63,10 @@ class CacheEntry:
     last_accessed: float
     access_count: int
     size_bytes: int  # Estimated memory size
+    # Semantic Sieve fields
+    visited: bool = False       # V bit: set on cache hit
+    high_utility: bool = False  # U bit: set if utility >= threshold
+    utility_score: float = 0.0  # For debugging/metrics
     
     def to_dict(self) -> dict:
         return {
@@ -98,10 +102,10 @@ class CacheMetrics:
     # Z3 metrics
     z3_checks: int = 0
     z3_total_latency_ms: float = 0.0
-    # CAA metrics
-    caa_admissions: int = 0
-    caa_rejections: int = 0
-    caa_scores_sum: float = 0.0
+    # Semantic Sieve metrics
+    sieve_evictions: int = 0
+    utility_decays: int = 0
+    high_utility_entries: int = 0
     
     @property
     def hit_rate(self) -> float:
@@ -186,9 +190,10 @@ class SemanticCache:
         self.max_entries = max_entries
         self.enable_subset_detection = enable_subset_detection
         
-        # Cache storage: OrderedDict for LRU ordering
-        # Key: cache_id, Value: CacheEntry
-        self._cache: OrderedDict[str, CacheEntry] = OrderedDict()
+        # Semantic Sieve: FIFO queue + hand pointer (replaces LRU OrderedDict)
+        self._cache_queue: List[CacheEntry] = []  # FIFO queue for SIEVE
+        self._cache_map: Dict[str, CacheEntry] = {}  # Fast lookup by cache_id
+        self._hand: int = 0  # SIEVE eviction pointer
         
         # Index for fast lookup by table name
         # Key: table_name, Value: List of cache_ids
@@ -211,13 +216,11 @@ class SemanticCache:
         else:
             logger.warning("Z3 not available, containment checking disabled")
         
-        # CAA admission policy
-        self._caa_scorer = None
-        self._caa_enabled = False
-        if CAA_ENABLED and CAAScorer:
-            self._caa_scorer = CAAScorer()
-            self._caa_enabled = True
-            logger.info("CAA admission policy enabled")
+        # Utility scorer for Semantic Sieve (determines U bit)
+        self._utility_scorer = None
+        if UTILITY_SCORER_ENABLED and UtilityScorer:
+            self._utility_scorer = UtilityScorer()
+            logger.info("Semantic Sieve utility scorer enabled")
         
         logger.info(f"SemanticCache initialized: max_size={max_size_bytes/(1024**3):.1f}GB, max_entries={max_entries}")
     
@@ -270,12 +273,12 @@ class SemanticCache:
             
             # Debug logging
             logger.info(f"Cache LOOKUP: table={table_name}, exact_lookup_id={exact_lookup_id}")
-            logger.info(f"Cache LOOKUP: cache_keys={list(self._cache.keys())}")
+            logger.info(f"Cache LOOKUP: cache_keys={list(self._cache_map.keys())}")
             
-            if exact_lookup_id in self._cache:
-                entry = self._cache[exact_lookup_id]
-                # Move to end for LRU
-                self._cache.move_to_end(exact_lookup_id)
+            if exact_lookup_id in self._cache_map:
+                entry = self._cache_map[exact_lookup_id]
+                # Semantic Sieve: set visited bit (no reordering needed)
+                entry.visited = True
                 entry.last_accessed = time.time()
                 entry.access_count += 1
                 
@@ -298,12 +301,12 @@ class SemanticCache:
             # Check for base match (same CTE predicates, different outer predicates)
             # This handles the case where we cached "SELECT * FROM table" and now query 
             # "SELECT * FROM table WHERE Age > 90"
-            if base_cache_id in self._cache and not parsed.outer_predicates.is_empty():
-                entry = self._cache[base_cache_id]
+            if base_cache_id in self._cache_map and not parsed.outer_predicates.is_empty():
+                entry = self._cache_map[base_cache_id]
                 # Verify the cached entry has no outer predicates (it's the base/superset)
                 if entry.parsed_query.outer_predicates.is_empty():
-                    # Move to end for LRU
-                    self._cache.move_to_end(base_cache_id)
+                    # Semantic Sieve: set visited bit (no reordering needed)
+                    entry.visited = True
                     entry.last_accessed = time.time()
                     entry.access_count += 1
                     
@@ -331,8 +334,8 @@ class SemanticCache:
                 subset_result = self._find_superset_entry(parsed, table_name)
                 if subset_result:
                     entry, additional_filter = subset_result
-                    # Move to end for LRU
-                    self._cache.move_to_end(entry.cache_id)
+                    # Semantic Sieve: set visited bit (no reordering needed)
+                    entry.visited = True
                     entry.last_accessed = time.time()
                     entry.access_count += 1
                     
@@ -393,10 +396,10 @@ class SemanticCache:
         is_join_query = bool(parsed.join_conditions)
         
         for cache_id in cache_ids:
-            if cache_id not in self._cache:
+            if cache_id not in self._cache_map:
                 continue
             
-            entry = self._cache[cache_id]
+            entry = self._cache_map[cache_id]
             
             # Check compatibility: Don't match aggregated cache with non-aggregated query
             # If cached query has GROUP BY/aggregations but new query doesn't, skip
@@ -514,19 +517,17 @@ class SemanticCache:
         """
         Store query results in the cache.
         
+        Semantic Sieve: Cache everything (no admission filtering).
+        Utility score determines the U bit for eviction decisions.
+        
         Args:
             rewritten_query: The query after access control rewriting
             table_name: The table being queried
             df: The query results as a DataFrame
-            cost_ms: Query execution time in milliseconds (for CAA scoring)
+            cost_ms: Query execution time in milliseconds (for utility scoring)
             
         Returns:
-            The created CacheEntry, or None if rejected by CAA
-            
-        Storage Strategy:
-        - If query has no outer predicates (e.g., SELECT * FROM table), store with base_signature
-          so that queries with outer predicates can find and filter from it
-        - If query has outer predicates, store with full signature for exact match
+            The created CacheEntry
         """
         with self._lock:
             # Parse query and generate IDs
@@ -535,17 +536,14 @@ class SemanticCache:
             # Estimate size
             size_bytes = self._estimate_dataframe_size(df)
             
-            # CAA admission check
-            if self._caa_enabled and self._caa_scorer:
-                caa_score = self._caa_scorer.compute_score(parsed, cost_ms, size_bytes)
-                self._metrics.caa_scores_sum += caa_score
-                
-                if not self._caa_scorer.should_admit(caa_score):
-                    logger.debug(f"CAA rejected query (score={caa_score:.3f})")
-                    self._metrics.caa_rejections += 1
-                    return None
-                
-                self._metrics.caa_admissions += 1
+            # Semantic Sieve: Compute utility score for U bit (no admission filtering)
+            utility_score = 0.0
+            high_utility = False
+            if self._utility_scorer:
+                utility_score = self._utility_scorer.compute_score(parsed, cost_ms, size_bytes)
+                high_utility = self._utility_scorer.is_high_utility(utility_score)
+                if high_utility:
+                    self._metrics.high_utility_entries += 1
             
             # Use base signature if no outer predicates (makes this a reusable base cache)
             # Use full signature if there are outer predicates (specific filtered result)
@@ -558,9 +556,9 @@ class SemanticCache:
             duckdb_table = self._generate_duckdb_table_name(cache_id)
             
             # Check if already cached (race condition)
-            if cache_id in self._cache:
+            if cache_id in self._cache_map:
                 logger.debug(f"Cache entry already exists: {cache_id}")
-                return self._cache[cache_id]
+                return self._cache_map[cache_id]
             
             # Evict if necessary
             self._evict_if_needed(size_bytes)
@@ -577,7 +575,7 @@ class SemanticCache:
                 logger.error(f"Failed to create cache table {duckdb_table}: {e}")
                 raise
             
-            # Create cache entry
+            # Create cache entry with Semantic Sieve fields
             now = time.time()
             entry = CacheEntry(
                 cache_id=cache_id,
@@ -589,24 +587,24 @@ class SemanticCache:
                 created_at=now,
                 last_accessed=now,
                 access_count=0,
-                size_bytes=size_bytes
+                size_bytes=size_bytes,
+                visited=False,
+                high_utility=high_utility,
+                utility_score=utility_score
             )
             
-            # Store in cache
-            self._cache[cache_id] = entry
-            logger.info(f"Cache STORE: stored with cache_id={cache_id}, now cache_keys={list(self._cache.keys())}")
+            # Store in cache (FIFO queue + map)
+            self._cache_queue.append(entry)
+            self._cache_map[cache_id] = entry
+            logger.info(f"Cache STORE: stored with cache_id={cache_id}, U={high_utility}, score={utility_score:.2f}")
             
             # Update table index
             if table_name not in self._table_index:
                 self._table_index[table_name] = []
             self._table_index[table_name].append(cache_id)
             
-            # Subsumption-based eviction: evict entries that are now subsumed by this new entry
-            # E.g., if we cache Age > 40, evict existing Age > 50 (since Age > 50 ⊆ Age > 40)
-            self._evict_subsumed_entries(entry, table_name, parsed)
-            
             # Update metrics
-            self._metrics.current_entries = len(self._cache)
+            self._metrics.current_entries = len(self._cache_map)
             self._metrics.current_size_bytes += size_bytes
             
             logger.info(f"Cache STORE: {cache_id}, {len(df)} rows, {size_bytes/(1024*1024):.2f}MB")
@@ -639,10 +637,10 @@ class SemanticCache:
             if cache_id == new_entry.cache_id:
                 continue  # Don't check against self
             
-            if cache_id not in self._cache:
+            if cache_id not in self._cache_map:
                 continue
             
-            existing_entry = self._cache[cache_id]
+            existing_entry = self._cache_map[cache_id]
             
             # Check compatibility: both must have same aggregation status
             new_has_agg = bool(new_parsed.group_by) or bool(new_parsed.aggregations)
@@ -731,53 +729,130 @@ class SemanticCache:
                 raise
     
     def _evict_if_needed(self, needed_bytes: int):
-        """Evict entries if cache is full"""
+        """Evict entries if cache is full using Semantic Sieve algorithm."""
         # Check entry count limit
-        while len(self._cache) >= self.max_entries:
-            self._evict_lru()
+        while len(self._cache_queue) >= self.max_entries:
+            if not self._evict_sieve():
+                break
         
         # Check size limit
         while self._metrics.current_size_bytes + needed_bytes > self.max_size_bytes:
-            if not self._cache:
+            if not self._cache_queue:
                 break
-            self._evict_lru()
+            if not self._evict_sieve():
+                break
     
-    def _evict_lru(self):
-        """Evict the least recently used entry"""
-        if not self._cache:
+    def _evict_sieve(self) -> bool:
+        """
+        Semantic Sieve eviction algorithm.
+        
+        CASE 1 (V=0, U=0): Evict immediately (low utility, unvisited)
+        CASE 2 (V=0, U=1): Check subsumption, else decay U to 0
+        CASE 3 (V=1): Reset V to 0, skip (recently accessed)
+        
+        Returns True if an entry was evicted, False otherwise.
+        """
+        if not self._cache_queue:
+            return False
+        
+        scanned = 0
+        while scanned < len(self._cache_queue):
+            # Ensure hand is valid
+            if self._hand >= len(self._cache_queue):
+                self._hand = 0
+            
+            entry = self._cache_queue[self._hand]
+            
+            # CASE 1: V=0 and U=0 → evict immediately
+            if not entry.visited and not entry.high_utility:
+                self._remove_entry_at(self._hand)
+                self._metrics.sieve_evictions += 1
+                logger.info(f"Cache EVICT (SIEVE V=0,U=0): {entry.cache_id}")
+                return True
+            
+            # CASE 2: V=0 and U=1 → check subsumption, else decay
+            elif not entry.visited and entry.high_utility:
+                if self._is_subsumed_by_another(entry):
+                    self._remove_entry_at(self._hand)
+                    self._metrics.subsumption_evictions += 1
+                    logger.info(f"Cache EVICT (SIEVE SUBSUMED): {entry.cache_id}")
+                    return True
+                else:
+                    # Decay: downgrade protection for next pass
+                    entry.high_utility = False
+                    self._metrics.utility_decays += 1
+                    logger.debug(f"Cache DECAY U=1→U=0: {entry.cache_id}")
+            
+            # CASE 3: V=1 → reset V, skip
+            else:
+                entry.visited = False
+            
+            # Advance hand
+            self._hand = (self._hand + 1) % len(self._cache_queue)
+            scanned += 1
+        
+        # Fallback: evict first low-utility entry
+        for i, e in enumerate(self._cache_queue):
+            if not e.high_utility:
+                self._remove_entry_at(i)
+                self._metrics.sieve_evictions += 1
+                logger.info(f"Cache EVICT (SIEVE FALLBACK): {e.cache_id}")
+                return True
+        
+        # Last resort: evict oldest
+        if self._cache_queue:
+            entry = self._cache_queue[0]
+            self._remove_entry_at(0)
+            self._metrics.sieve_evictions += 1
+            logger.info(f"Cache EVICT (SIEVE OLDEST): {entry.cache_id}")
+            return True
+        
+        return False
+    
+    def _is_subsumed_by_another(self, entry: CacheEntry) -> bool:
+        """Check if another high-utility entry subsumes this one."""
+        if not self._z3_checker:
+            return False
+        
+        for other in self._cache_queue:
+            if other is entry or not other.high_utility:
+                continue
+            if other.table_name != entry.table_name:
+                continue
+            
+            try:
+                contained, _ = self._z3_checker.is_contained(
+                    other.parsed_query.outer_predicates,
+                    entry.parsed_query.outer_predicates
+                )
+                if contained:
+                    return True
+            except Exception as e:
+                logger.warning(f"Subsumption check failed: {e}")
+        
+        return False
+    
+    def _remove_entry_at(self, index: int):
+        """Remove a cache entry at the given queue index."""
+        if index < 0 or index >= len(self._cache_queue):
             return
         
-        # Get oldest entry (first in OrderedDict)
-        cache_id = next(iter(self._cache))
-        self._remove_entry(cache_id)
-        self._metrics.evictions += 1
-        logger.info(f"Cache EVICT (LRU): {cache_id}")
-    
-    def _evict_entry(self, cache_id: str, table_name: str, reason: str = "evicted"):
-        """Evict a specific cache entry with reason tracking"""
-        if cache_id not in self._cache:
-            return
+        entry = self._cache_queue.pop(index)
         
-        self._remove_entry(cache_id)
+        # Adjust hand if needed
+        if index < self._hand:
+            self._hand -= 1
+        if self._hand >= len(self._cache_queue) and self._cache_queue:
+            self._hand = 0
         
-        if reason == "subsumed":
-            self._metrics.subsumption_evictions += 1
-            logger.info(f"Cache EVICT (SUBSUMED): {cache_id}")
-        else:
-            self._metrics.evictions += 1
-            logger.info(f"Cache EVICT ({reason}): {cache_id}")
-    
-    def _remove_entry(self, cache_id: str):
-        """Remove a cache entry"""
-        if cache_id not in self._cache:
-            return
-        
-        entry = self._cache.pop(cache_id)
+        # Remove from map
+        if entry.cache_id in self._cache_map:
+            del self._cache_map[entry.cache_id]
         
         # Remove from table index
         if entry.table_name in self._table_index:
             try:
-                self._table_index[entry.table_name].remove(cache_id)
+                self._table_index[entry.table_name].remove(entry.cache_id)
             except ValueError:
                 pass
         
@@ -788,8 +863,25 @@ class SemanticCache:
             logger.warning(f"Failed to drop cache table {entry.duckdb_table}: {e}")
         
         # Update metrics
-        self._metrics.current_entries = len(self._cache)
+        self._metrics.current_entries = len(self._cache_map)
         self._metrics.current_size_bytes -= entry.size_bytes
+    
+    def _remove_entry(self, cache_id: str):
+        """Remove a cache entry by ID."""
+        if cache_id not in self._cache_map:
+            return
+        
+        entry = self._cache_map[cache_id]
+        
+        # Find in queue
+        try:
+            index = self._cache_queue.index(entry)
+            self._remove_entry_at(index)
+        except ValueError:
+            # Entry not in queue, just remove from map
+            del self._cache_map[cache_id]
+            self._metrics.current_entries = len(self._cache_map)
+            self._metrics.current_size_bytes -= entry.size_bytes
     
     def invalidate_table(self, table_name: str):
         """
@@ -810,10 +902,13 @@ class SemanticCache:
     def invalidate_all(self):
         """Invalidate entire cache"""
         with self._lock:
-            cache_ids = list(self._cache.keys())
+            cache_ids = list(self._cache_map.keys())
             for cache_id in cache_ids:
                 self._remove_entry(cache_id)
                 self._metrics.invalidations += 1
+            
+            # Reset SIEVE state
+            self._hand = 0
             
             logger.info(f"Cache INVALIDATE ALL: entries={len(cache_ids)}")
     
@@ -827,24 +922,25 @@ class SemanticCache:
         with self._lock:
             if table_name:
                 cache_ids = self._table_index.get(table_name, [])
-                return [self._cache[cid] for cid in cache_ids if cid in self._cache]
-            return list(self._cache.values())
+                return [self._cache_map[cid] for cid in cache_ids if cid in self._cache_map]
+            return list(self._cache_queue)
     
     def get_stats(self) -> dict:
         """Get comprehensive cache statistics"""
         with self._lock:
             entries_by_table = {}
             for table_name, cache_ids in self._table_index.items():
-                entries_by_table[table_name] = len([cid for cid in cache_ids if cid in self._cache])
+                entries_by_table[table_name] = len([cid for cid in cache_ids if cid in self._cache_map])
             
             return {
                 "metrics": self._metrics.to_dict(),
                 "entries_by_table": entries_by_table,
-                "total_entries": len(self._cache),
+                "total_entries": len(self._cache_map),
                 "max_entries": self.max_entries,
                 "max_size_gb": self.max_size_bytes / (1024 ** 3),
                 "current_size_gb": self._metrics.current_size_bytes / (1024 ** 3),
-                "subset_detection_enabled": self.enable_subset_detection
+                "subset_detection_enabled": self.enable_subset_detection,
+                "sieve_hand_position": self._hand
             }
     
     def clear(self):

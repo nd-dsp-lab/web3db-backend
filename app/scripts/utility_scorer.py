@@ -1,17 +1,16 @@
 """
-Containment-Aware Admission (CAA) Policy
+Utility Scorer for Semantic Sieve
 
-A novel cache admission policy that prioritizes queries with high containment
-potential - the likelihood that cached results can serve future queries via
-subset matching.
+Computes utility score for cache entries to determine the U (utility) bit
+in the Semantic Sieve eviction algorithm.
 
-Formula: Score(Q) = (Cost / Size) × Retain(Q) × Breadth(Q)
+Formula: Utility(Q) = (Cost / Size) × Retain(Q) × Breadth(Q)
 
-For VLDB paper on semantic caching.
+For NSDI paper on Semantic Sieve.
 """
 
 from dataclasses import dataclass, field
-from typing import Optional, List
+from typing import List
 import logging
 
 from query_parser import ParsedQuery, PredicateOperator, PredicateGroup
@@ -20,9 +19,9 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass
-class CAAConfig:
-    """Configuration for CAA policy"""
-    admission_threshold: float = 0.5  # Minimum score for admission
+class UtilityConfig:
+    """Configuration for utility scoring"""
+    utility_threshold: float = 0.5  # Threshold for high-utility bit (U=1)
     cost_weight: float = 1.0  # Weight for cost component
     size_weight: float = 1.0  # Weight for size penalty
     min_cost_ms: float = 1.0  # Minimum cost to avoid division issues
@@ -30,17 +29,19 @@ class CAAConfig:
 
 
 @dataclass  
-class CAAScorer:
+class UtilityScorer:
     """
-    Containment-Aware Admission Scorer
+    Utility Scorer for Semantic Sieve
     
-    Computes admission score based on:
+    Computes utility score based on:
     - Cost: Query execution time (higher = more valuable to cache)
     - Size: Memory footprint (higher = more costly to cache)
     - Retain: Information preservation (SELECT * vs aggregations)
     - Breadth: Containment probability (range vs point queries)
+    
+    Used to set the U (utility) bit in Semantic Sieve eviction.
     """
-    config: CAAConfig = field(default_factory=CAAConfig)
+    config: UtilityConfig = field(default_factory=UtilityConfig)
     
     def compute_score(
         self, 
@@ -49,11 +50,11 @@ class CAAScorer:
         size_bytes: int
     ) -> float:
         """
-        Compute CAA score for a query.
+        Compute utility score for a query.
         
-        Score = (Cost / Size) × Retain × Breadth
+        Utility = (Cost / Size) × Retain × Breadth
         
-        Higher score = higher priority for caching.
+        Higher score = higher utility, more protection from eviction.
         """
         # Avoid division by zero
         cost = max(cost_ms, self.config.min_cost_ms)
@@ -78,18 +79,22 @@ class CAAScorer:
         score = min(score, self.config.max_score)
         
         logger.debug(
-            f"CAA Score: {score:.3f} "
+            f"Utility Score: {score:.3f} "
             f"(density={density:.3f}, retain={retain:.2f}, breadth={breadth:.2f})"
         )
         
         return score
+    
+    def is_high_utility(self, score: float) -> bool:
+        """Determine if query has high utility (U=1)."""
+        return score >= self.config.utility_threshold
     
     def compute_retain_score(self, parsed: ParsedQuery) -> float:
         """
         Compute information retention score.
         
         SELECT * = 1.0 (full info)
-        SELECT col1, col2 = 0.8 (partial)
+        SELECT col1, col2 = 0.6-0.9 (partial)
         Aggregations = 0.05 (lossy)
         """
         # Check for aggregations
@@ -146,8 +151,7 @@ class CAAScorer:
         if not scores:
             return 1.0
         
-        # Combine scores - use geometric mean for AND, arithmetic for OR
-        # For simplicity, use minimum (most restrictive predicate dominates)
+        # Combine scores - use minimum (most restrictive predicate dominates)
         return min(scores)
     
     def _analyze_predicate_group(
@@ -200,22 +204,17 @@ class CAAScorer:
         
         # Default
         return 0.5
-    
-    def should_admit(self, score: float) -> bool:
-        """Determine if query should be admitted to cache."""
-        return score >= self.config.admission_threshold
 
 
-# Convenience function
-def create_caa_scorer(
+def create_utility_scorer(
     threshold: float = 0.5,
     cost_weight: float = 1.0,
     size_weight: float = 1.0
-) -> CAAScorer:
-    """Create a CAA scorer with custom configuration."""
-    config = CAAConfig(
-        admission_threshold=threshold,
+) -> UtilityScorer:
+    """Create a utility scorer with custom configuration."""
+    config = UtilityConfig(
+        utility_threshold=threshold,
         cost_weight=cost_weight,
         size_weight=size_weight
     )
-    return CAAScorer(config=config)
+    return UtilityScorer(config=config)

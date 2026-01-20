@@ -1,0 +1,62 @@
+\documentclass[12pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{hyperref}
+
+\title{Research Summary: Semantic Caching for Decentralized Databases}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+
+\section{Background}
+
+Traditional databases rely on centralized storage, which creates trust and transparency issues for multi-tenant applications such as healthcare data management. Decentralized databases (like our previous work MtDB) address this limitation by storing data on decentralized storage like IPFS, with access control and integrity guarantees enforced via smart contract and TEE. However, this architecture introduces significant performance challenges: every query requires fetching data from distributed storage (i.e., IPFS), incurring network latency that is orders of magnitude higher than local disk access.
+
+Caching is the natural solution to this performance gap, but traditional key-value caches such as Redis and Memcached are inadequate for analytical workloads where queries vary in predicates, projections, and aggregations. Consider a scenario where a user issues the query \texttt{SELECT * FROM patient\_data WHERE condition = 'Diabetes' AND Age > 40}. A traditional cache cannot leverage a previously cached result (\texttt{SELECT * FROM patient\_data WHERE condition = 'Diabetes'}), even though the cache contains all the data needed to answer the former query. This observation is our motivation to work on semantic caching.
+
+\section{Motivation}
+
+We are developing a \textbf{semantic cache} that understands query structure and can determine when a new query can be answered from cached results. Unlike traditional caches that require exact query matches, our semantic cache can detect containment relationships between queries, apply additional filters on cached data, and return results without re-fetching from the IPFS. This approach enables sub-millisecond query responses for analytical workloads on decentralized data while maintaining the trust guarantees.
+
+Our deployment environment is Intel SGX secure enclaves, which provide hardware-enforced confidentiality for sensitive data. This adds additional constraints: limited memory and disk I/O. To solve this, our plan is to design efficient data structure for in-memory caching, and also design a multi-layered cache. The second layer of the cache will be the SSD. Every SGX node need sealing/unsealing to transfer data to/from the SSD. The semantic cache must operate entirely in enclave memory while intelligently managing limited storage.
+
+\section{Challenges and Research Gaps}
+
+The core technical challenge addressed in this work is \textbf{query containment checking}: given a cached query \(Q_c\) and an incoming query \(Q_n\), determine whether every tuple produced by \(Q_n\) is guaranteed to appear in the result of \(Q_c\). Although query containment has been studied extensively in domains such as database theory and static program analysis, existing solutions exhibit several limitations when applied to multi-tenant decentralized databases.
+
+First, there is a lack of caching solutions explicitly designed to mitigate the \textbf{I/O bottlenecks} of \textbf{multi-tenant decentralized database systems}. In such environments, multiple independent stakeholders continuously upload and query data, making \textbf{access control enforcement} a concern. Existing caching mechanisms are largely oblivious to data ownership and access control policies, which limits their applicability in settings where cached results must respect fine-grained authorization constraints.
+
+Second, most existing caching systems store query results using \textbf{syntactic key--value mappings}, without reasoning about the underlying \textbf{semantic equivalence} of queries. As a result, semantically identical queries expressed in different syntactic forms lead to cache misses, even when the required data is already present in the cache. 
+For example, consider a cached query \texttt{SELECT * FROM T WHERE x > 10 AND y = 5} and a new query \texttt{SELECT * FROM T WHERE y = 5 AND x > 10}. Although both queries are logically equivalent, a traditional key--value cache treats them as distinct keys due to their different syntactic representations, resulting in a cache miss.
+
+Third, existing cache eviction and admission policies such as \textbf{LRU} and \textbf{LFU} treat all queries uniformly, without accounting for their \textbf{potential to serve future queries}. In practice, queries differ significantly in their reuse value. For example, a broad predicate query such as \texttt{SELECT * FROM T WHERE x > 10} can satisfy many future queries with stronger predicates, whereas a point query like \texttt{SELECT * FROM T WHERE x = 5} is limited to exact matches and provides minimal reuse.
+
+
+
+\section{Novelty}
+
+We focus on the below contributions as our novelty. 
+
+\subsection{Policy-Aware Caching}
+
+Our caching will be aware of the existing access policies stored in smart contract. By design, it is forced to comply with all the access policies for a given query. Therefore, no unauthorized data access can occur even if the data owners change access policies after the data is cached.
+
+\subsection{Z3-Based Query Containment Checking}
+
+We formulate predicate containment as a satisfiability problem and leverage the Z3 SMT solver for formal verification. Given a cached query with predicates $P_c$ and a new query with predicates $P_n$, we check whether there exists any value $x$ such that $P_n(x) \land \neg P_c(x)$. If this formula is unsatisfiable, we can guarantee that every tuple satisfying $P_n$ also satisfies $P_c$, meaning the new query's results are contained in the cached results. This approach provides formal correctness guarantees while supporting a rich fragment of SQL including comparison operators, logical connectives, BETWEEN, IN, and LIKE predicates.
+
+\subsection{Semantic Sieve: A Containment Aware Eviction}
+
+We introduce Semantic Sieve, a \textbf{Containment-Aware Eviction (CAE)}, a novel cache eviction policy that prioritizes retaining queries with high containment potential. Traditional eviction policies rely on recency or frequency metrics, which ignore the semantic structure of queries. In contrast, CAE computes a weighted score based on three factors: (1) cost-to-size ratio, favoring expensive queries with small result sizes; (2) information retention, penalizing aggregations that lose tuple-level detail; and (3) predicate breadth, favoring range predicates over point predicates.
+
+Queries whose scores fall below a predefined threshold are evicted from the cache. For example, a query with predicate \texttt{x > 10} receives a higher score than \texttt{x = 5} because it can serve a broader set of future queries. This policy directly optimizes semantic cache hit rates rather than treating all queries as equivalent.
+
+For OLAP workloads with periodic bulk updates, we further propose using Z3 to perform selective cache invalidation. Instead of invalidating all cached entries for a table upon updates, we check whether the update predicate overlaps with each cached query predicate. If the predicates are disjoint, the cached result remains valid. For example, if a cache entry covers \texttt{date > '2026-01-01'} and an update inserts rows with \texttt{date = '2025-12-15'}, Z3 can verify that no overlap exists, allowing the cache entry to be preserved. If an overlap exists, we apply delta patching to update cached results incrementally. This approach significantly reduces unnecessary invalidation in append-heavy OLAP workloads.
+
+\section{Current Status}
+
+We have implemented a basic in-memory caching prototype. It supports Z3-based containment checker for most types of SQL queries, including JOINs. We yet to implement the multi-layer approach and Containment-Aware Eviction we discussed. After the implementation, we plan to evaluate our prototype using TPC-H/TPC-DS dataset.
+
+\end{document}

@@ -1,0 +1,1445 @@
+\documentclass[conference]{IEEEtran}
+\usepackage[ruled,vlined,linesnumbered]{algorithm2e}
+
+% Some Computer Society conferences also require the compsoc mode option,
+% but others use the standard conference format.
+%
+% If IEEEtran.cls has not been installed into the LaTeX system files,
+% manually specify the path to it like:
+% \documentclass[conference]{../sty/IEEEtran}
+
+
+
+
+
+% Some very useful LaTeX packages include:
+% (uncomment the ones you want to load)
+
+
+% *** MISC UTILITY PACKAGES ***
+%
+%\usepackage{ifpdf}
+% Heiko Oberdiek's ifpdf.sty is very useful if you need conditional
+% compilation based on whether the output is pdf or dvi.
+% usage:
+% \ifpdf
+%   % pdf code
+% \else
+%   % dvi code
+% \fi
+% The latest version of ifpdf.sty can be obtained from:
+% http://www.ctan.org/pkg/ifpdf
+% Also, note that IEEEtran.cls V1.7 and later provides a builtin
+% \ifCLASSINFOpdf conditional that works the same way.
+% When switching from latex to pdflatex and vice-versa, the compiler may
+% have to be run twice to clear warning/error messages.
+
+
+% *** GRAPHICS RELATED PACKAGES ***
+%
+\usepackage{subcaption}
+\ifCLASSINFOpdf
+  \usepackage[pdftex]{graphicx}
+  % declare the path(s) where your graphic files are
+  % \graphicspath{{../pdf/}{../jpeg/}}
+  % and their extensions so you won't have to specify these with
+  % every instance of \includegraphics
+  % \DeclareGraphicsExtensions{.pdf,.jpeg,.png}
+\else
+  % or other class option (dvipsone, dvipdf, if not using dvips). graphicx
+  % will default to the driver specified in the system graphics.cfg if no
+  % driver is specified.
+  % \usepackage[dvips]{graphicx}
+  % declare the path(s) where your graphic files are
+  % \graphicspath{{../eps/}}
+  % and their extensions so you won't have to specify these with
+  % every instance of \includegraphics
+  % \DeclareGraphicsExtensions{.eps}
+\fi
+% graphicx was written by David Carlisle and Sebastian Rahtz. It is
+% required if you want graphics, photos, etc. graphicx.sty is already
+% installed on most LaTeX systems. The latest version and documentation
+% can be obtained at: 
+% http://www.ctan.org/pkg/graphicx
+% Another good source of documentation is "Using Imported Graphics in
+% LaTeX2e" by Keith Reckdahl which can be found at:
+% http://www.ctan.org/pkg/epslatex
+%
+% latex, and pdflatex in dvi mode, support graphics in encapsulated
+% postscript (.eps) format. pdflatex in pdf mode supports graphics
+% in .pdf, .jpeg, .png and .mps (metapost) formats. Users should ensure
+% that all non-photo figures use a vector format (.eps, .pdf, .mps) and
+% not a bitmapped formats (.jpeg, .png). The IEEE frowns on bitmapped formats
+% which can result in "jaggedy"/blurry rendering of lines and letters as
+% well as large increases in file sizes.
+%
+% You can find documentation about the pdfTeX application at:
+% http://www.tug.org/applications/pdftex
+
+
+
+
+
+% *** MATH PACKAGES ***
+%
+\usepackage{amsmath}
+% A popular package from the American Mathematical Society that provides
+% many useful and powerful commands for dealing with mathematics.
+%
+% Note that the amsmath package sets \interdisplaylinepenalty to 10000
+% thus preventing page breaks from occurring within multiline equations. Use:
+%\interdisplaylinepenalty=2500
+% after loading amsmath to restore such page breaks as IEEEtran.cls normally
+% does. amsmath.sty is already installed on most LaTeX systems. The latest
+% version and documentation can be obtained at:
+% http://www.ctan.org/pkg/amsmath
+
+
+
+
+
+% *** SPECIALIZED LIST PACKAGES ***
+%
+\usepackage{algorithmic}
+% algorithmic.sty was written by Peter Williams and Rogerio Brito.
+% This package provides an algorithmic environment fo describing algorithms.
+% You can use the algorithmic environment in-text or within a figure
+% environment to provide for a floating algorithm. Do NOT use the algorithm
+% floating environment provided by algorithm.sty (by the same authors) or
+% algorithm2e.sty (by Christophe Fiorio) as the IEEE does not use dedicated
+% algorithm float types and packages that provide these will not provide
+% correct IEEE style captions. The latest version and documentation of
+% algorithmic.sty can be obtained at:
+% http://www.ctan.org/pkg/algorithms
+% Also of interest may be the (relatively newer and more customizable)
+% algorithmicx.sty package by Szasz Janos:
+% http://www.ctan.org/pkg/algorithmicx
+
+
+
+
+% *** ALIGNMENT PACKAGES ***
+%
+\usepackage{array}
+% Frank Mittelbach's and David Carlisle's array.sty patches and improves
+% the standard LaTeX2e array and tabular environments to provide better
+% appearance and additional user controls. As the default LaTeX2e table
+% generation code is lacking to the point of almost being broken with
+% respect to the quality of the end results, all users are strongly
+% advised to use an enhanced (at the very least that provided by array.sty)
+% set of table tools. array.sty is already installed on most systems. The
+% latest version and documentation can be obtained at:
+% http://www.ctan.org/pkg/array
+
+
+% IEEEtran contains the IEEEeqnarray family of commands that can be used to
+% generate multiline equations as well as matrices, tables, etc., of high
+% quality.
+
+
+
+
+% *** SUBFIGURE PACKAGES ***
+% \ifCLASSOPTIONcompsoc
+%  \usepackage[caption=false,font=normalsize,labelfont=sf,textfont=sf]{subfig}
+% \else
+%  \usepackage[caption=false,font=footnotesize]{subfig}
+% \fi
+% subfig.sty, written by Steven Douglas Cochran, is the modern replacement
+% for subfigure.sty, the latter of which is no longer maintained and is
+% incompatible with some LaTeX packages including fixltx2e. However,
+% subfig.sty requires and automatically loads Axel Sommerfeldt's caption.sty
+% which will override IEEEtran.cls' handling of captions and this will result
+% in non-IEEE style figure/table captions. To prevent this problem, be sure
+% and invoke subfig.sty's "caption=false" package option (available since
+% subfig.sty version 1.3, 2005/06/28) as this is will preserve IEEEtran.cls
+% handling of captions.
+% Note that the Computer Society format requires a larger sans serif font
+% than the serif footnote size font used in traditional IEEE formatting
+% and thus the need to invoke different subfig.sty package options depending
+% on whether compsoc mode has been enabled.
+%
+% The latest version and documentation of subfig.sty can be obtained at:
+% http://www.ctan.org/pkg/subfig
+
+
+\usepackage{xcolor}
+
+
+% *** FLOAT PACKAGES ***
+%
+%\usepackage{fixltx2e}
+% fixltx2e, the successor to the earlier fix2col.sty, was written by
+% Frank Mittelbach and David Carlisle. This package corrects a few problems
+% in the LaTeX2e kernel, the most notable of which is that in current
+% LaTeX2e releases, the ordering of single and double column floats is not
+% guaranteed to be preserved. Thus, an unpatched LaTeX2e can allow a
+% single column figure to be placed prior to an earlier double column
+% figure.
+% Be aware that LaTeX2e kernels dated 2015 and later have fixltx2e.sty's
+% corrections already built into the system in which case a warning will
+% be issued if an attempt is made to load fixltx2e.sty as it is no longer
+% needed.
+% The latest version and documentation can be found at:
+% http://www.ctan.org/pkg/fixltx2e
+
+
+%\usepackage{stfloats}
+% stfloats.sty was written by Sigitas Tolusis. This package gives LaTeX2e
+% the ability to do double column floats at the bottom of the page as well
+% as the top. (e.g., "\begin{figure*}[!b]" is not normally possible in
+% LaTeX2e). It also provides a command:
+%\fnbelowfloat
+% to enable the placement of footnotes below bottom floats (the standard
+% LaTeX2e kernel puts them above bottom floats). This is an invasive package
+% which rewrites many portions of the LaTeX2e float routines. It may not work
+% with other packages that modify the LaTeX2e float routines. The latest
+% version and documentation can be obtained at:
+% http://www.ctan.org/pkg/stfloats
+% Do not use the stfloats baselinefloat ability as the IEEE does not allow
+% \baselineskip to stretch. Authors submitting work to the IEEE should note
+% that the IEEE rarely uses double column equations and that authors should try
+% to avoid such use. Do not be tempted to use the cuted.sty or midfloat.sty
+% packages (also by Sigitas Tolusis) as the IEEE does not format its papers in
+% such ways.
+% Do not attempt to use stfloats with fixltx2e as they are incompatible.
+% Instead, use Morten Hogholm'a dblfloatfix which combines the features
+% of both fixltx2e and stfloats:
+%
+% \usepackage{dblfloatfix}
+% The latest version can be found at:
+% http://www.ctan.org/pkg/dblfloatfix
+
+
+
+
+% *** PDF, URL AND HYPERLINK PACKAGES ***
+%
+\usepackage{url}
+% url.sty was written by Donald Arseneau. It provides better support for
+% handling and breaking URLs. url.sty is already installed on most LaTeX
+% systems. The latest version and documentation can be obtained at:
+% http://www.ctan.org/pkg/url
+% Basically, \url{my_url_here}.
+
+\usepackage{xspace}
+
+
+% *** CITATION PACKAGES ***
+%
+\usepackage{cite}
+\usepackage[bookmarks=false]{hyperref}
+% \usepackage{hyperref}
+\usepackage{cleveref}
+
+% cite.sty was written by Donald Arseneau
+% V1.6 and later of IEEEtran pre-defines the format of the cite.sty package
+% \cite{} output to follow that of the IEEE. Loading the cite package will
+% result in citation numbers being automatically sorted and properly
+% "compressed/ranged". e.g., [1], [9], [2], [7], [5], [6] without using
+% cite.sty will become [1], [2], [5]--[7], [9] using cite.sty. cite.sty's
+% \cite will automatically add leading space, if needed. Use cite.sty's
+% noadjust option (cite.sty V3.8 and later) if you want to turn this off
+% such as if a citation ever needs to be enclosed in parenthesis.
+% cite.sty is already installed on most LaTeX systems. Be sure and use
+% version 5.0 (2009-03-20) and later if using hyperref.sty.
+% The latest version can be obtained at:
+% http://www.ctan.org/pkg/cite
+% The documentation is contained in the cite.sty file itself.
+
+% *** Do not adjust lengths that control margins, column widths, etc. ***
+% *** Do not use packages that alter fonts (such as pslatex).         ***
+% There should be no need to do such things with IEEEtran.cls V1.6 and later.
+% (Unless specifically asked to do so by the journal or conference you plan
+% to submit to, of course. )
+
+
+% correct bad hyphenation here
+% \hyphenation{op-tical net-works semi-conduc-tor}
+
+\newcommand{\showkot}[1]{ {\color{red}{#1}}}
+\newcommand{\wenyi}[1]{ {\color{blue}{#1}}}
+\newcommand{\seokki}[1]{ {\color{orange}{#1}}}
+\newcommand{\ours}{\xspace MtDB\xspace}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
+% Colors
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\definecolor{lstpurple}{rgb}{0.5,0,0.5}
+\definecolor{lstred}{rgb}{1,0,0}
+\definecolor{lstreddark}{rgb}{0.7,0,0}
+\definecolor{lstredl}{rgb}{0.64,0.08,0.08}
+\definecolor{lstmildblue}{rgb}{0.66,0.72,0.78}
+\definecolor{lstblue}{rgb}{0,0,1}
+\definecolor{lstmildgreen}{rgb}{0.42,0.53,0.39}
+\definecolor{lstgreen}{rgb}{0,0.5,0}
+\definecolor{lstorangedark}{rgb}{0.6,0.3,0}
+\definecolor{lstorange}{rgb}{0.75,0.52,0.005}
+\definecolor{lstorangelight}{rgb}{0.89,0.81,0.67}
+\definecolor{lstbeige}{rgb}{0.90,0.86,0.45}
+%%%%%%%%%% SQL + proveannce listing settings - colorful version
+\usepackage{listings}
+\lstdefinestyle{psqlcolor}
+{
+tabsize=2,
+basicstyle=\small\upshape\ttfamily,
+language=SQL,
+morekeywords={PROVENANCE,BASERELATION,UNBOUNDED,FOLLOWING,PRECEDING,CURRENT,ROW,PARTITION,OVER,INFLUENCE,COPY,ON,TRANSPROV,TRANSSQL,TRANSXML,CONTRIBUTION,COMPLETE,TRANSITIVE,NONTRANSITIVE,EXPLAIN,SQLTEXT,GRAPH,IS,ANNOT,THIS,XSLT,MAPPROV,cxpath,OF,TRANSACTION,SERIALIZABLE,COMMITTED,INSERT,INTO,WITH,SCN,UPDATED, UNNEST, ASCII, COALESCE},
+extendedchars=false,
+keywordstyle=\bfseries\color{lstpurple},
+deletekeywords={count,min,max,avg,sum},
+keywords=[2]{count,min,max,avg,sum,array_agg,row_number,first_value,last_value, cube, case, when, ascii, unnest, cast, regr, regr_r2, coalesce},
+keywordstyle=[2]\color{lstblue},
+stringstyle=\color{lstreddark},
+commentstyle=\color{lstgreen},
+mathescape=true,
+escapechar=@,
+sensitive=true
+}
+
+\lstset{style=psqlcolor}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{document}
+%
+% paper title
+% Titles are generally capitalized except for words such as a, an, and, as,
+% at, but, by, for, in, nor, of, on, or, the, to and up, which are usually
+% not capitalized unless they are the first or last word of the title.
+% Linebreaks \\ can be used within to get better formatting as desired.
+% Do not put math or special symbols in the title.
+\title{\ours: A Decentralized Multi-Tenant Database for Secure Data Sharing}
+
+
+% author names and affiliations
+% use a multiple column layout for up to three different
+% affiliations
+% \author{\IEEEauthorblockN{Showkot Hossain}
+% \IEEEauthorblockA{University of Notre Dame\\
+% Notre Dame, IN 46545\\
+% shossain@nd.edu\\
+% }
+% \and
+% \IEEEauthorblockN{Wenyi Tang}
+% \IEEEauthorblockA{University of Notre Dame\\
+% Notre Dame, IN 46545\\
+% wtang3@nd.edu\\}
+% \and
+% \IEEEauthorblockN{Avery Hughes}
+% \IEEEauthorblockA{Indiana Tech \\
+%  Fort Wayne, IN 46803\\
+%  cchenli@indianatech.edu
+% }
+
+% \and
+% \IEEEauthorblockN{Changhao Chenli}
+% \IEEEauthorblockA{Indiana Tech \\
+%  Fort Wayne, IN 46803\\
+%  cchenli@indianatech.edu}
+% \and
+% \IEEEauthorblockN{Taeho Jung}
+% \IEEEauthorblockA{University of Notre Dame\\
+% Notre Dame, IN 46545\\
+% tjung@nd.edu\\}}
+
+% conference papers do not typically use \thanks and this command
+% is locked out in conference mode. If really needed, such as for
+% the acknowledgment of grants, issue a \IEEEoverridecommandlockouts
+% after \documentclass
+
+% for over three affiliations, or if they all won't fit within the width
+% of the page, use this alternative format:
+% 
+\author{
+% The author names are now split into two lines
+\IEEEauthorblockN{
+Showkot Hossain\IEEEauthorrefmark{1},
+Wenyi Tang\IEEEauthorrefmark{1},
+Changhao Chenli\IEEEauthorrefmark{2},
+Haijian Sun\IEEEauthorrefmark{3}, \\ % <-- Line break added here
+WenZhan Song\IEEEauthorrefmark{3},
+Seokki Lee\IEEEauthorrefmark{4},
+Mic Bowman\IEEEauthorrefmark{5}, and
+Taeho Jung\IEEEauthorrefmark{1}
+}
+
+% Affiliations remain the same, emails commented out
+\IEEEauthorblockA{\IEEEauthorrefmark{1}University of Notre Dame, USA
+%\\ \{shossain, wtang, tjung\}@nd.edu
+}
+\IEEEauthorblockA{\IEEEauthorrefmark{2}Indiana Institute of Technology, USA
+%\\ cchenli@indianatech.edu
+}
+\IEEEauthorblockA{\IEEEauthorrefmark{3}University of Georgia, USA
+%\\ \{haijian.sun, wsong\}@uga.edu
+}
+\IEEEauthorblockA{\IEEEauthorrefmark{4}University of Cincinnati, USA
+%\\ leesk@ucmail.uc.edu
+}
+\IEEEauthorblockA{\IEEEauthorrefmark{5}Intel Corporation, USA
+%\\ mic.bowman@intel.com
+}
+}
+
+
+
+
+% use for special paper notices
+%\IEEEspecialpapernotice{(Invited Paper)}
+
+
+
+
+% make the title area
+\maketitle
+
+% As a general rule, do not put math, special symbols or citations
+% in the abstract
+% \begin{abstract}
+% Healthcare data sharing is fundamental for advancing medical research and enhancing patient experience, yet it faces significant challenges in privacy, data ownership, and interoperability due to fragmented data silos across institutions and strict regulations (e.g., GDPR, HIPAA). 
+% Since the healthcare data is generated from interactions between the user and various agencies (e.g., different hospitals), the records are inherently fragmented across disparate healthcare providers. 
+% In practice, patients possess distributed records across multiple hospitals, each maintaining autonomous databases. 
+% Access to consolidated records by secondary entities (e.g., insurers or referral hospitals) mandates explicit patient consent while ensuring strict isolation between multi-tenant datasets, requiring fine-grained access control across organizational boundaries.
+% Traditional cryptography-based or TEE-based secure databases have been proposed to solve the security and privacy issues in data sharing, but they inadequately address the fragmented distribution of personal data across the ecosystem.
+% Existing decentralized solutions exhibit critical limitations: blockchain-based databases lack robust fine-grained cryptographic enforcement of dynamic access policies, while trusted execution environment (TEE)-enhanced systems suffer from synchronization overhead and poor scalability in distributed deployments.
+% To bridge these gaps, we propose \ours, a novel decentralized database architecture addressing the secure data sharing in multi-tenant database ecosystems.
+% \ours utilizes blockchain for metadata coordination and a universal query interface, the InterPlanetary File System (IPFS) for distributed data addressing, and Intel SGX for encrypted metadata sharing and integrity-protected query execution with enforced access control. An efficient index is also designed to minimize IPFS retrievals.
+% We provide an open-source implementation and evaluation demonstrating MtDB's capabilities to enable secure, patient-centric healthcare data sharing while respecting ownership and policy.
+% Experimental results show that \ours achieves 35 milliseconds of query latency for indexed queries over 400M multi-tenant medical records while maintaining cryptographic security guarantees, with only 1.2--1.3$\times$ performance overhead compared to non-secure baselines.
+
+% \end{abstract}
+
+\begin{abstract}
+Healthcare data sharing is fundamental for advancing medical research and enhancing patient care, yet it faces significant challenges in privacy, data ownership, and interoperability due to fragmented data silos across institutions and strict regulations (e.g., GDPR, HIPAA). Patients possess distributed records across multiple hospitals, each maintaining autonomous databases. Access to consolidated records by secondary entities mandates explicit patient consent while ensuring strict isolation between multi-tenant datasets, requiring fine-grained access control across organizational boundaries.
+Existing solutions exhibit critical limitations: blockchain-based databases lack robust fine-grained cryptographic enforcement of dynamic access policies, while TEE-enhanced systems suffer from synchronization overhead and poor scalability in distributed deployments. To bridge these gaps, we propose \ours, a novel decentralized database architecture addressing secure data sharing in multi-tenant database ecosystems.\ours employs blockchain for metadata coordination and sharing, IPFS for distributed data addressing, a universal SQL query interface for data access, and Intel SGX for integrity-protected query execution with enforced access control.
+We provide an open-source implementation demonstrating\ours's capabilities for secure, patient-centric healthcare data sharing while preserving ownership and enforcing policies. Experimental results show \ours achieves 35 milliseconds query latency for indexed queries over 400M multi-tenant medical records while maintaining cryptographic security guarantees, with only 1.2--1.3$\times$ performance overhead compared to non-secure baselines.
+\end{abstract}
+
+\begin{IEEEkeywords}
+Decentralized Data Sharing, Access Control, Trusted Execution Environment, Blockchain.
+
+\end{IEEEkeywords}
+
+
+
+
+% For peer review papers, you can put extra information on the cover
+% page as needed:
+% \ifCLASSOPTIONpeerreview
+% \begin{center} \bfseries EDICS Category: 3-BBND \end{center}
+% \fi
+%
+% For peerreview papers, this IEEEtran command inserts a page break and
+% creates the second title. It will be ignored for other modes.
+\IEEEpeerreviewmaketitle
+
+
+
+% \section{Introduction}
+
+% Healthcare data sharing is pivotal for advancing medical research and improving patient outcomes, yet it introduces significant challenges regarding privacy, ownership, and interoperability. With the various legislations on digital privacy (e.g., GDPR \cite{gdprinfoGeneralData}, HIPAA \cite{nihHealthInsurance}) being released, there is a growing need to respect data ownership when using collected personal data. In the scenario of medical and healthcare data, this means patients hold ownership of their data, and any inquiry to use the data should have explicit consent from its owner.
+% However, in the context of medical data, personal data is often generated randomly through interactions between individuals and medical institutions and is usually maintained by these institutions in their own silos, with data collected from different users. 
+% Thus, ensuring individual consent from the ownership and enforcement of owner-defined access control policy during the sharing of personal medical data from the multi-tenant database scenario faces additional challenges.
+% \iffalse
+% A data sharing platform relying on centralized database infrastructure inadequately addresses these concerns, due to the naturally distributed management paradigm of various agencies.
+% % often leading to fragmented data governance, unauthorized access risks, and inefficient cross-institutional collaboration. 
+% Therefore, a decentralized paradigm is essential to achieve secure data sharing that respects ownership and enforces access control.
+% \fi
+% % \wenyi{Describe the multi-tenant and individual access control in the first paragraph}
+
+% % \wenyi{add a figure for multi-tenant database scenario}
+% \begin{figure}
+%     \centering
+%     \includegraphics[width=\linewidth]{Multi-Tenant Diagram.pdf}
+%     \vspace{-15pt}
+%     \caption{Example of a multi-tenant database for healthcare data sharing. The query service should return the patient's data from all data partitions maintained in different hospitals.}
+%     \vspace{-15pt}
+%     \label{fig:multi-tenant example}
+% \end{figure}
+% To break down the problem, we assume a representative scenario for the medical data sharing, where a patient may visit different hospitals specializing in treating different conditions (as shown in \Cref{fig:multi-tenant example}). For a specific user/patient, every visit to a hospital will generate a medical record, which will be managed by the hospital for that visit. 
+% To prescribe appropriate treatment for a new condition, a physician may need to review the patient's complete medical history, including past diagnoses and previous prescriptions. 
+% % This comprehensive review ensures informed decision-making based on the patient's full clinical background. 
+% However, requesting the patient's complete history is not trivial in this situation, where the whole set is a logical database composed of various data silos or partitions.
+% % \wenyi{points to highlight: a universal interface to query over silos managed by different agencies, enforcing strict access control at every partitions, ensure the integrity of query execution for trustful results}
+% First, since the patient's records are distributed in partitions managed by different hospitals, querying the whole history of the patient's data needs proper coordination.
+% % among the potentially different data partitions. 
+% This implies a universal query interface that allows the request to be processed over different partitions of the logical database constructed by various data partitions.
+% Second, not only the logical database, but even a single database managed by one hospital has a multi-tenant structure, where every entry may have different ownership, or even owner-specific access policy. 
+% This requires that the query processing at every data silo should strictly protect the data from leaking to others. 
+% Third, the integrity of the execution of the query should be guaranteed during query processing over every partition. This is essential to make sure the ownership and owner-defined access control policies are respected in the query execution.
+
+% Existing solutions fail to address the multifaceted challenges of healthcare data sharing in multi-tenant scenarios, primarily due to fundamental limitations in managing distributed data ownership, enforcing row-level access control, providing efficient SQL query interfaces, and maintaining system-level integrity. While distributed databases \cite{taft2020cockroachdb,apachecassandra2025, bacon2017spanner} provide scalability and fault tolerance, they inherently rely on trusted administrators and 
+% lack cryptographic enforcement of row-level access policies, which is essential for multi-tenant healthcare deployments. Similarly, TEE-based secure databases \cite{yang2024secudb, wang2022operon, chen2020qshield, priebe2018enclavedb, vinayagamurthy2019stealthdb} deliver robust security but do not support fine-grained, patient-specific access control required in decentralized multi-owner environments. Blockchain-based systems \cite{mukherjee2025web3db, haddad2024e2ee, lucking2020decentralized, nguyen2019blockchain, inerydb2025, icefiredb, ipdb, mcconaghy2016bigchaindb, orbitdb2021} offer decentralization but lack cryptographic policy enforcement and secure in-enclave computation capabilities. Additionally, existing IPFS indexing frameworks \cite{li2024ipfs,  arer2022efficient, rathee2019blockchain} primarily support plaintext, NoSQL queries and cannot efficiently handle encrypted relational queries. Critically, no prior solution provides an open-source implementation simultaneously addressing: 1) fine-grained, row-level access control in multi-tenant settings; 2) efficient SQL querying over encrypted IPFS-resident data through optimized indexing; and 
+% 3) seamless connection among the distributed data silos to provide a universal SQL-based interface for healthcare data sharing.
+ 
+% To bridge these gaps, we propose \ours, a novel SQL-based decentralized database architecture designed specifically to enable secure, patient-centric data sharing in decentralized multi-tenant healthcare environments by simultaneously addressing the limitations of prior work.
+
+% \ours connects distributed data silos to present a universal SQL-based logical database for sharing healthcare data.
+% To make a secure data sharing service, \ours allows the users to define specific access control policies over the data owned by them in the multi-tenant database, and the policies will be enforced in the query execution, no matter where the query is served, therefore respecting individual ownership in the multi-tenant scenario.
+% These policies will be directly applied to the original SQL request through a query rewriter, and the rewritten query will be executed in any \ours nodes, which use a TEE-backed query engine to provide integrity and security, thus enforcing the access control.
+% To maintain the logical database for \ours, we designed an efficient delta-based on-chain index system to coordinate partitions hosted by different hospitals and agencies with minimized on-chain cost. 
+% Every healthcare agency can update and retrieve the table schema, index, IPFS addressable content identifiers, and other metadata from the public blockchain through \ours node with security and integrity guarantees provided by TEE.
+
+% \ours achieves seamless, patient-centric data sharing while mitigating privacy risks inherent in fragmented healthcare ecosystems.
+% Our contributions can be summarized as follows:
+% \begin{itemize}
+%     \item We give the definition of data sharing under the multi-tenant database scenario. This scenario is widely adaptable in the real world and has concrete applications, especially in healthcare data sharing.
+%     \item We designed \ours, a SQL-based decentralized secure database architecture to address the challenges in data sharing over a multi-tenant database.  It allows the users to define the access control policies over the part of the data owned by them in the multi-tenant database, and enforces the polices on every query request through our \ours TEE-based query engine.
+%     \ours also connects the distributed data silos maintained by different agencies through the blockchain and IPFS with an efficient delta-based on-chain index system, and provides a logical multi-tenant database interface for all users to share their data.
+    
+%     \item We provide an open-source implementation of \ours as a proof-of-concept for reproducibility and perform various evaluations and benchmarks to demonstrate the capability and efficiency of \ours. Our anonymized source code is available at: 
+%     \url{https://tinyurl.com/yn7jdyny}.
+% \end{itemize}
+
+\section{Introduction}
+Healthcare data sharing is pivotal for advancing medical research and improving patient outcomes, yet it introduces significant challenges regarding privacy, ownership, and interoperability. With various legislations on digital privacy (e.g., GDPR \cite{gdprinfoGeneralData}, HIPAA \cite{nihHealthInsurance}) being released, there is growing need to respect data ownership when using collected personal data. In the scenario of medical and healthcare data, this means patients hold ownership of their data, and any inquiry to use the data should have explicit consent from its owner. However, medical data is often generated through interactions between individuals and medical institutions and is maintained by these institutions in their own silos with data collected from different users. Thus, ensuring individual consent and enforcement of owner-defined access control policies during personal medical data sharing from multi-tenant database scenarios faces additional challenges.
+
+\begin{figure}
+    \centering
+    \includegraphics[width=\linewidth]{Multi-Tenant Diagram.pdf}
+    \vspace{-15pt}
+    \caption{Example of a multi-tenant database for healthcare data sharing. The query service should return the patient's data from all data partitions maintained in different hospitals.}
+    \vspace{-15pt}
+    \label{fig:multi-tenant example}
+\end{figure}
+
+We consider a representative scenario for medical data sharing, where a patient may visit different hospitals specializing in treating different conditions (as shown in \Cref{fig:multi-tenant example}). For a specific patient, every visit to a hospital generates a medical record managed by that hospital. To prescribe appropriate treatment for a new condition, a physician may need to review the patient's complete medical history, including past diagnoses and previous prescriptions. However, requesting the patient's complete history is not trivial when records are distributed across various data silos or partitions.
+
+This scenario requires three key capabilities: First, since patient records are distributed in partitions managed by different hospitals, querying the whole history requires proper coordination. This implies a universal query interface that processes requests over different partitions of the logical database. Second, even single hospital databases have multi-tenant structures, where every entry may have different ownership or owner-specific access policies. This requires that query processing at every data silo strictly protects data from leaking to unauthorized parties. Third, the integrity of query execution must be guaranteed during processing over every partition to ensure owner-defined access control policies are respected.
+
+Existing solutions fail to address these multifaceted challenges of healthcare data sharing in multi-tenant scenarios, primarily due to fundamental limitations in managing distributed data ownership, enforcing row-level access control, and providing efficient SQL query interfaces. While distributed databases \cite{taft2020cockroachdb,apachecassandra2025, bacon2017spanner} provide scalability and fault tolerance, they inherently rely on trusted administrators and lack cryptographic enforcement of row-level access policies, which is essential for multi-tenant healthcare deployments. Similarly, TEE-based secure databases \cite{yang2024secudb, wang2022operon, chen2020qshield, priebe2018enclavedb} deliver robust security but do not support fine-grained, patient-specific access control required in decentralized multi-owner environments. Blockchain-based systems \cite{mukherjee2025web3db, haddad2024e2ee, lucking2020decentralized} offer decentralization but lack cryptographic policy enforcement and secure in-enclave computation capabilities. Additionally, existing IPFS indexing frameworks \cite{li2024ipfs, arer2022efficient, rathee2019blockchain} primarily support plaintext, NoSQL queries and cannot efficiently handle encrypted relational queries. Critically, no prior solution simultaneously addresses: 1) fine-grained, row-level access control in multi-tenant settings; 2) efficient SQL querying over encrypted IPFS-resident data; and 3) seamless connection among distributed data silos.
+
+To bridge these gaps, we propose \ours, a novel SQL-based decentralized database architecture designed specifically to enable secure, patient-centric data sharing in decentralized multi-tenant healthcare environments. \ours connects distributed data silos to present a universal SQL-based logical database for sharing healthcare data. To make a secure data sharing service, \ours allows users to define specific access control policies over data they own in the multi-tenant database, and these policies are enforced during query execution, no matter where the query is served, therefore respecting individual ownership in the multi-tenant scenario. These policies are directly applied to the original SQL request through a query rewriter, and the rewritten query is executed in any \ours nodes, which use a TEE-backed query engine to provide integrity and security. To maintain the logical database for \ours, we designed an efficient delta-based on-chain index system to coordinate partitions hosted by different hospitals and agencies with minimized on-chain cost. Healthcare agencies can update and retrieve table schema, index, IPFS addressable content identifiers, and other metadata from the public blockchain through \ours nodes with security and integrity guarantees provided by TEE. Our contributions include:
+\begin{itemize}
+    \item We define data sharing under multi-tenant database scenarios, widely applicable in real-world healthcare data sharing.
+    \item We designed \ours, a SQL-based decentralized secure database architecture addressing multi-tenant data sharing challenges through user-defined access control policies enforced by TEE-based query engines and efficient delta-based on-chain indexing.
+    \item We provide an open-source implementation with comprehensive evaluations demonstrating \ours's capability and efficiency. Our code: \url{https://tinyurl.com/mtdb2025}.
+\end{itemize}
+
+% \section{Related Work}
+% Traditional distributed databases such as Apache Cassandra \cite{apachecassandra2025} and CockroachDB \cite{taft2020cockroachdb} offer scalability and fault tolerance but rely on centralized trust models, assuming fully trusted administrators and infrastructure. This assumption limits their suitability for multi-tenant healthcare environments, where strong data isolation and cryptographic access enforcement are critical. For instance, CockroachDB supports global ACID transactions at high throughput but lacks mechanisms to prevent privileged access. Similarly, Google Spanner \cite{bacon2017spanner} achieves global consistency using atomic clocks, yet depends entirely on Google's infrastructure. These limitations have prompted interest in decentralized models that leverage cryptographic techniques and trusted hardware (e.g., blockchain, TEEs) to enforce access control and integrity without relying on centralized trust.
+
+% Hardware-assisted TEEs, such as Intel SGX \cite{costan2016intel, el2022benchmarking}, enable secure computation with less overhead than software-based cryptography \cite{chen2020qshield}. EnclaveDB \cite{priebe2018enclavedb} introduced in-enclave SQL execution, but its reliance on pre-compiled queries and centralized trust limits support for distributed healthcare use cases. StealthDB \cite{vinayagamurthy2019stealthdb} adds encrypted SQL support on top of PostgreSQL but lacks decentralization. SecuDB \cite{yang2024secudb}, built on 
+% TEE
+% % Intel TDX \cite{cheng2024intel}
+% , offers tamper resistance and fine-grained masking within a single domain. Operon \cite{wang2022operon} introduces ownership-preserving access control using PolarDB and TEE, but targets centralized cloud provider settings. 
+% % TrustHealth \cite{li2024trusthealth} enhances TEE-based EHR sharing with policy binding and auditability, yet assumes static trust domains. 
+% QShield \cite{chen2020qshield} supports multi-user access control for outsourced queries, but does not address decentralized, cross-institution data sharing.
+
+% % \subsection{Distributed Encrypted Analytics}
+% To enable analytics over encrypted data, frameworks such as CryptDB \cite{popa2011cryptdb}, Opaque \cite{zheng2017opaque}, 
+% % Conclave \cite{volgushev2019conclave}, 
+% and Enigma \cite{zyskind2015enigma} have been proposed—most assuming centralized infrastructures. CryptDB uses layered encryption for SQL queries but relies on a trusted proxy, exposing access patterns and offering limited SQL support. Opaque integrates SGX with Apache Spark to protect data flows but assumes centralized control and lacks support for decentralized storage or multi-tenant ownership. 
+% % Conclave focuses on secure multi-party computation but does not address persistent storage. 
+% Enigma combines MPC with blockchain for decentralization, but lacks efficient indexing and data management. 
+
+% Blockchain-based databases aim to minimize trust through decentralization but often struggle to balance performance and privacy. Systems like IneryDB \cite{inerydb2025}, 
+% BigChainDB \cite{mcconaghy2016bigchaindb}, 
+% IPDB \cite{ipdb}, 
+% % Tableland \cite{tableland2021}, 
+% OrbitDB \cite{orbitdb2021}, and IceFireDB \cite{icefiredb} incorporate blockchain for immutability but lack cryptographic access control and TEE integration for secure computation. Domain-specific systems such as \cite{nguyen2019blockchain, lucking2020decentralized}
+% % \cite{nguyen2019blockchain, 
+% propose EHR and IoT data sharing, but lack row-level control and secure SQL querying. Web3DB \cite{mukherjee2025web3db} advances decentralized relational querying with blockchain-managed access control but does not provide enclave-based secure execution. 
+
+% The InterPlanetary File System (IPFS) supports decentralized storage via content-addressing, but secure and efficient querying remains a challenge. Existing indexing schemes \cite{rathee2019blockchain, arer2022efficient,  li2024ipfs} target NoSQL-style queries over plaintext data and lack support for SQL or fine-grained access control. As IPFS content is publicly accessible, record-level access enforcement is critical. Although blockchain-based access control schemes \cite{zhang2018smart, liu2023tbac, wang2021dynamic, lucking2020decentralized} 
+% % \cite{
+% % zyskind2015decentralizing, 
+% % steichen2018blockchain, 
+% % maesa2018blockchain, 
+% % alansari2017distributed, 
+% help define policies, but they do not support confidential query execution or the fine-grained access controls required in healthcare.
+
+\section{Related Work}
+Traditional distributed databases such as Apache Cassandra \cite{apachecassandra2025} and CockroachDB \cite{taft2020cockroachdb} offer scalability and fault tolerance but rely on centralized trust models, assuming fully trusted administrators and infrastructure. This limits their suitability for multi-tenant healthcare environments requiring strong data isolation and cryptographic access enforcement. Google Spanner \cite{bacon2017spanner} achieves global consistency using atomic clocks but depends entirely on Google's infrastructure. These limitations have prompted interest in decentralized models leveraging cryptographic techniques and trusted hardware to enforce access control without centralized trust.
+
+Hardware-assisted TEEs, such as Intel SGX \cite{costan2016intel, el2022benchmarking}, enable secure computation with less overhead than software-based cryptography. EnclaveDB \cite{priebe2018enclavedb} introduced in-enclave SQL execution but relies on pre-compiled queries and centralized trust. StealthDB \cite{vinayagamurthy2019stealthdb} adds encrypted SQL support on PostgreSQL but lacks decentralization. SecuDB \cite{yang2024secudb} offers tamper resistance and fine-grained masking within a single domain. QShield \cite{chen2020qshield} supports multi-user access control for outsourced queries but does not address decentralized, cross-institution data sharing.
+
+To enable analytics over encrypted data, frameworks such as CryptDB \cite{popa2011cryptdb}, Opaque \cite{zheng2017opaque}, and Enigma \cite{zyskind2015enigma} have been proposed--most assuming centralized infrastructures. CryptDB uses layered encryption for SQL queries but relies on a trusted proxy, exposing access patterns with limited SQL support. Opaque integrates SGX with Apache Spark to protect data flows but assumes centralized control. Enigma combines MPC with blockchain for decentralization but lacks efficient indexing and data management.
+
+Blockchain-based databases aim to minimize trust through decentralization but struggle to balance performance and privacy. Systems like BigChainDB \cite{mcconaghy2016bigchaindb}, OrbitDB \cite{orbitdb2021}, and Web3DB \cite{mukherjee2025web3db} incorporate blockchain for immutability but lack cryptographic access control and TEE integration for secure computation. Web3DB advances decentralized relational querying with blockchain-managed access control but does not provide enclave-based secure execution. IPFS supports decentralized storage via content-addressing, but secure and efficient querying remains challenging. Existing indexing schemes \cite{rathee2019blockchain, arer2022efficient, li2024ipfs} target NoSQL-style queries over plaintext data and lack SQL or fine-grained access control support. Although blockchain-based access control schemes \cite{zhang2018smart, liu2023tbac, wang2021dynamic} help define policies, they do not support confidential query execution or fine-grained access controls required in healthcare.
+
+% \subsection{Research Gaps}
+% Despite recent progress, existing systems have several critical limitations:
+
+% \begin{itemize}
+% \item TEE-based databases (e.g., EnclaveDB, StealthDB) operate within single administrative domains and lack support for enforcing row-level, patient-specific access policies—essential for secure, multi-tenant healthcare environments.
+% \item Current IPFS indexing approaches support only plaintext NoSQL queries. None provide efficient, fine-grained indexing for executing SQL queries over encrypted, distributed IPFS data—hindering secure and performant access to decentralized records.
+% \item Prior work often addresses isolated components or remains theoretical. To date, no system delivers a complete open-source solution that combines blockchain, TEEs, and IPFS in a cohesive architecture tailored to multi-tenant healthcare data sharing.
+% \end{itemize}
+% Despite recent advances, existing systems exhibit key limitations. TEE-based databases (e.g., SecuDB, StealthDB) lack row-level, patient-specific access control needed in multi-tenant healthcare settings. IPFS indexing remains limited to plain text NoSQL queries, and to date no open-source system supports secure, SQL-based data sharing across decentralized healthcare silos. \ours addresses these gaps through: 
+% 1) TEE-enforced row-level access control with patient-defined policies, 
+% 2) a novel delta-based indexing scheme for efficient SQL queries over encrypted IPFS data, and 3) a complete open-source implementation. 
+% Together, these contributions enable the first secure, scalable, and auditable multi-tenant database infrastructure aligned with Web3 principles.
+% Despite notable advancements, existing systems have critical limitations. These limitations include:
+
+% \begin{itemize}
+% \item While TEE-based databases(e.g., EnclaveDB, StealthDB) provide strong security guarantees, they operate under single administrative domains and cannot enforce patient-specific access policies at the row level in multi-tenant environments. Healthcare requires that each patient's records be independently protected with owner-defined policies—a capability absent in current systems.
+% \item Existing IPFS indexing solutions support only NoSQL queries on plaintext data. No system provides efficient indexing mechanisms for executing SQL queries over encrypted, distributed IPFS data. This limitation prevents healthcare providers from leveraging decentralized storage while maintaining query performance.
+% \item Prior work either provides theoretical frameworks or addresses individual components in isolation. No existing system offers a complete, open-source implementation that integrates blockchain, TEEs, and IPFS into a unified architecture specifically designed for multi-tenant healthcare data sharing.
+
+% \item TEE-based systems (e.g., EnclaveDB, StealthDB) offering robust local security without integration into decentralized storage or multi-node coordination.
+% \item Blockchain-based solutions providing decentralization at the expense of query performance and cryptographic access control enforcement.
+% \item IPFS-based systems enabling decentralized storage but operating solely on plaintext data without capabilities for confidential computation.
+% \item Healthcare-specific systems meeting domain requirements but lacking comprehensive query flexibility and performance optimization.
+% \end{itemize}
+
+% \ours bridges these gaps through a novel architecture that introduces TEE-enforced fine-grained access control, enabling patient-specific policy enforcement within enclaves, and a delta-based indexing mechanism that minimizes synchronization overhead across decentralized storage. Unlike prior systems, \ours  it provides a concrete, open-source prototype demonstrating  supports efficient, privacy-preserving SQL queries over encrypted IPFS-resident data, while maintaining tamper-proof coordination via blockchain—delivering secure, scalable, and auditable multi-tenant data sharing infrastructure aligned with Web3 principles.
+% \ours addresses all these gaps through: (1) TEE-enforced row-level access control with patient-defined policies, (2) a novel delta-based indexing mechanism enabling efficient SQL queries over encrypted IPFS data, and (3) a complete open-source implementation demonstrating practical deployment. This comprehensive approach delivers the first secure, scalable, and auditable multi-tenant database infrastructure aligned with Web3 principles.
+
+
+
+
+% \wenyi{Wenyi's notes. similarity to map/reduce?}
+
+% \section{Preliminaries}
+% \subsection{IPFS}
+% InterPlanetary File System (IPFS) is a peer-to-peer distributed file system designed to create a decentralized and resilient network storage infrastructure. It fundamentally relies on content-addressing, where files are identified and addressed by cryptographic hashes called Content Identifiers (CIDs), ensuring data integrity and immutability. 
+% IPFS addresses the limitations of traditional HTTP protocols by enabling distributed hosting, reducing reliance on centralized servers, and improving redundancy and persistence through mechanisms like pinning, which retain data across nodes.
+
+% The architecture of IPFS integrates various subsystems such as the Distributed Hash Table (DHT), Bitswap (the data exchange protocol), and Merkle Directed Acyclic Graphs (DAGs) to facilitate efficient content discovery and transfer. IPFS utilizes concepts borrowed from peer-to-peer networks like libp2p for network communication and IPLD for linking content structures. These components collectively enable the system to function as a resilient, scalable, and censorship-resistant platform for hosting and sharing data. 
+% % The system’s capabilities have been demonstrated in various case studies, including applications in decentralized storage, media distribution, and blockchain integration, highlighting its relevance for Web 3.0 initiatives.
+
+% In \ours, we treat IPFS as the persistent storage layer over the network. The database files will be distributed and addressed by the CID. The storage will be managed and transmitted by the IPFS with its internal mechanisms to ensure that the files can be retrieved from the network with a given CID. 
+
+% \subsection{Blockchain and Smart Contract}
+% Blockchain technology is a decentralized, distributed ledger system that ensures data integrity through cryptographic principles and consensus mechanisms. 
+% Each block in the chain contains a cryptographic hash of the previous block, a timestamp, and transactional data, forming an immutable sequence resistant to tampering. 
+% A set of validated transactions will be organized as a Merkle tree and packed into one block based on the consensus protocol deployed in the blockchain.
+% The transactions will be gathered into blocks and validated by the blockchain maintainers (miners in a permissionless blockchain or peers in a permissioned blockchain) and broadcast to every blockchain copy in the network. 
+% The Merkle tree, together with the hash of the previous block hash in each block, will guarantee the integrity and tamper-proofness of the whole blockchain.
+% % In Bitcoin with Proof-of-Work consensus \cite{nakamoto2008bitcoin}, the clients always choose the ``longest" blockchain as the valid global ledger. Because the generation of a valid block is costly, most nodes in the Bitcoin network will have the same ``longest" ledger. 
+% % In permissioned blockchain, more efficient consensus protocols like crash-fault-tolerance (CFT) and byzantine-fault-tolerance (BFT) protocols could be used, which rely on a subgroup of peers to decide the state of the blockchain and propagate to everyone else. 
+
+% Smart contracts are self-executing programs deployed on blockchains that autonomously enforce predefined rules when triggering conditions are met. They leverage the blockchain’s decentralized architecture to enable trustless transactions (parties interact without intermediaries) and provide deterministic execution (outcomes are consistent across all validating nodes). 
+% Core properties encompass autonomy (automatic execution upon condition satisfaction), tamper-proofness (code immutability post-deployment), and auditability (transparent code and state changes on-chain). By embedding business logic into code, they facilitate complex operations like token transfers or decentralized governance. 
+
+% % Together, blockchain and smart contracts underpin decentralized applications (DApps), enabling secure, transparent, and automated digital interactions across sectors such as finance, supply chain, and identity management.
+
+% \subsection{Trusted Execution Environment}
+% Trusted Execution Environments (TEEs) represent a critical advancement in hardware-assisted security, providing isolated execution spaces for sensitive computations. These environments shield code and data from compromised operating systems, hypervisors, and other privileged software through hardware-enforced memory encryption and access controls. The core principle involves partitioning system resources into ``trusted'' and ``untrusted'' domains, where the TEE guarantees confidentiality and integrity of workloads even when the host environment is adversarial. This capability addresses growing concerns in cloud computing and edge systems where tenants require strong isolation guarantees against infrastructure-level threats.
+
+% % Several TEE implementations exist, each with distinct architectural approaches. ARM TrustZone establishes a hardware-partitioned "Secure World" alongside the normal "Normal World," utilizing CPU mode switches to protect security-critical operations, though it relies on a privileged Secure Monitor. AMD Secure Encrypted Virtualization (SEV) extends virtualization security by encrypting VM memory with unique keys managed by the Secure Processor, targeting cloud isolation but exposing metadata to the hypervisor. Intel Software Guard Extensions (SGX) adopts a fine-grained enclave model, where user-specified protected memory regions (enclaves) are cryptographically isolated from all external software, including the kernel and BIOS. While TrustZone and SEV operate at system/VMM level, SGX's application-level enclaves offer stronger adversary models by eliminating dependencies on system software.
+
+% In this paper, we use Intel SGX as a core component to build \ours. SGX's security derives from its isolated execution property: enclave memory (Enclave Page Cache) is encrypted and integrity-protected using the Memory Encryption Engine, accessible only to authorized enclave code. Crucially, SGX provides remote attestation, allowing a remote party to cryptographically verify an enclave's identity and integrity via a hardware-signed quote. This process establishes a secure channel for provisioning secrets exclusively to validated enclaves. We exploit these properties to build a confidential computing framework where sensitive database operations and access control enforcement are executed within attested enclaves, guaranteeing code authenticity and data secrecy against privileged attackers. 
+% \wenyi{stateless DBMS that does not handle session and states.}
+% Our design specifically utilizes SGX's attestation for trust establishment and its isolation to shield critical data processing.
+
+% \wenyi{add a separate section for PDO?}
+
+\section{Preliminaries}
+\subsection{IPFS}
+InterPlanetary File System (IPFS) is a peer-to-peer distributed file system that uses content-addressing, where files are identified by cryptographic hashes called Content Identifiers (CIDs), ensuring data integrity and immutability. IPFS enables distributed hosting, reduces reliance on centralized servers, and improves redundancy through mechanisms like pinning. The architecture integrates Distributed Hash Table (DHT), Bitswap (data exchange protocol), and Merkle Directed Acyclic Graphs (DAGs) for efficient content discovery and transfer. IPFS utilizes libp2p for network communication and IPLD for linking content structures, creating a resilient, scalable, and censorship-resistant platform.
+
+In \ours, we treat IPFS as the persistent storage layer where database files are distributed and addressed by CID. IPFS manages storage and transmission with its internal mechanisms to ensure files can be retrieved from the network using a given CID.
+
+\subsection{Blockchain and Smart Contract}
+Blockchain is a decentralized, distributed ledger system ensuring data integrity through cryptographic principles and consensus mechanisms. Each block contains a cryptographic hash of the previous block, timestamp, and transactional data, forming an immutable tamper-resistant sequence. Validated transactions are organized as a Merkle tree and packed into blocks based on the consensus protocol, then validated by blockchain maintainers and broadcast network-wide.
+
+Smart contracts are self-executing programs deployed on blockchains that autonomously enforce predefined rules when conditions are met. They leverage blockchain's decentralized architecture to enable trustless transactions and provide deterministic execution. Core properties include autonomy (automatic execution), tamper-proofness (code immutability post-deployment), and auditability (transparent on-chain operations).
+
+\subsection{Trusted Execution Environment}
+Trusted Execution Environments (TEEs) provide isolated execution spaces for sensitive computations, shielding code and data from compromised operating systems and privileged software through hardware-enforced memory encryption and access controls. TEEs partition system resources into ``trusted'' and ``untrusted'' domains, guaranteeing confidentiality and integrity even when the host environment is adversarial.
+
+We use Intel SGX as a core component to build \ours. SGX's security derives from isolated execution: enclave memory (Enclave Page Cache) is encrypted and integrity-protected using the Memory Encryption Engine, accessible only to authorized enclave code. SGX provides remote attestation, allowing remote parties to cryptographically verify an enclave's identity and integrity via hardware-signed quotes, establishing secure channels for provisioning secrets exclusively to validated enclaves. We exploit these properties to build a confidential computing framework where sensitive database operations and access control enforcement execute within attested enclaves, guaranteeing code authenticity and data secrecy against privileged attackers.
+
+\section{System Overview and Models}
+% \wenyi{In this section, we describe the scenario \ours deals with, the system models of \ours, and the basic workflows.}
+In this section, we describe the scenario \ours mainly deals with and the corresponding assumptions of \ours. We then give an overview of the architecture and the system workflow of \ours. 
+% \wenyi{need a fancy name for the index}
+\subsection{Distributed Multi-Tenant Database Management}
+We define Distributed Multi-Tenant Database Management as a decentralized data ecosystem comprising three entity classes:
+\begin{itemize}
+    \item Users ($\mathcal{U}$): A large set of individual data owners (e.g., patients), each generating personal data records through interactions with service managers.
+    \item Service Managers ($\mathcal{M}$): A smaller set of entities (e.g., hospitals, pharmacies) taking interactions with users as well as collecting, storing, and managing partitioned databases containing user-generated records.
+    \item Queriers ($\mathcal{Q}$): Anyone who tries to query the ecosystem among data collected from all service managers.
+\end{itemize}
+
+The architecture of \ours satisfies the following core properties:  
+\begin{itemize}
+    \item Every record $r$ is owned by the user $u \in \mathcal{U}$ from whom it originated, irrespective of the managing entity $m \in \mathcal{M}$ that hosts it. Even though the database management systems usually provide attribute-level access control for different users, \ours demands a more fine-grained access control.
+    % \seokki{Database management systems provide attribute-level access control for different users. I wanted to mention it here in case defining the ownership beyond the tuple level is helpful.}
+    \item Each $m_i \in \mathcal{M}$ maintains a physically partitioned database $DB_i$, with the collective $\bigcup_{i=1}^{|\mathcal{M}|} DB_i$ forming a logical database. No central data aggregation occurs.  
+    \item Ownership is determined at the record level, where a single user's records may span multiple $DB_i$ due to distinct interactions with different service managers. 
+\end{itemize}
+
+% \noindent\textbf{Distr ibuted Custodianship}: Each $m_i \in \mathcal{M}$ maintains a physically partitioned database $DB_i$, with the collective $\bigcup_{i=1}^{|\mathcal{M}|} DB_i$ forming a logical database. No central data aggregation occurs.  
+
+% \noindent\textbf{Multi-Tenant Granularity}: Tenancy is defined at the record level, where a single user's records may span multiple $DB_i$ due to distinct interactions with different service managers.  \wenyi{needs editting,}
+
+To allow seamless data sharing across different data managers and provide a Unified Query Interface, the table definitions will be publicly available for data managers to format their data and for users to construct query requests. With the unified query interface, users can interact with the data sharing ecosystem constructed by multiple data managers as if interacting with a single database infrastructure.
+% Even though the data partitions are managed by different service managers distributively, there is still a data schema defined globally for one database in the ecosystem. 
+% With a unified schema, the ecosystem enables cross-manager queries with a unified query interface 
+% \seokki{Is this a new structure of query valid for \ours which is different from the standard query structure? How does \ours determine which partition(s) to look at to retrieve John Doe's data?}
+(e.g., searching a patient's data from all hospitals will be as simple as requesting a query: \lstinline{SELECT * FROM table WHERE user_name = John Doe}), subject to ownership-based authorization. 
+% \seokki{What is the role of the global schema? The reason to maintain a global schema is not well explained. For example, the system technically can let users define the schema of the returned data using the query.}
+
+% \wenyi{organize here, find proper position to describe it}
+% Preserving individual privacy for each user in querying multi-tenant scenarion can be challenging. To handle the needs, \ours ...
+
+
+% \begin{itemize}
+%     \item individual ownership can be determined by each record
+%     \item management is mostly outsourced
+%     \item distributed instance
+% \end{itemize}
+
+
+\begin{figure}
+    \centering
+    \includegraphics[width=0.75\linewidth]{System Workflow Diagram.pdf}
+   \vspace{-10pt}
+    \caption{Architecture overview of\ours}
+    \vspace{-10pt}
+    \label{fig:architecture}
+\end{figure}
+
+
+\subsection{System Components}
+\label{sec:architecture}
+% \seokki{Would it be possible to use Fig 1 while explaining system components?}
+% The general workflow for the system, application scenario, and multi-tenant table.
+As shown in \Cref{fig:architecture}, \ours employs a decentralized architecture integrating trusted execution environments (Intel SGX), blockchain, and IPFS to enable secure multi-tenant healthcare data sharing. 
+Each \ours node runs an Intel SGX enclave and connects to the same blockchain (Ethereum in our implementation) and IPFS network.
+Every \ours node can individually serve queries from any user with the same logical database interface. 
+Specifically, \ours node uses the Query Interface to accept SQL queries via HTTPS and routes them to the In-Enclave Engine to process. The In-Enclave Engine will first check if there is explicit consent from the user, who owns the data that is being queried. This could be verified through a one-time consent from the user's signature, verifiable credentials \cite{noauthor_verifiable_nodate}, or pre-defined access control policy entry shared through the blockchain. Upon successful verification, the In-Enclave Engine will retrieve the 
+metadata through the smart contract interface on the blockchain and corresponding database partitions from the IPFS. Both connections will go through the IO Interface, which handles the host OS I/O and the network connection.
+% Executes within an Intel SGX enclave to handle query authorization, rewriting, and processing while maintaining data confidentiality.
+%     \item I/O Interface: Mediates interactions from the In-Enclave Engine to the external infrastructure, including I/O from host OS, network connection from IPFS, and to the blockchain.
+% \end{itemize}
+% \ours node 
+% Apart from the node, there are two infrastructures that are shared among all the nodes: IPFS and the blockchain.
+% \ours uses IPFS to enable access to any partition of the database from any node. 
+% Each update from the healthcare agencies will be passed to the IPFS network and will get a unique content identifier (CID). \showkot{We don't store data cids in the blockchain. We store only index cids. Should we change this statement?--}These CIDs are then sent to the blockchain as part of the metadata to manage the database. 
+
+In \ours, 
+the blockchain acts like a bulletin board for all \ours nodes to share metadata about the multi-tenant database. 
+% \wenyi{table to be updated with context}
+The metadata includes: 
+\begin{itemize}
+    \item The table definitions, which can be referred to by all healthcare agencies to format their data and join the data sharing. It also helps users construct their query requests;
+    % \seokki{The table schemas from the associated partitions seem to be retreived for users to form a query. Questioning againg the need of the global schema.}
+    \item The CIDs to the delta index updates, which allows the \ours nodes to locate the index files from IPFS and construct their local copy of the index, allowing efficient query execution with minimum partition retrievals;
+    % \showkot{Do we store decryption keys in blockchain, or the key is stored inside the enclave?--}
+    \item The decryption keys of partitions, which allow a \ours node to retrieve partitions and decrypt to serve the query.
+    % \item \showkot{Should we store the access control policies in blockchain? or IPFS? Access control policies can be very large. Storing it on-chain will increase the gas cost and storage overhead. How do we explain this?--- }The access control policies (or the reference to the policies)
+    % defined by the owner. Usually, a default access control policy of a specific user's data will require some form of explicit consent in the query request. \ours also allows the owner to set additional restrictions through a SQL-like expression, which will be discussed in \Cref{subsec: AC enforcement detail}.
+    \item Other information, for example, the identity-related information of users can be stored as metadata, since \ours does not handle identity management internally. One can use any mechanism by storing certificates from PKI or anonymous credentials \cite{rosenberg2023zk} on the blockchain and perform the identity verification inside of \ours node in SGX enclave.
+    Another example would be the access control policies (or the reference to the policies) defined by the owner. These policies could be pre-defined and shared via blockchain, so that the In-Enclave Engine can retrieve and apply them to run the query.
+    % defined by the owner.
+\end{itemize}
+Note that all of the metadata on the blockchain will be stored through the processing of the SGX enclave of \ours nodes. 
+% \showkot{I changed the sentence a bit. The original sentence is commented out. Please verify correctness and remove the comment}
+This allows metadata to be encrypted within the SGX enclave before being recorded on the blockchain, ensuring that only authorized SGX enclaves--provisioned with the appropriate symmetric key via a secure channel established through remote attestation--can decrypt and access the metadata.
+% This allows metadata to be encrypted inside the enclave before being sent to the blockchain, which will be kept secret from any non-SGX parties.  
+
+% In \ours, all nodes connect to shared blockchain and IPFS networks, ensuring consistent access to global metadata, therefore forming a system where the data is always available globally and the security is always guaranteed.
+
+\subsection{\ours Dataflow } \label{sec:dataflow}
+% \wenyi{somehow highlight the index and access control}
+% \wenyi{describe our novelty and }
+\subsubsection{Data Uploading with Index Construction}
+% \wenyi{add sequence diagram}
+% We assume each hospital may only upload its medical records in a certain period of time, e.g., on a daily basis, and each upload will be treated as a single file
+
+When a hospital uploads patient records, the In-Enclave Engine processes the data within the secure enclave.
+It first constructs a lightweight inverted index (formatted as a delta-based structure) that maps key attributes (e.g., \texttt{patient\_id}) to corresponding partition locations, similar to traditional DBMS indexing schemes but optimized for decentralized storage by supporting incremental updates. The raw data is encrypted using an enclave-generated symmetric key, partitioned into files, and persisted to IPFS. The index--storing key-value pairs of \texttt{patient\_id} and $ CID$ for relevant partitions, and encrypted keys--is then published to IPFS, with its CID recorded on the blockchain for decentralized discovery. Detailed mechanisms for indexing are discussed in Section~\ref{section: index}.
+
+
+
+\subsubsection{Data Sharing with User Consent and Access Control}
+Since \ours does not handle identity management internally, authorization interaction and access control policy determination should happen outside \ours. The only requirements for \ours are: 1. the finalized access policy from the specific owner; 2. a verification algorithm allowing the In-Enclave Engine to verify the owner's explicit consent through either one-time authorization (owner-issued certificate submitted with the query) or the querier's identity matching the access control policy stored on blockchain.
+
+\subsubsection{Policy-Enforced Query through Index}
+Upon receiving a query (e.g., \lstinline{SELECT * FROM table  WHERE name = ?}), the Query Interface routes it to the In-Enclave Engine. The enclave first verifies authorization using either patient-signed certificates or blockchain-stored access policies (check if there is explicit consent from the user with policies). It then dynamically rewrites the query to enforce patient-centric access control, appending ownership constraints (e.g., \lstinline{AND patient_id = ?}). 
+Specifically, the user's consent with the access policy acts like a first layer of filter to the database, which will be rewritten as a subquery over the original table to return the accessible part of the query request. Then the original query will be applied to the result of the subquery as the enforcement of the access control policy.
+% \wenyi{reviews}
+Using the index's Content Identifier (CID) retrieved from the blockchain, the engine fetches the inverted index from IPFS. 
+% \showkot{Are partitions encrypted with unique keys or a shared symmetric key? I thought every encryption/decryption is done by using the shared enclave key.}
+This index provides IPFS CIDs for all database partitions containing the target patient's id, and the corresponding symmetric keys for each partition decryption.
+The engine retrieves the encrypted partitions via IPFS, decrypts them within the enclave, and executes the rewritten query over the decrypted data. 
+% \seokki{How does the rewritten query run over all the recognized data partitons? Is it sufficient to specify a single table names to retreive all the information of the target patient across multiple data partitions?}
+Results are returned through the Query Interface via HTTPS, ensuring end-to-end security where sensitive operations (authorization, decryption, query execution) occur exclusively within the TEE-protected environment.
+
+% \subsection{Threat Model} \label{subsec:threat model}
+
+% We assume a powerful adversary with control over nearly all system components except the trusted hardware enclave (i.e., Intel SGX). The host operating system, hypervisor, and all privileged software on machines running \ours nodes are considered untrusted and potentially compromised. This includes infrastructure providers such as cloud vendors and system administrators. The adversary may observe or manipulate memory outside the enclave, alter binaries or runtime behavior, and intercept or tamper with network traffic. Additionally, unauthorized users may attempt to access protected data through crafted queries or by exploiting application-layer vulnerabilities. In the decentralized IPFS storage layer, some nodes may behave maliciously—e.g., by refusing to serve data or returning incorrect blocks. However, we assume the majority of IPFS nodes are honest, and data retrieval by Content Identifier (CID) will eventually succeed through redundancy and replication.
+% % We assume the Intel SGX hardware to ensure the confidentiality and integrity of code and data within the enclave. Specifically, we assume: (i) the enclave isolation boundary is strictly enforced by hardware, (ii) remote attestation reliably verifies enclave identity and integrity, and (iii) side-channel attacks are out of scope. 
+
+% We assume Intel SGX guarantees the confidentiality and integrity of code and data within enclaves. Namely, we assume:
+% (i) the enclave isolation boundary is strictly enforced by hardware; and
+% (ii) remote attestation reliably verifies enclave identity and integrity. Side-channel attacks (e.g., cache timing, speculative execution attacks 
+% % such as Spectre, Foreshadow, and Microarchitectural Data Sampling—MDS
+% ) and other microarchitectural vulnerabilities known to affect SGX are out of scope because they are orthogonal problems under active research and development. Intel continues to mitigate these vulnerabilities in newer SGX hardware versions through architectural enhancements and software countermeasures. Addressing these attacks comprehensively requires complementary solutions beyond the scope of this work.
+% These assumptions align with the architectural guarantees provided by SGX~\cite{costan2016intel, el2022benchmarking} and follow established security assumptions adopted by prior secure database systems~\cite{priebe2018enclavedb, yang2024secudb, vinayagamurthy2019stealthdb}. All critical operations—including access control enforcement, encryption/decryption, and query execution—are strictly confined to the SGX enclave to maintain end-to-end confidentiality.
+
+\subsection{Threat Model} \label{subsec:threat model}
+We assume a powerful adversary with control over nearly all system components except the trusted hardware enclave (Intel SGX). The host operating system, hypervisor, privileged software, infrastructure providers, and system administrators are considered untrusted and potentially compromised. The adversary may observe or manipulate memory outside the enclave, alter binaries, and intercept network traffic. Unauthorized users may attempt to access protected data through crafted queries or application-layer vulnerabilities. In the decentralized IPFS storage layer, some nodes may behave maliciously, but we assume the majority are honest and data retrieval by CID will eventually succeed through redundancy.
+
+We assume Intel SGX guarantees confidentiality and integrity of code and data within enclaves: (i) the enclave isolation boundary is strictly hardware-enforced; and (ii) remote attestation reliably verifies enclave identity and integrity. Side-channel attacks and microarchitectural vulnerabilities are out of scope as they are orthogonal problems under active research, with Intel continuously mitigating them in newer SGX versions. These assumptions align with SGX architectural guarantees~\cite{costan2016intel, el2022benchmarking} and follow established security assumptions of prior secure database systems~\cite{priebe2018enclavedb, yang2024secudb, vinayagamurthy2019stealthdb}. All critical operations--access control enforcement, encryption/decryption, and query execution--are strictly confined to the SGX enclave to maintain end-to-end confidentiality.
+
+
+% An example of a floating figure using the graphicx package.
+% Note that \label must occur AFTER (or within) \caption.
+% For figures, \caption should occur after the \includegraphics.
+% Note that IEEEtran v1.7 and later has special internal code that
+% is designed to preserve the operation of \label within \caption
+% even when the captionsoff option is in effect. However, because
+% of issues like this, it may be the safest practice to put all your
+% \label just after \caption rather than within \caption{}.
+%
+% Reminder: the "draftcls" or "draftclsnofoot", not "draft", class
+% option should be used if it is desired that the figures are to be
+% displayed while in draft mode.
+%
+%\begin{figure}[!t]
+%\centering
+%\includegraphics[width=2.5in]{myfigure}
+% where an .eps filename suffix will be assumed under latex, 
+% and a .pdf suffix will be assumed for pdflatex; or what has been declared
+% via \DeclareGraphicsExtensions.
+%\caption{Simulation results for the network.}
+%\label{fig_sim}
+%\end{figure}
+
+% Note that the IEEE typically puts floats only at the top, even when this
+% results in a large percentage of a column being occupied by floats.
+
+
+% An example of a double column floating figure using two subfigures.
+% (The subfig.sty package must be loaded for this to work.)
+% The subfigure \label commands are set within each subfloat command,
+% and the \label for the overall figure must come after \caption.
+% \hfil is used as a separator to get equal spacing.
+% Watch out that the combined width of all the subfigures on a 
+% line do not exceed the text width or a line break will occur.
+%
+%\begin{figure*}[!t]
+%\centering
+%\subfloat[Case I]{\includegraphics[width=2.5in]{box}%
+%\label{fig_first_case}}
+%\hfil
+%\subfloat[Case II]{\includegraphics[width=2.5in]{box}%
+%\label{fig_second_case}}
+%\caption{Simulation results for the network.}
+%\label{fig_sim}
+%\end{figure*}
+%
+% Note that often IEEE papers with subfigures do not employ subfigure
+% captions (using the optional argument to \subfloat[]), but instead will
+% reference/describe all of them (a), (b), etc., within the main caption.
+% Be aware that for subfig.sty to generate the (a), (b), etc., subfigure
+% labels, the optional argument to \subfloat must be present. If a
+% subcaption is not desired, just leave its contents blank,
+% e.g., \subfloat[].
+
+
+% An example of a floating table. Note that, for IEEE style tables, the
+% \caption command should come BEFORE the table and, given that table
+% captions serve much like titles, are usually capitalized except for words
+% such as a, an, and, as, at, but, by, for, in, nor, of, on, or, the, to
+% and up, which are usually not capitalized unless they are the first or
+% last word of the caption. Table text will default to \footnotesize as
+% the IEEE normally uses this smaller font for tables.
+% The \label must come after \caption as always.
+%
+%\begin{table}[!t]
+%% increase table row spacing, adjust to taste
+%\renewcommand{\arraystretch}{1.3}
+% if using array.sty, it might be a good idea to tweak the value of
+% \extrarowheight as needed to properly center the text within the cells
+%\caption{An Example of a Table}
+%\label{table_example}
+%\centering
+%% Some packages, such as MDW tools, offer better commands for making tables
+%% than the plain LaTeX2e tabular which is used here.
+%\begin{tabular}{|c||c|}
+%\hline
+%One & Two\\
+%\hline
+%Three & Four\\
+%\hline
+%\end{tabular}
+%\end{table}
+
+
+% Note that the IEEE does not put floats in the very first column
+% - or typically anywhere on the first page for that matter. Also,
+% in-text middle ("here") positioning is typically not used, but it
+% is allowed and encouraged for Computer Society conferences (but
+% not Computer Society journals). Most IEEE journals/conferences use
+% top floats exclusively. 
+% Note that, LaTeX2e, unlike IEEE journals/conferences, places
+% footnotes above bottom floats. This can be corrected via the
+% \fnbelowfloat command of the stfloats package.
+
+
+
+
+\section{Detailed Designs and Core Components}
+In this section, we discuss the core components to build \ours, the logic behind each design choice, and potential optimization options.
+
+
+\subsection{Secure Metadata Sharing through Blockchain}
+% \wenyi{another subsec to summarize the data sharing on the blockchain, including identity management}
+The core idea of secure healthcare data sharing in \ours is to use 
+IPFS to handle the storage and the retrieval of actual data, while using the decentralized infrastructure of existing blockchain with TEE to share the metadata that is needed for data sharing management. 
+% Additionally, as we assume each node will be equipped with TEE (Intel SGX), the sensitive information shared on the b
+
+With each \ours node equipped with its own Intel SGX enclaves hosting the engine, the distributed \ours nodes can effectively form a secure 
+% (through the memory isolation and encryption) 
+and trustworthy 
+% (through the integrity protection from remote attestation) 
+network of TEEs over the blockchain by using confidential smart contracts. Specifically, the combination of blockchain and TEE nodes allows the user to store the ciphertext of private data on the blockchain, as in \cite{bowman2018private, yuan2018shadoweth, cheng2019ekiden}, while the corresponding symmetric key of the ciphertext can be shared among the TEE nodes (treated as a trusted party) through a simplified approach called
+distributed key generation (DKG).
+In this setup, the keys can be applied per contract, meaning all (registered) TEE nodes can access such keys, thereby supporting maintaining user-agnostic data in private.
+
+% \ours can also use  
+
+\subsection{Delta-based On-Chain Index Management} \label{section: index}
+
+
+% \wenyi{Index contributes to minimizing the network IO from }
+The index architecture in \ours is designed to address the inherent challenges of decentralized, multi-tenant healthcare data management. 
+Given that patient records are generated across hospitals, with the same \texttt{patient\_id} potentially distributed across multiple IPFS partitions, the index serves two critical functions: 1) enabling efficient access control enforcement during queries, and 2) minimizing network I/O by reducing unnecessary partition retrievals. 
+While \texttt{patient\_id} is used as the default indexing attribute, the system supports dynamic attribute selection (e.g., unique identifiers such as \texttt{department\_id} or \texttt{diagnosis\_code}) to accommodate diverse application requirements. 
+% This flexibility is achieved through configurable schema policies stored on the blockchain.
+
+Traditional synchronous index updates would incur prohibitive overhead due to three factors:
+First, the global index could grow exponentially with the number of entries in the dataset, making frequent full-index updates to IPFS impractical.
+Second, applying synchronous index updates in a distributed environment is highly impractical.
+Concurrent index modifications by multiple hospitals would require conflict-resolving mechanisms such as distributed consensus (e.g., CRDTs or blockchain-based ordering), introducing latency incompatible with real-time operations.
+Last but not least, storing the entire index as a single IPFS file would necessitate re-uploading the complete structure for every incremental change, amplifying network costs.
+
+% \wenyi{reorganize the itemization}
+
+% \begin{algorithm}[h]
+% \SetAlgoLined
+% \KwData{New data partitions $P = \{p_1, ..., p_n\}$; Indexing attribute $A_{idx}$ (e.g., \texttt{patient\_id})}
+% \KwResult{CID of the new index delta, $CID_{\Delta}$, recorded on the blockchain}
+% % \BlankLine
+% % \tcc{All operations are performed inside the enclave (Intel SGX)}
+% $\Delta \leftarrow$ new Index()\;
+% \For{each partition $p_i$ in $P$}{
+%     $p_{enc} \leftarrow$ Encrypt($p_i$, $key_{enclave}$)\;
+%     $CID_p \leftarrow$ IPFS.add($p_{enc}$)\;
+%     \For{each record $r$ in $p_i$}{
+%         $attr\_value \leftarrow r.get(A_{idx})$\;
+%         \If{!$\Delta$.contains($attr\_value$)}{
+%             $\Delta$.insert($attr\_value$, new Set())\;
+%         }
+%         $\Delta$.get($attr\_value$).add($CID_p$)\;
+%     }
+% }
+% $\Delta_{enc} \leftarrow$ Encrypt($\Delta$, $key_{enclave}$)\;
+% $CID_{\Delta} \leftarrow$ IPFS.add($\Delta_{enc}$)\;
+% % \tcc{Transaction to a smart contract}
+% Blockchain.recordIndexDelta($CID_{\Delta}$)\;
+% \caption{Delta-Based Index Update}
+% \label{alg:delta_update}
+% \end{algorithm}
+
+\begin{algorithm}
+\caption{Delta-based index update (each node)}
+\label{alg:delta_update}
+\SetAlgoLined
+\KwIn{Partitions $P = \{p_1, \dots, p_n\}$, indexing attribute $A_{\text{idx}}$ (e.g., \texttt{patient\_id}), security parameter $\lambda$, shared enclave key $k_{\text{enclave}}$}
+\KwOut{Delta CID $\Delta_c$ recorded on-chain}
+
+$\Delta \leftarrow$ new empty index\\
+\ForEach{$p_i \in P$}{
+    $k_{p} \leftarrow \{0,1\}^\lambda$;
+    $p_{\text{enc}} \leftarrow \textsf{Enc}(p_i, k_{\text{p}})$\\
+    $CID_p \leftarrow \textsf{IPFS.Add}(p_{\text{enc}})$\\
+    \ForEach{$r \in p_i$}{
+        $v \leftarrow r[A_{\text{idx}}]$\\
+        \If{$v \notin \Delta$}{
+            $\Delta[v] \leftarrow \emptyset$
+        }
+        $\Delta[v] \leftarrow \Delta[v] \cup \{(CID_p, k_{\text{p}})\}$\\
+    }
+}
+$\Delta_{\text{enc}} \leftarrow \textsf{Enc}(\Delta, k_{\text{enclave}})$\\
+$\Delta_c \leftarrow \textsf{IPFS.Add}(\Delta_{\text{enc}})$\\
+\textsf{Blockchain.Record}$(\Delta_c)$
+\end{algorithm}       
+% \vspace{1pt}
+
+
+\begin{figure*}[t]
+    \centering
+    \includegraphics[width=\linewidth]{Access control.drawio.pdf}
+    % \seokki{
+    % \textbullet Make the text bigger \\
+    % \textbullet Restructure the query using WITH clause for the subquery \\
+    % }
+    % \seokki{Thanks for the update. Increasing the text further would be better. Also, for handling multiple policies, does MtDB prefer a subquery for each policy instead of a single subquery with conditions over disjunction? For example, a subquery with conditions "patient\_id = 0x5cde or patient\_id = 0x6fgh or patient\_id = 0x7ijk" returns the same result at cheaper cost.}
+    \caption{The Query Rewriter in \ours with example access control policy. The \ours node will rewrite the query in the SGX enclave by replacing the table name in the original query with a subquery based on the access control policy (left). The policy can either be submitted with the one-time consent from the owner or be pre-defined and shared through the blockchain. When a query requires access to data with multiple owners (right), each data owner must provide explicit consent. The query will be rewritten with unions of all subqueries of policies.}
+    \vspace{-10pt}
+    \label{fig:ACEnforcement}
+\end{figure*}
+
+\subsubsection{Decentralized Delta-based Index Update}
+To resolve these issues, \ours adopts an asynchronous delta-based update protocol (as shown in \Cref{alg:delta_update}), leveraging the append-only nature of healthcare data. When a hospital uploads new partitions:
+\begin{itemize}
+    \item It generates lightweight index deltas--structured as key-value pairs mapping $\texttt{patient\_id}$s to new partition CIDs and corresponding decryption keys.
+    \item These deltas are encrypted and published to IPFS as standalone files.
+    \item Only the delta CIDs are recorded on-chain via atomic transactions, creating an auditable trail of index changes.
+\end{itemize}
+
+\subsubsection{Index Reconstruction Workflow}
+
+As shown in   \Cref{alg:index_reconstruction}, nodes dynamically reconstruct the latest index state during query processing by:
+\begin{itemize}
+    \item Fetching all delta CIDs from the blockchain.
+    \item Retrieving and decrypting delta files from IPFS.
+    \item Merging deltas into a consolidated in-enclave index. \[\{key: \texttt{patient\_id}, value:[\mathtt{CID:keys}]\}\]
+\end{itemize}
+
+This approach eliminates write conflicts by design--each delta is immutable and hospital-specific, while trading strict real-time consistency for substantial efficiency gains. The temporal gap between delta generation and consolidation is mitigated through periodic background synchronization, where nodes proactively cache recent deltas. Note that both algorithms operate entirely within the SGX enclave on each \ours node. The encryption key $k_{\text{enclave}}$ is securely generated inside the enclave and provisioned to authorized nodes via a remote attestation–based secure channel.
+% Crucially, the enclave's integrity guarantees ensure tamper-proof index merging even when deltas originate from untrusted sources. 
+
+% \wenyi{revision, the }
+
+% \begin{algorithm}[h]
+% \SetAlgoLined
+% \KwData{$I_{local}$: Locally cached index; ${\Delta}_{last}$: Last delta CID incorporated in $I_{local}$}
+% \KwResult{Consolidated in-memory index $I_{global}$}
+% % \BlankLine
+% % \tcc{All operations are performed inside a TEE. $key_{enclave}$ is generated inside the enclave and provisioned via secure channel}
+% $I_{global} \leftarrow$ copy($I_{local}$)\;
+% ${\Delta}cids_{new} \leftarrow$ Blockchain.getDeltasSince(${\Delta}_{last}$)\;
+% \For{each ${\Delta}_{cid}$ in ${\Delta}cids_{new}$}{
+%     ${\Delta}_{enc} \leftarrow$ IPFS.get(${\Delta}_{cid}$)\;
+%     ${\Delta}_{plain} \leftarrow$ Decrypt(${\Delta}_{enc}$, $key_{enclave}$)\;
+%     % \tcc{Merge the new delta into the global index}
+%     \For{each key $k$ in ${\Delta}_{plain}$}{
+%         \If{!$I_{global}$.contains($k$)}{
+%             $I_{global}$.insert($k$, new Set())\;
+%         }
+%         $I_{global}$.get($k$).addAll(${\Delta}_{plain}$.get($k$))\;
+%     }
+% }
+% \Return{$I_{global}$}\;
+% \caption{Index Reconstruction from Deltas}
+% \label{alg:index_reconstruction}
+% \end{algorithm}
+
+\begin{algorithm}[h]
+\caption{Index reconstruction from deltas}
+\label{alg:index_reconstruction}
+\SetAlgoLined
+\KwIn{Cached index $I_{\text{local}}$, last delta CID $\Delta_{\text{last}}$, shared enclave key $k_{enclave}$}
+\KwOut{Reconstructed global index $I_{\text{global}}$}
+
+$I_{\text{global}} \leftarrow I_{\text{local}}$\\
+$\mathcal{C} \leftarrow \textsf{Blockchain.GetDeltasSince}(\Delta_{\text{last}})$\\
+\ForEach{$\Delta_c \in \mathcal{C}$}{
+    $\Delta_{\text{enc}} \leftarrow \textsf{IPFS.Get}(\Delta_c)$\\
+    $\Delta \leftarrow \textsf{Dec}(\Delta_{\text{enc}}, k_{\text{enclave}})$\\
+    \ForEach{$v \in \Delta$}{
+        \If{$v \notin I_{\text{global}}$}{
+            $I_{\text{global}}[v] \leftarrow \emptyset$
+        }
+        $I_{\text{global}}[v] \leftarrow I_{\text{global}}[v] \cup \Delta[v]$
+    }
+}
+\Return $I_{\text{global}}$
+\end{algorithm}
+% \subsection{Secure In-Enclave Query Engine}
+% \wenyi{to be removed or merged into other section}
+% % \wenyi{any engine can be instantiated, in our paper, we are using DuckDB as a PoC implementation.}
+% \ours adopts a modular design to decouple query processing from core security mechanisms, enabling flexible integration of diverse query engines while preserving end-to-end security. 
+% As depicted in Figure 2, the system encapsulates any compliant query engine within the Intel SGX enclave, subject to two constraints: (1) the engine must be lightweight enough to operate within enclave memory constraints, and (2) it must implement standardized interfaces for data serialization, import/export, and query execution. This modular design allows seamless adoption of domain-specific engines (e.g., SQLite/DuckDB for relational healthcare data) without compromising security guarantees.
+
+% \ours enforces a strict in-enclave operational paradigm for the query engine, maintaining continuous isolation within SGX throughout its entire lifecycle. 
+% During data uploading, the engine serializes raw partitions into binary formats (e.g., Apache Parquet) within the enclave, applies standard symmetric encryption using a secret key generated in the enclave. The resulting encrypted files are published to IPFS while their content identifiers (CIDs) and key are recorded on-chain through the index update.
+
+% For query execution, the engine receives encrypted partitions retrieved by the IO Manager, decrypts them within the enclave with corresponding keys from the blockchain, and deserializes the data into its native processing format. It executes the query over the decrypted dataset, with all intermediate states and results confined to enclave-protected memory pages. During the execution, the engine persists within the enclave across operational phases and never exposes plaintext data, decryption keys, or query logic to the untrusted host OS. This persistent isolation is underpinned by SGX's memory encryption engine (MEE) and enforced through hardware-backed access control.
+
+
+% \begin{figure*}
+%     \centering
+%     \includegraphics[width=\linewidth]{Access control.drawio.pdf}
+%     % \seokki{
+%     % \textbullet Make the text bigger \\
+%     % \textbullet Restructure the query using WITH clause for the subquery \\
+%     % }
+%     % \seokki{Thanks for the update. Increasing the text further would be better. Also, for handling multiple policies, does MtDB prefer a subquery for each policy instead of a single subquery with conditions over disjunction? For example, a subquery with conditions "patient\_id = 0x5cde or patient\_id = 0x6fgh or patient\_id = 0x7ijk" returns the same result at cheaper cost.}
+%     \caption{The Query Rewriter in \ours with example access control policy. The \ours node will rewrite the query in the SGX enclave by replacing the table name in the original query with a subquery based on the access control policy (left). The policy can either be submitted with the one-time consent from the owner or be pre-defined and shared through the blockchain. When a query requires access to data with multiple owners (right), each data owner must provide explicit consent. The query will be rewritten with unions of all subqueries of policies.}
+%     \vspace{-10pt}
+%     \label{fig:ACEnforcement}
+% \end{figure*}
+
+\begin{figure*}[h]
+    \centering
+    
+    % Subfigure (a)
+    \begin{subfigure}[b]{0.24\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{performance_evaluation_four_panels_a.pdf}
+        \caption{With index}
+        \label{fig:fig4a}
+    \end{subfigure}
+    \hfill
+    % Subfigure (b)
+    \begin{subfigure}[b]{0.24\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{performance_evaluation_four_panels_b.pdf}
+        \caption{Without index}
+        \label{fig:fig4b}
+    \end{subfigure}
+    \hfill
+    % Subfigure (c)
+    \begin{subfigure}[b]{0.24\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{performance_evaluation_four_panels_c.pdf}
+        \caption{Scalability vs CIDs}
+        \label{fig:fig4c}
+    \end{subfigure}
+    \hfill
+    % Subfigure (d)
+    \begin{subfigure}[b]{0.24\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{performance_evaluation_four_panels_d.pdf}
+        \caption{Network distribution}
+        \label{fig:fig4d}
+    \end{subfigure}
+    
+    \caption{Query efficiency of \ours under varying configurations. (a) Query latency with index remains nearly constant across database sizes. (b) Without index, latency increases linearly. (c) Query time scales linearly with the number of matched partitions (CIDs). (d) Network distribution analysis shows latency increases with remote data retrieval, especially over WAN.}
+    \vspace{-10pt}
+    \label{fig:combined_evaluation}
+\end{figure*}
+
+\subsection{TEE-Enforced Owner-defined Access Control}\label{subsec: AC enforcement detail}
+\ours deals with the multi-tenant table, which means the access control needs to be applied at the row record level. This idea is similar to the Row-Level Security concept applied by existing database systems \cite{MicrosoftRowLevelSecurity, PostgreSQLRowSecurity}, in which the system administrator can set up row-level access policies against the queriers' properties (e.g., the role of the querier). Any query attempting to access row-level data in a table will be restricted by a security predicate defined as an inline table-valued function. 
+The function will be invoked and enforced by the pre-defined security policy to filter the rows from the returned value of the query. 
+The application that sends the query will be unaware of rows that are filtered from the result set. If all rows are filtered, then a null set is returned. 
+% For block predicates, any operations that violate the predicate will fail with an error.
+% In \ours, every request trying to query any patient's data from the table requires explicit consent from the patient 
+% % \seokki{The text about authorization seems repeated quite a lot.}
+% (either from one-time authorization or pre-authorized access policy from the blockchain). This default ownership-based security policy enforces a logical separation of each tenant's data rows from every other tenant's rows. 
+\ours achieves a fine-grained access control at the SQL statement level through a query rewriter.
+With the whole database engine inside the SGX enclave, \ours is able to enforce row-level security in a multi-tenant table with additional security guarantees compared to the existing database systems. 
+The security policy filters can be applied to the original query request and enforced with the integrity guarantee from the SGX enclave. 
+Due to the memory isolation property of SGX, query execution remains entirely confidential, with no data leakage outside the enclave boundary.
+
+In \ours, we use a simple query-rewriter as a proof-of-concept (PoC) access control mechanism. 
+Data owners can define the access policy of their data by writing a SQL statement that controls what can be queried. This SQL statement, which is the access policy, will be combined with the query to control which part of the data can be queried upon.
+%Namely, the access policy will be represented in a SQL-like form, containing the ownership-based access policy to construct a patient-centric data-sharing ecosystem.
+An example is shown in \Cref{fig:ACEnforcement}, where a policy together with other optional user-defined policies, such as granted views and filters, is applied when a querier %with the explicit consent from the owner 
+submits a query.
+% When a 
+% \seokki{Does each owner (e.g., patient) have a single security policy?}
+In the PoC implementation of \ours, the original query will be rewritten by replacing the \texttt{table\_name} with the access policy, which is 
+a sub-query statement.  %representing the access granted to the request. 
+This sub-query creates a view that limits the original query's searching domain and thus enforces the access control. 
+% \seokki{Is it a feature of MtDB? Typcially, subqueries are evaluated on the fly unless they are materialized. If data for a set of policies are often requested, materialization is a better choice which sacrifices space for performance. For example, if Policy1 is requested often, the corresponding patient's data can be materialized. Then, later when it is requested, the query evaluation becomes just reading data from a materialized view. The benefit increases as the query becomes more complex.}
+% \seokki{\ours rewriter is developed based on the widely used database query instrumentation techniques~\cite{GA09,GK10,LL18j,turnau2023provenance}.}
+\ours rewriter is developed based on the widely used database query instrumentation techniques~\cite{GA09,LL18j,turnau2023provenance}.
+The rewritten query will then be processed by the query engine and executed over the table as a normal query process described in \Cref{sec:dataflow}.
+% \seokki{How does the query engine process the rewritten query? Is \ours communicating with a DB engine to process the rewritten query?}
+The default ownership-based filtering also allows \ours to utilize the ownership-based index from \Cref{section: index} to reduce the number of CIDs that need to be retrieved from IPFS.
+
+Note that the access control enforcement can also be achieved through other DBMS functionalities, like inline table-value functions in Microsoft SQL Server \cite{MicrosoftRowLevelSecurity}, as long as the whole engine is under the shelter of the SGX enclave. 
+% \seokki{Although this pre-defined authorization can be defined using SQL, and it provides row-level as well as column-level access control, it is less flexible than how \ours's query rewriter handles and may incur additional computational and space cost as the ownership security policy changes.}
+%Although this pre-defined authorization can be defined using SQL, and it provides row-level as well as column-level access control,
+However, they are less flexible than \ours's query rewriter and may incur additional computational and space cost as the access policies change.
+The query-rewriting-based solution is simply a choice that is agnostic to any SQL-like database engines, which enforces the access control policy directly on the SQL statement. The rewritten query can work with any SQL-based engine. 
+% that is chosen and take advantage of the query optimizer from the engine.
+% \seokki{Check the following statement holds here: 
+% \ours takes advantage of the query optimizer of the database engine, which finds the cheapest query plan to be executed by rearranging operators in the query.}
+% By enforcing the access control policies at the SQL query level, 
+% \ours
+Such an approach also benefits from the query optimizer of the existing database engines, which finds the cheapest query plan to be executed by rearranging operators in the query.
+
+
+
+
+% \section{Evaluation}
+% % We implemented and evaluated \ours in two configurations: 1) within an SGX enclave to assess performance under secure execution, and 2) on the host operating system as a non-secure baseline. This section presents a comprehensive evaluation of query performance, indexing efficiency, and system scalability. Unless otherwise specified, all experiments were conducted within the SGX enclave. Each experiment was executed five times, and we report the median to mitigate the influence of outliers and transient system noise.
+
+% % \begin{figure*}
+% %     \centering
+% %     \includegraphics[width=\linewidth]{performance_evaluation_four_panels.pdf}
+% %     \caption{Query efficiency of \ours under varying configurations. (a) Query latency with index remains nearly constant across database sizes. (b) without index, latency increases linearly. (c) Query time scales linearly with the number of matched partitions (CIDs). (d) Network distribution analysis shows latency increases with remote data retrieval, especially over WAN.}
+% %     \label{fig:combined_evaluation}
+% % \end{figure*}
+
+
+
+% \subsection{Experimental Setup}
+% \subsubsection{Implementation Environment}
+
+% Our prototype implementation integrates DuckDB within a Gramine SGX enclave, providing the security guarantees outlined in the threat model discussed in \Cref{subsec:threat model}. 
+% % Deploying full-scale query engines such as MySQL, PostgreSQL, or distributed frameworks like Apache Spark inside SGX enclaves is generally impractical due to strict memory constraints and I/O limitations of SGX enclaves. 
+% DuckDB was chosen for its lightweight architecture and native support for Parquet, making it well-suited for execution within SGX under constrained resources. Both the SGX-secure and non-secure (vanilla) variants of \ours were deployed on a server running Ubuntu 22.04.5 LTS, equipped with 503 GB of RAM, an 868 GB SSD, and an Intel Xeon Gold 5412U processor with support for Intel SGX Version 2. We enabled Enclave Dynamic Memory Management and increased the Enclave Page Cache size to 128 GB, leveraging recent SGX2 hardware capabilities. Gramine (a library OS allowing one to run binary executables inside SGX enclaves \cite{tsai2017graphene}) 1.8 was used as the SGX runtime to host the enclave environment.
+
+% \subsubsection{Dataset and Storage Format}
+
+% We evaluated both implementations of \ours using a synthetic healthcare dataset modeled to reflect our case study scenario. The dataset consists of 400 million records (42.4 GB) partitioned into 4,000 IPFS-addressable chunks. Each chunk contains 100,000 medical records (11.848
+% Mbits) and is uniquely identified by an IPFS Content Identifier
+% (CID). While our experiments use this configuration, chunk
+% size remains configurable to accommodate varying application
+% requirements and network conditions. The dataset schema reflects real-world electronic health records with fields including: \texttt{patient\_id}, \texttt{name}, \texttt{age}, \texttt{gender}, \texttt{blood\_type}, \texttt{condition}, \texttt{visit\_date}, \texttt{doctor\_id}, \texttt{hospital\_id}, \texttt{department\_id}, \texttt{prescription\_id}, and \texttt{diagnosis\_code}. We generated synthetic data using Python's Faker library to ensure realistic distributions while preserving patient privacy—critical for evaluating multi-tenant scenarios without compromising confidentiality. We selected Apache Parquet as the storage format due to its high compression ratio (5--10$\times$ over CSV), which significantly reduces storage requirements and network I/O. 
+% % Parquet’s columnar layout enables efficient query execution, especially when paired with DuckDB, which natively supports Parquet without requiring additional serialization or parsing.
+
+% \subsection{Query Execution Time}
+
+% \subsubsection{Index Performance and SGX Overhead}
+% % \begin{figure}[htbp]
+% %     \centering
+% %     \includegraphics[width=0.95\linewidth]{mtdb_query_execution_time_scatter.pdf}
+% %     \caption{\ours Query Execution Time vs. Database Sizes}
+% %     \label{fig:query_execution_time}
+% % \end{figure}
+
+% \ours maintains a mapping between data attributes (e.g., \texttt{patient\_id}) and IPFS Content Identifiers (CIDs) using our delta-based index optimized for decentralized storage. To evaluate the impact of indexing, we executed point queries of the form (\lstinline{SELECT * FROM table WHERE patient_id = X}) across datasets ranging from 100 million to 400 million rows. We compared performance with and without indexing in both SGX and non-SGX (vanilla) environments. As shown in \Cref{fig:fig4a}, indexing significantly reduces query latency. In contrast, \Cref{fig:fig4b} illustrates that, without indexing, execution time increases linearly with database size due to the need to scan all partitions. For instance, at 400M rows, the SGX-secure configuration takes 62.8 seconds without indexing, compared to only 37 milliseconds with indexing—a nearly 1700$\times$ improvement. The trend is consistent across all dataset sizes. With indexing, latency remains nearly constant because only relevant CIDs are retrieved, minimizing unnecessary I/O. Across all dataset sizes, the SGX-secure variant incurs a modest performance overhead of approximately 1.2--1.3$\times$ compared to the vanilla baseline—for instance, 37 ms (SGX with index) vs. 28 ms (vanilla with index) at 400M rows. This overhead arises from architectural bottlenecks inherent to Intel SGX, as well as the additional abstraction introduced by using Gramine as the library operating system~\cite{costan2016intel, el2022benchmarking}. 
+
+% \begin{figure*}[t]
+%     \centering
+    
+%     % Subfigure (a)
+%     \begin{subfigure}[b]{0.24\linewidth}
+%         \centering
+%         \includegraphics[width=\linewidth]{performance_evaluation_four_panels_a.pdf}
+%         \caption{With index}
+%         \label{fig:fig4a}
+%     \end{subfigure}
+%     \hfill
+%     % Subfigure (b)
+%     \begin{subfigure}[b]{0.24\linewidth}
+%         \centering
+%         \includegraphics[width=\linewidth]{performance_evaluation_four_panels_b.pdf}
+%         \caption{Without index}
+%         \label{fig:fig4b}
+%     \end{subfigure}
+%     \hfill
+%     % Subfigure (c)
+%     \begin{subfigure}[b]{0.24\linewidth}
+%         \centering
+%         \includegraphics[width=\linewidth]{performance_evaluation_four_panels_c.pdf}
+%         \caption{Scalability vs CIDs}
+%         \label{fig:fig4c}
+%     \end{subfigure}
+%     \hfill
+%     % Subfigure (d)
+%     \begin{subfigure}[b]{0.24\linewidth}
+%         \centering
+%         \includegraphics[width=\linewidth]{performance_evaluation_four_panels_d.pdf}
+%         \caption{Network distribution}
+%         \label{fig:fig4d}
+%     \end{subfigure}
+    
+%     \caption{Query efficiency of \ours under varying configurations. (a) Query latency with index remains nearly constant across database sizes. (b) Without index, latency increases linearly. (c) Query time scales linearly with the number of matched partitions (CIDs). (d) Network distribution analysis shows latency increases with remote data retrieval, especially over WAN.}
+%     \vspace{-10pt}
+%     \label{fig:combined_evaluation}
+% \end{figure*}
+
+
+% The use of Apache Parquet further improves performance due to its columnar layout and high compression ratio, which significantly reduces both storage and network overhead. DuckDB—the query engine used in\ours prototype—natively supports Parquet and is optimized for efficient, in-memory execution on columnar data, enabling fast query processing even over large datasets. The modular query engine architecture of\ours enables seamless integration of any SQL-compatible engine providing flexibility to tailor the execution backend to specific application requirements. Reported query execution times include index lookup, data fetch, decryption, and query processing. We assume the index is locally cached or prefetched, except for delta updates, which are retrieved on demand as described in \Cref{section: index}. To the best of our knowledge, \ours is the first system to support efficient, secure indexing over IPFS-resident relational data. Prior IPFS indexing schemes~\cite{li2024ipfs,  rathee2019blockchain, arer2022efficient} primarily target plaintext key-value workloads and do not support encrypted SQL queries or fine-grained access control.
+
+
+% \subsubsection{Scalability with Number of CIDs} \label{subsubsec:scalability vs cids}
+
+% % \begin{figure}[htbp]
+% %     \centering
+% %     \includegraphics[width=0.95\linewidth]{mtdb_query_execution_vs_cids_v3.pdf}
+% %     \caption{\ours Query Time vs. Number of CIDs Returned By Index}
+% %     \label{fig:query_execution_time_vs_cids}
+% % \end{figure}
+
+% We evaluated \ours's scalability by measuring query performance as a function of the number of CIDs retrieved. \Cref{fig:fig4c} demonstrates how query latency scales with the number of CIDs returned by the index. For this experiment, we executed a range query of the form (\lstinline{SELECT * FROM table WHERE age > X}), varying the number of matched CIDs from 25 to 100. Each CID chunk corresponds to a partition containing 100,000 rows (11.848 Mbits). As expected, query execution time increases linearly with the number of CIDs, increasing from 0.87 seconds for 25 CIDs to 2.56 seconds for 100 CIDs due to increased I/O overhead. Nevertheless, \ours maintains low latency even at the upper bound, demonstrating its ability to efficiently handle large multi-partition queries. In practice, most queries are expected to match a small subset of the total partitions (4,000 in our test dataset), since \ours's index enables selective access to relevant data only. This evaluation assumes that all CIDs are prefetched to the local IPFS node, eliminating cross-node network latency. The impact of remote CID chunks retrieval across LAN and WAN settings is analyzed below.
+
+% \subsubsection{Impact of Network Distribution}
+
+% % \begin{figure}[htbp]
+% %     \centering
+% %     \includegraphics[width=0.95\linewidth]{mtdb_network_distribution_query_time_v3.pdf}
+% %     \caption{\ours Network Distribution Effects on Query Time}
+% %     \label{fig:network_distribution_effects}
+% % \end{figure}
+
+% To assess\ours's performance in distributed deployments, we evaluated query latency as data partitions are distributed across network boundaries. We executed range queries retrieving 100 CIDs with varying distribution ratios between two hosts: a local Host 1 (query origin) and a remote Host 2 connected via either LAN or WAN. In practice, partitions may span multiple hosts across geographies. \Cref{fig:fig4d} demonstrates the impact of network topology on query performance. When all partitions reside locally (100-0 distribution), queries complete in 2.56 seconds. As partitions migrate to the remote host, latency increases modestly for LAN configurations but substantially for WAN deployments. In the worst case (0-100), queries take 3.64 seconds over LAN (a 42\% increase) and 14.07 seconds over WAN—a 5.5$\times$ slowdown. Here, LAN latency was measured experimentally, while WAN latency was estimated using the following basic formula:
+
+% % \begin{equation}
+% %     T_{\text{fetch}} = \frac{N \cdot S_{\text{CID}}}{B} + \delta,
+% % \end{equation}
+% % where \( T_{\text{fetch}} \) is the total data fetch time, \( N \) is the number of CIDs, \( S_{\text{CID}} \) is the size of each CID chunk (in bits), \( B \) is the available bandwidth (in bits/sec), and \( \delta \) is the round-trip network latency. For our evaluation, we used \( S_{\text{CID}} = 11.848 \) Mbits, \( B = 100 \) Mbps, and \( \delta = 70 \) ms, corresponding to typical U.S. coast-to-coast latency. This model accurately predicts the observed linear increase in WAN overhead as more partitions require remote retrieval. 
+
+% \begin{equation}
+%     T_{\text{fetch}} = \frac{N \cdot S_{\text{CID}}}{B} + \delta,
+% \end{equation}
+% where $T_{\text{fetch}}$ is the total data fetch time, $N$ is the number of CIDs, $S_{\text{CID}}$ is the size of each CID chunk (in bits), $B$ is the available bandwidth (in bits/sec), and $\delta$ is the round-trip network latency. For our evaluation, we used $S_{\text{CID}} = 11.848 \times 10^6$ bits, $B = 100 \times 10^6$ bits/sec, and $\delta = 70 \times 10^{-3}$ sec, corresponding to typical U.S. coast-to-coast latency. This model accurately predicts the observed linear increase in WAN overhead as more partitions require remote retrieval.
+
+% These results highlight two key design considerations for distributed \ours deployments: 1) geographic locality significantly impacts performance, suggesting regional clustering of frequently co-accessed data, and 2) IPFS's built-in caching mechanism effectively mitigates network latency for repeated queries, as retrieved partitions are cached locally for subsequent access. In real-world deployments, healthcare providers would typically maintain local replicas of frequently accessed patient cohorts while relying on remote retrieval only for occasional cross-institutional queries.
+
+
+
+% \subsection{Index Size and Maintenance Overhead}
+
+% \begin{table}[htbp]
+% \caption{Index Size vs. Number of Rows}
+% \centering
+% \begin{tabular}{|c|c|}
+% \hline
+% \textbf{Total Number of Rows} & \textbf{ Encrypted Index Size (MB)} \\
+% \hline
+% 100M & 41.52  \\
+% 200M & 89.79  \\
+% 300M & 186.34 \\
+% 400M & 379.44 \\
+% \hline
+% \end{tabular}
+% \label{tab:index_size}
+% \end{table}
+% \Cref{tab:index_size} presents the storage requirements for\ours's encrypted index across varying database sizes. The index exhibits near-linear growth, requiring approximately 0.95 MB per million records. The encrypted index is stored on IPFS, with its current Content Identifier (CID) registered on the Ethereum blockchain, although any public or private blockchain with sufficient security guarantees can be used as a drop-in replacement. This architecture enables decentralized integrity verification while decoupling storage from blockchain limitations. Each\ours node retrieves the latest index state by querying the smart contract, ensuring consistent global views without requiring central coordination. The index management smart contract is written in Solidity and only 67 lines of code. 
+
+% \ours employs a delta-based index update protocol (detailed in \Cref{section: index}) that appends only incremental changes to IPFS, avoiding costly full-index rewrites. This approach ensures constant-time updates regardless of database size and supports high-frequency synchronization. With typical daily update cycles in healthcare environments, on-chain transaction overhead remains low. 
+% % Gas costs can be further minimized via batching techniques~\cite{wang2021ibatch} or off-chain aggregation~\cite{frassetto2022pose}. 
+% The index supports efficient logarithmic-time lookups through its custom B\textsuperscript{+} tree structure. While \texttt{patient\_id} serves as the default indexing attribute, \ours also allows secondary indices on fields such as \texttt{age} and \texttt{hospital\_id} to accelerate complex queries. Index size depends on attribute cardinality: high-cardinality attributes (e.g., \texttt{patient\_id}) require more storage than low-cardinality fields (e.g., \texttt{age}), reflecting the classic trade-off between index granularity and space efficiency.
+
+\section{Evaluation}
+
+We implemented and evaluated \ours in two configurations: 1) within an SGX enclave to assess performance under secure execution, and 2) on the host operating system as a non-secure baseline. Each experiment was executed five times, and we report the median to mitigate outliers.
+
+\subsection{Experimental Setup}
+
+Our prototype integrates DuckDB within a Gramine SGX enclave. Both SGX-secure and non-secure (vanilla) variants were deployed on Ubuntu 22.04.5 LTS with 503 GB RAM, 868 GB SSD, and Intel Xeon Gold 5412U with SGX Version 2 support. We used Gramine 1.8 (a library OS to run the binaries) and increased the Enclave Page Cache size to 128 GB leveraging SGX v2 capabilities. We evaluated \ours using a synthetic healthcare dataset of 400 million records (42.4 GB) partitioned into 4,000 IPFS-addressable chunks. Each chunk contains 100,000 realistic medical records.
+
+% \begin{figure*}[h]
+%     \centering
+    
+%     % Subfigure (a)
+%     \begin{subfigure}[b]{0.24\linewidth}
+%         \centering
+%         \includegraphics[width=\linewidth]{performance_evaluation_four_panels_a.pdf}
+%         \caption{With index}
+%         \label{fig:fig4a}
+%     \end{subfigure}
+%     \hfill
+%     % Subfigure (b)
+%     \begin{subfigure}[b]{0.24\linewidth}
+%         \centering
+%         \includegraphics[width=\linewidth]{performance_evaluation_four_panels_b.pdf}
+%         \caption{Without index}
+%         \label{fig:fig4b}
+%     \end{subfigure}
+%     \hfill
+%     % Subfigure (c)
+%     \begin{subfigure}[b]{0.24\linewidth}
+%         \centering
+%         \includegraphics[width=\linewidth]{performance_evaluation_four_panels_c.pdf}
+%         \caption{Scalability vs CIDs}
+%         \label{fig:fig4c}
+%     \end{subfigure}
+%     \hfill
+%     % Subfigure (d)
+%     \begin{subfigure}[b]{0.24\linewidth}
+%         \centering
+%         \includegraphics[width=\linewidth]{performance_evaluation_four_panels_d.pdf}
+%         \caption{Network distribution}
+%         \label{fig:fig4d}
+%     \end{subfigure}
+    
+%     \caption{Query efficiency of \ours under varying configurations. (a) Query latency with index remains nearly constant across database sizes. (b) Without index, latency increases linearly. (c) Query time scales linearly with the number of matched partitions (CIDs). (d) Network distribution analysis shows latency increases with remote data retrieval, especially over WAN.}
+%     \vspace{-10pt}
+%     \label{fig:combined_evaluation}
+% \end{figure*}
+
+\subsection{Query Execution Time}
+
+\subsubsection{Index Performance}
+
+We executed point queries (\lstinline{SELECT * FROM table WHERE patient_id = X}) across datasets from 100M to 400M rows. As shown in \Cref{fig:fig4a}, indexing significantly reduces query latency, maintaining nearly constant performance across database sizes. Without indexing (\Cref{fig:fig4b}), execution time increases linearly due to full partition scanning. At 400M rows, SGX takes 62.8 seconds without indexing versus 37 milliseconds with indexing--a 1700$\times$ improvement. The SGX-secure variant incurs modest 1.2--1.3$\times$ overhead compared to vanilla baseline (37 ms vs. 28 ms at 400M rows) due to SGX architectural bottlenecks and Gramine abstraction.
+
+\subsubsection{Scalability with Number of CIDs}
+
+We measured query performance versus CIDs retrieved using range queries (\lstinline{SELECT * FROM table WHERE age > X}). \Cref{fig:fig4c} shows linear scaling from 0.87 seconds (25 CIDs) to 2.56 seconds (100 CIDs). \ours maintains low latency even at upper bounds, demonstrating efficient multi-partition query handling.
+
+\subsubsection{Impact of Network Distribution}
+
+We evaluated query latency with data distributed across local and remote hosts via LAN/WAN. \Cref{fig:fig4d} shows modest LAN impact (42\% increase) but substantial WAN overhead (5.5$\times$ slowdown). WAN latency is calculated as:
+
+\begin{equation}
+    T_{\text{fetch}} = \frac{N \cdot S_{\text{CID}}}{B} + \delta,
+\end{equation}
+
+where $S_{\text{CID}} = 11.848 \times 10^6$ bits, $B = 100 \times 10^6$ bits/sec, and $\delta = 70 \times 10^{-3}$ sec for coast-to-coast latency.
+
+\subsection{Index Size and Maintenance Overhead}
+
+\begin{table}[htbp]
+\caption{Index Size vs. Number of Rows}
+\centering
+\begin{tabular}{|c|c|}
+\hline
+\textbf{Total Number of Rows} & \textbf{Encrypted Index Size (MB)} \\
+\hline
+100M & 41.52  \\
+200M & 89.79  \\
+300M & 186.34 \\
+400M & 379.44 \\
+\hline
+\end{tabular}
+\label{tab:index_size}
+\end{table}
+
+\Cref{tab:index_size} shows near-linear index growth requiring ~0.95 MB per million records. The encrypted index is stored on IPFS with CID registered on Ethereum blockchain. \ours employs delta-based updates appending only incremental changes, ensuring constant-time updates and supporting logarithmic-time lookups through our custom tree structure index.
+
+\section{Conclusion}
+In this paper, we propose\ours, a decentralized multi-tenant database architecture for secure and ownership-centric data sharing in healthcare ecosystems.\ours utilizes existing decentralized infrastructures: IPFS for content-addressable storage and blockchain for tamper-proof metadata sharing. Each node uses a TEE to achieve secure encrypted metadata sharing. With TEE's remote attestation and memory isolation,\ours enforces user queries with access control policy and guarantees execution integrity. The modular design coordinates between components, allowing different query engines for various application scenarios.
+
+
+
+
+
+% conference papers do not normally have an appendix
+
+
+% use section* for acknowledgment
+\section*{Acknowledgment}
+This work is partially sponsored by NASA ULI under Grant No. 80NSSC23M0058, and NSF under Grant No. OAC-2312973.
+
+% The authors would like to thank...
+
+
+
+
+
+% trigger a \newpage just before the given reference
+% number - used to balance the columns on the last page
+% adjust value as needed - may need to be readjusted if
+% the document is modified later
+%\IEEEtriggeratref{8}
+% The "triggered" command can be changed if desired:
+%\IEEEtriggercmd{\enlargethispage{-5in}}
+
+% references section
+
+% can use a bibliography generated by BibTeX as a .bbl file
+% BibTeX documentation can be easily obtained at:
+% http://mirror.ctan.org/biblio/bibtex/contrib/doc/
+% The IEEEtran BibTeX style support page is at:
+% http://www.michaelshell.org/tex/ieeetran/bibtex/
+\bibliographystyle{IEEEtran}
+% argument is your BibTeX string definitions and bibliography database(s)
+\bibliography{main}
+%
+% <OR> manually copy in the resultant .bbl file
+% set second argument of \begin to the number of references
+% (used to reserve space for the reference number labels box)
+% \begin{thebibliography}{1}
+
+% \bibitem{IEEEhowto:kopka}
+% H.~Kopka and P.~W. Daly, \emph{A Guide to \LaTeX}, 3rd~ed.\hskip 1em plus
+%   0.5em minus 0.4em\relax Harlow, England: Addison-Wesley, 1999.
+
+% \end{thebibliography}
+
+
+
+
+% that's all folks
+\end{document}
+
+

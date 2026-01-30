@@ -4,6 +4,7 @@ import os
 import io
 import gc
 import time
+import json
 import logging
 import requests
 import pandas as pd
@@ -324,6 +325,130 @@ class DeleteRequest(BaseModel):
 class UpdateRequest(BaseModel):
     update_query: str  # "UPDATE patient_data SET Name = 'John Doe', Age = 30 WHERE PatientID = '323'"
     wallet_address: str  # Required wallet address for access control
+
+
+# --- Segment Metric Models for IPFS Upload ---
+
+class SegmentMetricItem(BaseModel):
+    metricId: int
+    unitCode: str
+    totalValue: Optional[float] = None
+    avgValue: Optional[float] = None
+    minValue: Optional[float] = None
+    maxValue: Optional[float] = None
+    samplesCount: Optional[int] = None
+    computedJson: Optional[dict] = None
+
+
+class SegmentMetricsUploadRequest(BaseModel):
+    segmentId: int
+    sessionId: int
+    metrics: List[SegmentMetricItem]
+
+
+@app.post("/share/segment-metrics/upload")
+async def upload_segment_metrics_to_ipfs(request: SegmentMetricsUploadRequest):
+    """
+    Upload segment metrics to IPFS as encrypted JSON.
+    
+    This endpoint stores TRN_SegmentMetric data for a segment in decentralized storage.
+    The data is encrypted with AES-256-CBC before uploading to IPFS.
+    
+    Args:
+        request: SegmentMetricsUploadRequest containing segmentId, sessionId, and metrics array
+        
+    Returns:
+        JSON with segmentId, sessionId, cid, and metadata
+    """
+    logger.info(f"POST /share/segment-metrics/upload - segmentId={request.segmentId}, sessionId={request.sessionId}, metrics_count={len(request.metrics)}")
+    
+    try:
+        # Build the payload to store
+        payload = {
+            "segmentId": request.segmentId,
+            "sessionId": request.sessionId,
+            "uploadedAt": pd.Timestamp.utcnow().isoformat(),
+            "metrics": [metric.model_dump() for metric in request.metrics]
+        }
+        
+        # Convert to JSON bytes
+        json_data = json.dumps(payload, default=str).encode('utf-8')
+        
+        # Encrypt the JSON data using existing AES-256 encryption
+        encrypted_package = create_encrypted_package(json_data, app.state.encryption_key)
+        
+        # Upload to IPFS
+        ipfs_api = "http://localhost:5001/api/v0/add"
+        resp = requests.post(
+            ipfs_api, 
+            files={"file": (f"segment_{request.segmentId}_metrics.enc", encrypted_package)}
+        )
+        resp.raise_for_status()
+        cid = resp.json()["Hash"]
+        
+        logger.info(f"Segment metrics uploaded to IPFS - segmentId={request.segmentId}, cid={cid}")
+        
+        return {
+            "segmentId": request.segmentId,
+            "sessionId": request.sessionId,
+            "cid": cid,
+            "encrypted": True,
+            "metricsCount": len(request.metrics),
+            "message": "Segment metrics uploaded to IPFS successfully"
+        }
+        
+    except requests.exceptions.RequestException as e:
+        logger.error(f"IPFS upload failed for segmentId={request.segmentId}: {e}")
+        return {"error": f"IPFS upload failed: {str(e)}"}
+    except Exception as e:
+        logger.error(f"Failed to upload segment metrics for segmentId={request.segmentId}: {e}")
+        return {"error": str(e)}
+
+
+@app.get("/share/segment-metrics/{cid}")
+async def get_segment_metrics_from_ipfs(cid: str):
+    """
+    Fetch and decrypt segment metrics from IPFS by CID.
+    
+    This endpoint retrieves TRN_SegmentMetric data that was previously uploaded
+    to IPFS and decrypts it using AES-256-CBC.
+    
+    Args:
+        cid: The IPFS Content Identifier (CID) of the encrypted segment metrics
+        
+    Returns:
+        JSON with the decrypted segment metrics payload
+    """
+    logger.info(f"GET /share/segment-metrics/{cid} - Fetching segment metrics from IPFS")
+    
+    try:
+        # Fetch encrypted data from IPFS
+        encrypted_data = fetch_from_ipfs(cid)
+        
+        if encrypted_data is None:
+            logger.warning(f"Failed to fetch CID {cid} from IPFS")
+            return {"error": f"Failed to fetch data from IPFS for CID: {cid}"}
+        
+        # Decrypt the data using existing AES-256 decryption
+        decrypted_data = extract_and_decrypt_package(encrypted_data, app.state.encryption_key)
+        
+        # Parse JSON
+        payload = json.loads(decrypted_data.decode('utf-8'))
+        
+        logger.info(f"Segment metrics fetched from IPFS - cid={cid}, segmentId={payload.get('segmentId')}")
+        
+        return {
+            "cid": cid,
+            "data": payload
+        }
+        
+    except json.JSONDecodeError as e:
+        logger.error(f"Failed to parse JSON for CID {cid}: {e}")
+        return {"error": f"Failed to parse decrypted data as JSON: {str(e)}"}
+    except Exception as e:
+        logger.error(f"Failed to fetch segment metrics for CID {cid}: {e}")
+        return {"error": str(e)}
+
 
 def rewrite_query_with_access_policies(original_query: str, policies: List[dict], table_name: str) -> str:
     """

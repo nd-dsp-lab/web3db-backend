@@ -3220,6 +3220,114 @@ async def dag_inspect(root_cid: str = Query(..., description="Root CID of the Me
         return {"status": "error", "error": str(e)}
 
 
+@app.post("/dag-summary")
+async def dag_summary(root_cid: str = Query(..., description="Root CID of the Merkle DAG")):
+    """
+    Pretty-print a human-readable summary of the entire Merkle DAG.
+    Returns a text tree diagram showing the hierarchy, ranges, and shard details
+    at every level — designed for quick visual understanding.
+    """
+    from fastapi.responses import PlainTextResponse
+    try:
+        lines = []
+
+        def _fmt_ranges(ranges: dict) -> str:
+            parts = []
+            for attr, r in sorted(ranges.items()):
+                lo, hi = r if isinstance(r, (list, tuple)) else (r, r)
+                # Use int formatting if values are whole numbers
+                if float(lo) == int(lo) and float(hi) == int(hi):
+                    parts.append(f"{attr}:[{int(lo)}, {int(hi)}]")
+                else:
+                    parts.append(f"{attr}:[{lo:.1f}, {hi:.1f}]")
+            return "  ".join(parts)
+
+        def _short_cid(cid: str) -> str:
+            return cid[:12] + "…" + cid[-6:] if len(cid) > 20 else cid
+
+        stats = {"internal": 0, "leaf": 0, "total_rows": 0, "total_bytes": 0, "max_depth": 0}
+
+        def _walk(cid: str, depth: int = 0, prefix: str = "", is_last: bool = True):
+            resp = requests.post(
+                "http://localhost:5001/api/v0/dag/get",
+                params={"arg": cid}, timeout=30,
+            )
+            resp.raise_for_status()
+            node = resp.json()
+            node_type = node.get("node_type", "unknown")
+            ranges = node.get("ranges", {})
+            row_count = node.get("row_count", 0)
+            stats["max_depth"] = max(stats["max_depth"], depth)
+
+            connector = "└── " if is_last else "├── "
+            child_prefix = prefix + ("    " if is_last else "│   ")
+
+            if node_type == "leaf":
+                stats["leaf"] += 1
+                stats["total_rows"] += row_count
+                size_bytes = node.get("size_bytes", 0)
+                stats["total_bytes"] += size_bytes
+                shard_id = node.get("shard_id", "?")
+                data_link = node.get("data", {})
+                data_cid = data_link.get("/") if isinstance(data_link, dict) else data_link
+                lines.append(
+                    f"{prefix}{connector}🟢 Shard #{shard_id}  "
+                    f"{row_count:,} rows  {size_bytes/1024:.1f} KB  "
+                    f"{_fmt_ranges(ranges)}"
+                )
+                lines.append(
+                    f"{child_prefix}   data → {_short_cid(data_cid or '')}"
+                )
+            else:
+                stats["internal"] += 1
+                children = node.get("children", [])
+                child_count = node.get("child_count", len(children))
+                level_label = f"Level {depth}" if depth > 0 else "ROOT"
+                lines.append(
+                    f"{prefix}{connector if depth > 0 else ''}🔷 [{level_label}]  "
+                    f"{child_count} children  {row_count:,} rows  "
+                    f"{_fmt_ranges(ranges)}"
+                )
+                if depth == 0:
+                    lines.append(f"{prefix}   cid: {_short_cid(cid)}")
+
+                child_cids = [
+                    link.get("/") if isinstance(link, dict) else link
+                    for link in children
+                ]
+                for i, child_cid in enumerate(child_cids):
+                    _walk(child_cid, depth + 1, child_prefix if depth > 0 else prefix, i == len(child_cids) - 1)
+
+        # Header
+        lines.append("=" * 80)
+        lines.append(f"  IPLD Merkle DAG Summary")
+        lines.append(f"  Root CID: {root_cid}")
+        lines.append("=" * 80)
+        lines.append("")
+
+        _walk(root_cid, depth=0)
+
+        # Footer stats
+        lines.append("")
+        lines.append("─" * 80)
+        lines.append(f"  Summary")
+        lines.append(f"    Internal nodes : {stats['internal']}")
+        lines.append(f"    Leaf shards    : {stats['leaf']}")
+        lines.append(f"    Total nodes    : {stats['internal'] + stats['leaf']}")
+        lines.append(f"    Tree depth     : {stats['max_depth'] + 1} levels (0 = root)")
+        lines.append(f"    Total rows     : {stats['total_rows']:,}")
+        lines.append(f"    Total data     : {stats['total_bytes']/1024:.1f} KB ({stats['total_bytes']/1024/1024:.2f} MB)")
+        if stats['leaf'] > 0:
+            lines.append(f"    Avg shard      : {stats['total_bytes']/stats['leaf']/1024:.1f} KB")
+        lines.append("─" * 80)
+
+        return PlainTextResponse("\n".join(lines))
+
+    except Exception as e:
+        logger.error(f"DAG summary error: {e}")
+        return PlainTextResponse(f"Error: {str(e)}", status_code=500)
+
+
 # Cleanup on shutdown
 @app.on_event("shutdown")
 def shutdown_event():

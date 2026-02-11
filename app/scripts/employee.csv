@@ -1,4 +1,4 @@
-employee_id,first_name,last_name,email,department,title,hire_date,salary_usd,age
+employee_id,first_name,last_name,email,department,title,hire_date,salary,age
 1,Oliver,Martinez,oliver.martinez1@company.com,Marketing,Engineer,2013-04-19,51368,44
 2,Owen,Martin,owen.martin2@company.com,IT,Lead,2005-06-06,48720,51
 3,Ella,Wilson,ella.wilson3@company.com,Product,Senior Manager,2019-01-03,112913,52

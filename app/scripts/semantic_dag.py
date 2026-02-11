@@ -306,7 +306,16 @@ class DAGTraverser:
         pruned: List[int],
         leaf_matched: List[int],
     ):
-        """Recursively traverse a DAG node."""
+        """Recursively traverse a DAG node with parallel sibling fetching.
+        
+        Optimization: when an internal node has N children, fetch ALL N
+        sibling metadata in parallel (single ThreadPoolExecutor batch),
+        then prune/recurse based on each child's ranges. This roughly
+        halves traversal time since sibling fetches are independent.
+        
+        Level-to-level is still sequential (must read parent before children),
+        but within a level, siblings are fetched concurrently.
+        """
         visited[0] += 1
         node = self._dag_get(cid)
 
@@ -324,11 +333,77 @@ class DAGTraverser:
                 matching_cids.append(data_cid)
                 leaf_matched[0] += 1
         else:
-            # Internal node: recurse into children
+            # Internal node: fetch ALL sibling metadata in parallel
             children = node.get("children", [])
-            for child_link in children:
-                child_cid = child_link.get("/") if isinstance(child_link, dict) else child_link
-                self._traverse_node(child_cid, predicates, matching_cids, visited, pruned, leaf_matched)
+            child_cids = [
+                link.get("/") if isinstance(link, dict) else link
+                for link in children
+            ]
+
+            # Parallel fetch: get all children's DAG nodes in one batch
+            with concurrent.futures.ThreadPoolExecutor(max_workers=len(child_cids)) as executor:
+                child_nodes = list(executor.map(self._dag_get, child_cids))
+
+            # Now prune/recurse using the already-fetched metadata
+            for child_cid, child_node in zip(child_cids, child_nodes):
+                visited[0] += 1
+                child_ranges = child_node.get("ranges", {})
+
+                if not self._ranges_overlap(child_ranges, predicates):
+                    pruned[0] += 1
+                    continue
+
+                if child_node.get("node_type") == "leaf":
+                    data_link = child_node.get("data", {})
+                    data_cid = data_link.get("/") if isinstance(data_link, dict) else data_link
+                    if data_cid:
+                        matching_cids.append(data_cid)
+                        leaf_matched[0] += 1
+                else:
+                    # Recurse into non-pruned internal children
+                    # (their metadata is already fetched; re-process their children)
+                    self._traverse_children_parallel(
+                        child_node, predicates, matching_cids, visited, pruned, leaf_matched
+                    )
+
+    def _traverse_children_parallel(
+        self,
+        node: dict,
+        predicates: List[Predicate],
+        matching_cids: List[str],
+        visited: List[int],
+        pruned: List[int],
+        leaf_matched: List[int],
+    ):
+        """Process an already-fetched internal node's children in parallel."""
+        children = node.get("children", [])
+        child_cids = [
+            link.get("/") if isinstance(link, dict) else link
+            for link in children
+        ]
+
+        # Parallel fetch all children
+        with concurrent.futures.ThreadPoolExecutor(max_workers=len(child_cids)) as executor:
+            child_nodes = list(executor.map(self._dag_get, child_cids))
+
+        for child_cid, child_node in zip(child_cids, child_nodes):
+            visited[0] += 1
+            child_ranges = child_node.get("ranges", {})
+
+            if not self._ranges_overlap(child_ranges, predicates):
+                pruned[0] += 1
+                continue
+
+            if child_node.get("node_type") == "leaf":
+                data_link = child_node.get("data", {})
+                data_cid = data_link.get("/") if isinstance(data_link, dict) else data_link
+                if data_cid:
+                    matching_cids.append(data_cid)
+                    leaf_matched[0] += 1
+            else:
+                self._traverse_children_parallel(
+                    child_node, predicates, matching_cids, visited, pruned, leaf_matched
+                )
 
     def _ranges_overlap(self, node_ranges: Dict, predicates: List[Predicate]) -> bool:
         """

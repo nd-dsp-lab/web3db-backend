@@ -171,6 +171,16 @@ def main():
                     "SELECT department, AVG(salary_usd) as avg_salary FROM employee WHERE age >= 40 GROUP BY department ORDER BY avg_salary DESC",
                     "Avg salary by dept WHERE age >= 40 (pushdown + aggregation)")
 
+    # Query G: BETWEEN predicate (new)
+    r7 = test_query(root_cid,
+                    "SELECT COUNT(*) as total FROM employee WHERE age BETWEEN 30 AND 40",
+                    "BETWEEN 30 AND 40 (range pushdown)")
+
+    # Query H: BETWEEN on both attributes
+    r8 = test_query(root_cid,
+                    "SELECT * FROM employee WHERE age BETWEEN 25 AND 35 AND salary_usd BETWEEN 50000 AND 80000",
+                    "Age BETWEEN 25-35 AND Salary BETWEEN 50K-80K (dual range)")
+
     print("\n" + "=" * 70)
     print("✓ ALL TESTS COMPLETE")
     print("=" * 70)

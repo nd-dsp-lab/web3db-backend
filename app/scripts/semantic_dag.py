@@ -94,11 +94,11 @@ class DAGBuilder:
         total_start = time.time()
         logger.info(f"Building IPLD Merkle DAG for {len(shards)} shards...")
 
-        # Step 1: Upload shard data to IPFS and create leaf nodes
-        leaf_cids = []
+        # Step 1: Upload shard data to IPFS in parallel and create leaf nodes
+        # Prepare all shard payloads first (serialize + encrypt), then batch upload
+        shard_payloads = []  # (shard, upload_bytes, parquet_size, leaf_metadata)
         total_data_bytes = 0
-        for i, shard in enumerate(shards):
-            # Convert shard data to Parquet bytes
+        for shard in shards:
             buf = io.BytesIO()
             pq.write_table(pa.Table.from_pandas(shard.data), buf, compression='snappy')
             buf.seek(0)
@@ -106,49 +106,56 @@ class DAGBuilder:
             shard_size = len(parquet_bytes)
             total_data_bytes += shard_size
 
-            # Encrypt if encryption function provided
-            if self.encryption_fn:
-                upload_bytes = self.encryption_fn(parquet_bytes)
-            else:
-                upload_bytes = parquet_bytes
-
-            # Upload shard data to IPFS (regular add, not DAG)
-            data_cid = self._ipfs_add(upload_bytes, f"shard_{shard.shard_id}.parquet.enc")
-            
-            # Create leaf DAG node with metadata + IPLD link to data
-            leaf_node = {
-                "node_type": "leaf",
-                "data": {"/": data_cid},  # IPLD link to actual data
-                "ranges": {attr: [shard.ranges[attr][0], shard.ranges[attr][1]] 
+            upload_bytes = self.encryption_fn(parquet_bytes) if self.encryption_fn else parquet_bytes
+            leaf_meta = {
+                "ranges": {attr: [shard.ranges[attr][0], shard.ranges[attr][1]]
                           for attr in partition_attributes if attr in shard.ranges},
                 "row_count": shard.row_count,
                 "size_bytes": shard_size,
                 "shard_id": shard.shard_id,
             }
+            shard_payloads.append((shard.shard_id, upload_bytes, leaf_meta))
+
+        # Parallel upload all shard data to IPFS
+        def _upload_shard(payload):
+            shard_id, upload_bytes, meta = payload
+            data_cid = self._ipfs_add(upload_bytes, f"shard_{shard_id}.parquet.enc")
+            leaf_node = {
+                "node_type": "leaf",
+                "data": {"/": data_cid},
+                **meta,
+            }
             leaf_cid = self._dag_put(leaf_node)
-            leaf_cids.append(leaf_cid)
-            logger.debug(f"  Shard {shard.shard_id}: data_cid={data_cid}, leaf_cid={leaf_cid}, "
-                        f"rows={shard.row_count}, size={shard_size/1024:.1f}KB")
+            return leaf_cid, leaf_node  # Return metadata to avoid re-fetching
 
-        logger.info(f"Uploaded {len(leaf_cids)} leaf nodes to IPLD")
+        with concurrent.futures.ThreadPoolExecutor(max_workers=16) as upload_executor:
+            upload_results = list(upload_executor.map(_upload_shard, shard_payloads))
 
-        # Step 2: Build internal nodes bottom-up
+        leaf_cids = [cid for cid, _ in upload_results]
+        # Metadata cache: map CID → node dict (avoids re-fetching during internal node construction)
+        metadata_cache = {cid: meta for cid, meta in upload_results}
+
+        logger.info(f"Uploaded {len(leaf_cids)} leaf nodes to IPLD (parallel)")
+
+        # Step 2: Build internal nodes bottom-up using cached metadata
         current_level = leaf_cids
         level_num = 0
 
         while len(current_level) > 1:
             next_level = []
-            # Group current level into chunks of branching_factor
             for i in range(0, len(current_level), self.branching_factor):
                 group = current_level[i:i + self.branching_factor]
-                
-                # Fetch child metadata to compute aggregate ranges
+
+                # Use cached metadata instead of re-fetching from IPFS
                 child_ranges = {}
                 total_rows = 0
                 for child_cid in group:
-                    child_meta = self._dag_get(child_cid)
-                    # Aggregate ranges: union of all children's ranges
-                    for attr, (rmin, rmax) in child_meta.get("ranges", {}).items():
+                    if child_cid in metadata_cache:
+                        child_meta = metadata_cache[child_cid]
+                    else:
+                        child_meta = self._dag_get(child_cid)  # fallback
+                    for attr, r in child_meta.get("ranges", {}).items():
+                        rmin, rmax = r[0], r[1]
                         if attr not in child_ranges:
                             child_ranges[attr] = [rmin, rmax]
                         else:
@@ -156,17 +163,18 @@ class DAGBuilder:
                             child_ranges[attr][1] = max(child_ranges[attr][1], rmax)
                     total_rows += child_meta.get("row_count", 0)
 
-                # Create internal node with IPLD links to children
                 internal_node = {
                     "node_type": "internal",
                     "ranges": child_ranges,
-                    "children": [{"/": cid} for cid in group],  # IPLD links
+                    "children": [{"/": cid} for cid in group],
                     "row_count": total_rows,
                     "child_count": len(group),
                     "level": level_num,
                 }
                 internal_cid = self._dag_put(internal_node)
                 next_level.append(internal_cid)
+                # Cache the internal node too for higher levels
+                metadata_cache[internal_cid] = internal_node
 
             level_num += 1
             logger.info(f"  Level {level_num}: {len(current_level)} nodes → {len(next_level)} internal nodes")
@@ -266,6 +274,9 @@ class DAGTraverser:
         """
         Traverse the DAG from root, applying predicate pushdown.
         
+        Uses a single shared ThreadPoolExecutor for all parallel sibling
+        fetches across the entire traversal (avoids creating ~21 executors).
+        
         Args:
             root_cid: The root CID of the Merkle DAG
             predicates: List of parsed predicates from WHERE clause
@@ -279,7 +290,9 @@ class DAGTraverser:
         pruned = [0]
         leaf_matched = [0]
 
-        self._traverse_node(root_cid, predicates, matching_cids, visited, pruned, leaf_matched)
+        # Single executor shared across the entire traversal
+        with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
+            self._traverse_node(root_cid, predicates, matching_cids, visited, pruned, leaf_matched, executor)
 
         elapsed = (time.time() - start) * 1000
         result = TraversalResult(
@@ -305,16 +318,13 @@ class DAGTraverser:
         visited: List[int],
         pruned: List[int],
         leaf_matched: List[int],
+        executor: concurrent.futures.ThreadPoolExecutor,
     ):
         """Recursively traverse a DAG node with parallel sibling fetching.
         
-        Optimization: when an internal node has N children, fetch ALL N
-        sibling metadata in parallel (single ThreadPoolExecutor batch),
-        then prune/recurse based on each child's ranges. This roughly
-        halves traversal time since sibling fetches are independent.
-        
-        Level-to-level is still sequential (must read parent before children),
-        but within a level, siblings are fetched concurrently.
+        Reuses a single shared ThreadPoolExecutor passed from traverse().
+        At each internal node, all sibling metadata is fetched in one
+        parallel batch, then pruned locally without further IPFS calls.
         """
         visited[0] += 1
         node = self._dag_get(cid)
@@ -334,39 +344,11 @@ class DAGTraverser:
                 leaf_matched[0] += 1
         else:
             # Internal node: fetch ALL sibling metadata in parallel
-            children = node.get("children", [])
-            child_cids = [
-                link.get("/") if isinstance(link, dict) else link
-                for link in children
-            ]
+            self._process_children_parallel(
+                node, predicates, matching_cids, visited, pruned, leaf_matched, executor
+            )
 
-            # Parallel fetch: get all children's DAG nodes in one batch
-            with concurrent.futures.ThreadPoolExecutor(max_workers=len(child_cids)) as executor:
-                child_nodes = list(executor.map(self._dag_get, child_cids))
-
-            # Now prune/recurse using the already-fetched metadata
-            for child_cid, child_node in zip(child_cids, child_nodes):
-                visited[0] += 1
-                child_ranges = child_node.get("ranges", {})
-
-                if not self._ranges_overlap(child_ranges, predicates):
-                    pruned[0] += 1
-                    continue
-
-                if child_node.get("node_type") == "leaf":
-                    data_link = child_node.get("data", {})
-                    data_cid = data_link.get("/") if isinstance(data_link, dict) else data_link
-                    if data_cid:
-                        matching_cids.append(data_cid)
-                        leaf_matched[0] += 1
-                else:
-                    # Recurse into non-pruned internal children
-                    # (their metadata is already fetched; re-process their children)
-                    self._traverse_children_parallel(
-                        child_node, predicates, matching_cids, visited, pruned, leaf_matched
-                    )
-
-    def _traverse_children_parallel(
+    def _process_children_parallel(
         self,
         node: dict,
         predicates: List[Predicate],
@@ -374,18 +356,19 @@ class DAGTraverser:
         visited: List[int],
         pruned: List[int],
         leaf_matched: List[int],
+        executor: concurrent.futures.ThreadPoolExecutor,
     ):
-        """Process an already-fetched internal node's children in parallel."""
+        """Fetch all children of an internal node in parallel, then prune/recurse."""
         children = node.get("children", [])
         child_cids = [
             link.get("/") if isinstance(link, dict) else link
             for link in children
         ]
 
-        # Parallel fetch all children
-        with concurrent.futures.ThreadPoolExecutor(max_workers=len(child_cids)) as executor:
-            child_nodes = list(executor.map(self._dag_get, child_cids))
+        # Parallel fetch: submit all to the shared executor
+        child_nodes = list(executor.map(self._dag_get, child_cids))
 
+        # Prune locally using already-fetched metadata (no more IPFS calls)
         for child_cid, child_node in zip(child_cids, child_nodes):
             visited[0] += 1
             child_ranges = child_node.get("ranges", {})
@@ -401,8 +384,9 @@ class DAGTraverser:
                     matching_cids.append(data_cid)
                     leaf_matched[0] += 1
             else:
-                self._traverse_children_parallel(
-                    child_node, predicates, matching_cids, visited, pruned, leaf_matched
+                # Recurse — reuse the same shared executor
+                self._process_children_parallel(
+                    child_node, predicates, matching_cids, visited, pruned, leaf_matched, executor
                 )
 
     def _ranges_overlap(self, node_ranges: Dict, predicates: List[Predicate]) -> bool:
@@ -527,8 +511,10 @@ def parse_predicates(sql: str, valid_attributes: List[str] = None) -> List[Predi
     Parse WHERE clause predicates from a SQL query.
     Only extracts predicates on the specified attributes (for pushdown).
     
-    Supports: >, <, >=, <=, =, !=
+    Supports: >, <, >=, <=, =, !=, BETWEEN x AND y
     Handles AND-connected predicates.
+    OR predicates on partition attributes are conservatively skipped
+    (cannot prune when either branch might match).
     
     Args:
         sql: The SQL query string
@@ -547,27 +533,65 @@ def parse_predicates(sql: str, valid_attributes: List[str] = None) -> List[Predi
 
     where_clause = where_match.group(1).strip()
     
-    # Split on AND (simple; doesn't handle nested OR/parentheses for now)
+    # If clause contains OR at the top level, we can only pushdown
+    # predicates that appear on ALL branches. For simplicity, skip
+    # pushdown entirely if OR is present (conservative but correct).
+    # Nested OR inside AND is handled per-condition below.
+    top_level_or = re.split(r'\s+OR\s+', where_clause, flags=re.IGNORECASE)
+    if len(top_level_or) > 1:
+        logger.debug("OR detected in WHERE clause — skipping predicate pushdown (conservative)")
+        return predicates
+    
+    # Split on AND (handles BETWEEN's internal AND separately below)
     conditions = re.split(r'\s+AND\s+', where_clause, flags=re.IGNORECASE)
     
+    # Pattern: attribute BETWEEN x AND y (must check before general split consumes it)
+    between_pattern = re.compile(r'(\w+)\s+BETWEEN\s+([\d.]+)', re.IGNORECASE)
     # Pattern: attribute op value
-    pattern = re.compile(r'(\w+)\s*(>=|<=|!=|>|<|=)\s*([\'"]?[\d.]+[\'"]?)', re.IGNORECASE)
+    comparison_pattern = re.compile(r'(\w+)\s*(>=|<=|!=|>|<|=)\s*([\'"]?[\d.]+[\'"]?)', re.IGNORECASE)
+    
+    # Re-parse BETWEEN from the original clause (before AND-split breaks it)
+    between_full = re.compile(r'(\w+)\s+BETWEEN\s+([\d.]+)\s+AND\s+([\d.]+)', re.IGNORECASE)
+    for bm in between_full.finditer(where_clause):
+        attr = bm.group(1)
+        lo = bm.group(2)
+        hi = bm.group(3)
+        if valid_attributes and attr not in valid_attributes:
+            continue
+        try:
+            predicates.append(Predicate(attribute=attr, operator='>=', value=float(lo)))
+            predicates.append(Predicate(attribute=attr, operator='<=', value=float(hi)))
+        except ValueError:
+            continue
+    
+    # Track which attrs already covered by BETWEEN to avoid duplicates
+    between_attrs = {p.attribute for p in predicates}
     
     for cond in conditions:
-        match = pattern.search(cond.strip())
+        cond_stripped = cond.strip()
+        # Skip if this is the second half of a BETWEEN (just a bare number)
+        if re.match(r'^[\d.]+$', cond_stripped):
+            continue
+        # Skip if this condition is part of a BETWEEN we already parsed
+        if between_pattern.search(cond_stripped):
+            continue
+
+        match = comparison_pattern.search(cond_stripped)
         if match:
             attr = match.group(1)
             op = match.group(2)
             val_str = match.group(3).strip("'\"")
             
-            # Only include if it's a valid pushdown attribute
             if valid_attributes and attr not in valid_attributes:
+                continue
+            # Don't duplicate if BETWEEN already covered this attr
+            if attr in between_attrs:
                 continue
             
             try:
                 value = float(val_str)
                 predicates.append(Predicate(attribute=attr, operator=op, value=value))
             except ValueError:
-                continue  # Skip non-numeric predicates
+                continue
 
     return predicates

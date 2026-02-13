@@ -7,10 +7,10 @@ Web3Health Storage Controller
 
 import json
 import os
+import sqlite3
 import logging
 import base64
 import secrets
-import threading
 import requests as http_requests
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from fastapi.responses import Response
@@ -26,10 +26,9 @@ router = APIRouter(prefix="/web3health", tags=["Web3Health Storage"])
 
 IPFS_API = "http://localhost:5001/api/v0"
 
-# Persistent mapping file (segment_id → CID)
 _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-_MAPPING_FILE = os.path.join(_SCRIPT_DIR, "web3health_segments.json")
-_mapping_lock = threading.Lock()
+_DB_PATH = os.path.join(_SCRIPT_DIR, "web3health_segments.db")
+_OLD_JSON_PATH = os.path.join(_SCRIPT_DIR, "web3health_segments.json")
 
 _encryption_key: bytes | None = None
 
@@ -44,41 +43,75 @@ def _get_key() -> bytes:
     return _encryption_key
 
 
-# ── Segment mapping (persistent JSON) ────────────────────────────────────────
+# ── SQLite segment mapping ────────────────────────────────────────────────────
 
-def _load_mapping() -> dict:
-    """Load the segment_id → CID mapping from disk."""
-    if not os.path.exists(_MAPPING_FILE):
-        return {}
-    try:
-        with open(_MAPPING_FILE, "r") as f:
-            return json.load(f)
-    except (json.JSONDecodeError, IOError):
-        logger.warning(f"Corrupt mapping file {_MAPPING_FILE}, starting fresh")
-        return {}
+def _get_db() -> sqlite3.Connection:
+    """Get a thread-local SQLite connection (sqlite3 handles concurrency)."""
+    conn = sqlite3.connect(_DB_PATH, timeout=10)
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA journal_mode=WAL")  # Better concurrent read performance
+    return conn
 
 
-def _save_mapping(mapping: dict) -> None:
-    """Atomically write the mapping to disk."""
-    tmp = _MAPPING_FILE + ".tmp"
-    with open(tmp, "w") as f:
-        json.dump(mapping, f, indent=2)
-    os.replace(tmp, _MAPPING_FILE)
+def _init_db() -> None:
+    """Create the table if it doesn't exist and migrate any old JSON data."""
+    conn = _get_db()
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS segment_mappings (
+            segment_id  TEXT PRIMARY KEY,
+            cid         TEXT NOT NULL,
+            filename    TEXT,
+            created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    conn.commit()
+
+    # Migrate existing JSON file if present
+    if os.path.exists(_OLD_JSON_PATH):
+        try:
+            with open(_OLD_JSON_PATH, "r") as f:
+                old_data = json.load(f)
+            if old_data:
+                for seg_id, entry in old_data.items():
+                    conn.execute(
+                        "INSERT OR IGNORE INTO segment_mappings (segment_id, cid, filename) VALUES (?, ?, ?)",
+                        (seg_id, entry.get("cid", ""), entry.get("filename", ""))
+                    )
+                conn.commit()
+                logger.info(f"Migrated {len(old_data)} entries from JSON to SQLite")
+                # Rename old file so we don't re-migrate
+                os.rename(_OLD_JSON_PATH, _OLD_JSON_PATH + ".migrated")
+        except Exception as e:
+            logger.warning(f"Failed to migrate JSON mapping: {e}")
+    conn.close()
+
+
+# Initialize DB on module load
+_init_db()
 
 
 def _set_segment(segment_id: str, cid: str, filename: str) -> None:
     """Persist a segment_id → CID entry."""
-    with _mapping_lock:
-        mapping = _load_mapping()
-        mapping[segment_id] = {"cid": cid, "filename": filename}
-        _save_mapping(mapping)
+    conn = _get_db()
+    conn.execute(
+        "INSERT OR REPLACE INTO segment_mappings (segment_id, cid, filename) VALUES (?, ?, ?)",
+        (segment_id, cid, filename)
+    )
+    conn.commit()
+    conn.close()
 
 
 def _get_segment(segment_id: str) -> dict | None:
     """Look up a segment_id. Returns {"cid": ..., "filename": ...} or None."""
-    with _mapping_lock:
-        mapping = _load_mapping()
-    return mapping.get(segment_id)
+    conn = _get_db()
+    row = conn.execute(
+        "SELECT cid, filename FROM segment_mappings WHERE segment_id = ?",
+        (segment_id,)
+    ).fetchone()
+    conn.close()
+    if row is None:
+        return None
+    return {"cid": row["cid"], "filename": row["filename"]}
 
 
 # ── Crypto helpers (mirror app.py's AES-256-CBC scheme) ───────────────────────

@@ -25,6 +25,7 @@ import base64
 from dotenv import load_dotenv
 from web3db_contract import Web3dbContract
 from web3db_controller import router as web3db_router
+from web3health_controller import router as web3health_router
 
 # Load environment variables
 # Use absolute path to ensure .env is loaded regardless of current working directory
@@ -93,6 +94,7 @@ app.state.deletion_stats = {
 
 # Register sub-routers
 app.include_router(web3db_router)
+app.include_router(web3health_router)
 
 # Load encryption key from environment
 app.state.encryption_key = base64.b64decode(os.getenv("ENCRYPTION_KEY", "AlmbEPmAR2M4o+ohmFb2oyUV1/JqdNnlG1mG9/JbUBs="))

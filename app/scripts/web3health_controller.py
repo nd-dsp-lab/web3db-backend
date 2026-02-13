@@ -27,7 +27,9 @@ router = APIRouter(prefix="/web3health", tags=["Web3Health Storage"])
 IPFS_API = "http://localhost:5001/api/v0"
 
 _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-_DB_PATH = os.path.join(_SCRIPT_DIR, "web3health_segments.db")
+_SQLITE_DIR = os.path.join(os.path.dirname(_SCRIPT_DIR), "sqlite")
+os.makedirs(_SQLITE_DIR, exist_ok=True)
+_DB_PATH = os.path.join(_SQLITE_DIR, "web3health_segments.db")
 _OLD_JSON_PATH = os.path.join(_SCRIPT_DIR, "web3health_segments.json")
 
 _encryption_key: bytes | None = None

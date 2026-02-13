@@ -1,8 +1,8 @@
 """
 Web3DB Storage Controller
 =========================
-  - POST /web3db/store  — upload a file, encrypt (AES-256-CBC), store on IPFS, return CID
-  - GET  /web3db/fetch/{cid} — fetch from IPFS, decrypt, return the original file
+  - POST /web3db/store  — upload a file, encrypt & upload it to IPFS, return CID
+  - GET  /web3db/fetch/{cid} — fetch from IPFS, decrypt & return the original file
 """
 
 import os
@@ -39,8 +39,7 @@ def _guess_media_type(filename: str) -> str:
 @router.post("/store")
 def store_content(file: UploadFile = File(...)):
     """
-    Accept a file (CSV, Parquet, SQL dump, etc.), encrypt it with
-    AES-256-CBC, upload to IPFS, and return the CID.
+    Accept a file (CSV, Parquet, SQL dump, etc.), encryp & upload it to IPFS, and return the CID.
     """
     raw = file.file.read()
     original_size = len(raw)
@@ -74,8 +73,7 @@ def store_content(file: UploadFile = File(...)):
 @router.get("/fetch/{cid}")
 def fetch_content(cid: str):
     """
-    Fetch encrypted content from IPFS by CID, decrypt it, and
-    return the original file bytes.
+    Fetch encrypted content from IPFS by CID, decrypt & return the original file bytes.
     """
     logger.info(f"[fetch] Fetching CID {cid}")
 

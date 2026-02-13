@@ -107,7 +107,7 @@ duckdb_conn = duckdb.connect(':memory:')
 logger.info("DuckDB Connection created")
 
 # --- Encryption/Decryption & IPFS (shared modules) ---
-from crypto import encrypt, decrypt, create_encrypted_package, extract_and_decrypt_package
+from crypto_utils import encrypt, decrypt, create_encrypted_package, extract_and_decrypt_package
 from ipfs_utils import fetch_from_ipfs
 
 def decrypt_to_file(encrypted_data: bytes, cid: str, key: bytes) -> Optional[str]:

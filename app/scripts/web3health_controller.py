@@ -12,7 +12,7 @@ import logging
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from fastapi.responses import Response
 
-from crypto import load_key, encrypt, decrypt
+from crypto_utils import load_key, encrypt, decrypt
 from ipfs_utils import ipfs_add, ipfs_cat
 
 logger = logging.getLogger(__name__)

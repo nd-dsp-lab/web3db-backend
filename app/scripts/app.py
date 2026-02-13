@@ -4,6 +4,7 @@ import os
 import io
 import gc
 import time
+import json
 import logging
 import requests
 import pandas as pd
@@ -24,6 +25,7 @@ import base64
 from dotenv import load_dotenv
 from web3db_contract import Web3dbContract
 from web3db_controller import router as web3db_router
+from web3health_controller import router as web3health_router
 
 # Load environment variables
 # Use absolute path to ensure .env is loaded regardless of current working directory
@@ -92,6 +94,7 @@ app.state.deletion_stats = {
 
 # Register sub-routers
 app.include_router(web3db_router)
+app.include_router(web3health_router)
 
 # Load encryption key from environment
 app.state.encryption_key = base64.b64decode(os.getenv("ENCRYPTION_KEY", "AlmbEPmAR2M4o+ohmFb2oyUV1/JqdNnlG1mG9/JbUBs="))
@@ -103,88 +106,9 @@ logger.info("Initializing DuckDB Connection")
 duckdb_conn = duckdb.connect(':memory:')
 logger.info("DuckDB Connection created")
 
-# --- Encryption/Decryption Helper Functions ---
-
-def encrypt_data(data: bytes, key: bytes) -> "Tuple[bytes, bytes]":
-    """
-    Encrypt data using AES-256-CBC.
-    Returns: (encrypted_data, iv)
-    """
-    # Generate a random IV (Initialization Vector)
-    iv = secrets.token_bytes(16)  # 128-bit IV for AES
-
-    # Create cipher
-    cipher = Cipher(
-        algorithms.AES(key),
-        modes.CBC(iv),
-        backend=default_backend()
-    )
-    encryptor = cipher.encryptor()
-
-    # Pad the data to be a multiple of 16 bytes (AES block size)
-    padder = padding.PKCS7(128).padder()
-    padded_data = padder.update(data) + padder.finalize()
-
-    # Encrypt the data
-    encrypted_data = encryptor.update(padded_data) + encryptor.finalize()
-
-    return encrypted_data, iv
-
-def decrypt_data(encrypted_data: bytes, key: bytes, iv: bytes) -> bytes:
-    """
-    Decrypt data using AES-256-CBC.
-    """
-    # Create cipher
-    cipher = Cipher(
-        algorithms.AES(key),
-        modes.CBC(iv),
-        backend=default_backend()
-    )
-    decryptor = cipher.decryptor()
-
-    # Decrypt the data
-    decrypted_padded = decryptor.update(encrypted_data) + decryptor.finalize()
-
-    # Remove padding
-    unpadder = padding.PKCS7(128).unpadder()
-    decrypted_data = unpadder.update(decrypted_padded) + unpadder.finalize()
-
-    return decrypted_data
-
-def create_encrypted_package(data: bytes, key: bytes) -> bytes:
-    """
-    Create an encrypted package with IV prepended to encrypted data.
-    Format: [IV (16 bytes)][Encrypted Data]
-    """
-    encrypted_data, iv = encrypt_data(data, key)
-    # Prepend IV to encrypted data for storage
-    return iv + encrypted_data
-
-def extract_and_decrypt_package(package: bytes, key: bytes) -> bytes:
-    """
-    Extract IV and decrypt the package.
-    """
-    # First 16 bytes are the IV
-    iv = package[:16]
-    encrypted_data = package[16:]
-    return decrypt_data(encrypted_data, key, iv)
-
-# --- Separate fetch and decrypt functions ---
-
-def fetch_from_ipfs(cid: str) -> Optional[bytes]:
-    """
-    Fetch encrypted data from IPFS.
-    Returns encrypted data bytes or None on failure.
-    """
-    try:
-        resp = requests.post("http://localhost:5001/api/v0/cat", params={"arg": cid}, timeout=30)
-        if resp.status_code != 200:
-            logger.warning(f"Failed to fetch {cid} from IPFS: Status {resp.status_code}")
-            return None
-        return resp.content
-    except Exception as e:
-        logger.error(f"Error fetching CID {cid}: {e}")
-        return None
+# --- Encryption/Decryption & IPFS (shared modules) ---
+from crypto_utils import encrypt, decrypt, create_encrypted_package, extract_and_decrypt_package
+from ipfs_utils import fetch_from_ipfs
 
 def decrypt_to_file(encrypted_data: bytes, cid: str, key: bytes) -> Optional[str]:
     """
@@ -324,6 +248,130 @@ class DeleteRequest(BaseModel):
 class UpdateRequest(BaseModel):
     update_query: str  # "UPDATE patient_data SET Name = 'John Doe', Age = 30 WHERE PatientID = '323'"
     wallet_address: str  # Required wallet address for access control
+
+
+# --- Segment Metric Models for IPFS Upload ---
+
+class SegmentMetricItem(BaseModel):
+    metricId: int
+    unitCode: str
+    totalValue: Optional[float] = None
+    avgValue: Optional[float] = None
+    minValue: Optional[float] = None
+    maxValue: Optional[float] = None
+    samplesCount: Optional[int] = None
+    computedJson: Optional[dict] = None
+
+
+class SegmentMetricsUploadRequest(BaseModel):
+    segmentId: int
+    sessionId: int
+    metrics: List[SegmentMetricItem]
+
+
+@app.post("/share/segment-metrics/upload")
+async def upload_segment_metrics_to_ipfs(request: SegmentMetricsUploadRequest):
+    """
+    Upload segment metrics to IPFS as encrypted JSON.
+    
+    This endpoint stores TRN_SegmentMetric data for a segment in decentralized storage.
+    The data is encrypted with AES-256-CBC before uploading to IPFS.
+    
+    Args:
+        request: SegmentMetricsUploadRequest containing segmentId, sessionId, and metrics array
+        
+    Returns:
+        JSON with segmentId, sessionId, cid, and metadata
+    """
+    logger.info(f"POST /share/segment-metrics/upload - segmentId={request.segmentId}, sessionId={request.sessionId}, metrics_count={len(request.metrics)}")
+    
+    try:
+        # Build the payload to store
+        payload = {
+            "segmentId": request.segmentId,
+            "sessionId": request.sessionId,
+            "uploadedAt": pd.Timestamp.utcnow().isoformat(),
+            "metrics": [metric.model_dump() for metric in request.metrics]
+        }
+        
+        # Convert to JSON bytes
+        json_data = json.dumps(payload, default=str).encode('utf-8')
+        
+        # Encrypt the JSON data using existing AES-256 encryption
+        encrypted_package = create_encrypted_package(json_data, app.state.encryption_key)
+        
+        # Upload to IPFS
+        ipfs_api = "http://localhost:5001/api/v0/add"
+        resp = requests.post(
+            ipfs_api, 
+            files={"file": (f"segment_{request.segmentId}_metrics.enc", encrypted_package)}
+        )
+        resp.raise_for_status()
+        cid = resp.json()["Hash"]
+        
+        logger.info(f"Segment metrics uploaded to IPFS - segmentId={request.segmentId}, cid={cid}")
+        
+        return {
+            "segmentId": request.segmentId,
+            "sessionId": request.sessionId,
+            "cid": cid,
+            "encrypted": True,
+            "metricsCount": len(request.metrics),
+            "message": "Segment metrics uploaded to IPFS successfully"
+        }
+        
+    except requests.exceptions.RequestException as e:
+        logger.error(f"IPFS upload failed for segmentId={request.segmentId}: {e}")
+        return {"error": f"IPFS upload failed: {str(e)}"}
+    except Exception as e:
+        logger.error(f"Failed to upload segment metrics for segmentId={request.segmentId}: {e}")
+        return {"error": str(e)}
+
+
+@app.get("/share/segment-metrics/{cid}")
+async def get_segment_metrics_from_ipfs(cid: str):
+    """
+    Fetch and decrypt segment metrics from IPFS by CID.
+    
+    This endpoint retrieves TRN_SegmentMetric data that was previously uploaded
+    to IPFS and decrypts it using AES-256-CBC.
+    
+    Args:
+        cid: The IPFS Content Identifier (CID) of the encrypted segment metrics
+        
+    Returns:
+        JSON with the decrypted segment metrics payload
+    """
+    logger.info(f"GET /share/segment-metrics/{cid} - Fetching segment metrics from IPFS")
+    
+    try:
+        # Fetch encrypted data from IPFS
+        encrypted_data = fetch_from_ipfs(cid)
+        
+        if encrypted_data is None:
+            logger.warning(f"Failed to fetch CID {cid} from IPFS")
+            return {"error": f"Failed to fetch data from IPFS for CID: {cid}"}
+        
+        # Decrypt the data using existing AES-256 decryption
+        decrypted_data = extract_and_decrypt_package(encrypted_data, app.state.encryption_key)
+        
+        # Parse JSON
+        payload = json.loads(decrypted_data.decode('utf-8'))
+        
+        logger.info(f"Segment metrics fetched from IPFS - cid={cid}, segmentId={payload.get('segmentId')}")
+        
+        return {
+            "cid": cid,
+            "data": payload
+        }
+        
+    except json.JSONDecodeError as e:
+        logger.error(f"Failed to parse JSON for CID {cid}: {e}")
+        return {"error": f"Failed to parse decrypted data as JSON: {str(e)}"}
+    except Exception as e:
+        logger.error(f"Failed to fetch segment metrics for CID {cid}: {e}")
+        return {"error": str(e)}
+
 
 def rewrite_query_with_access_policies(original_query: str, policies: List[dict], table_name: str) -> str:
     """

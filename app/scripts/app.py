@@ -106,88 +106,9 @@ logger.info("Initializing DuckDB Connection")
 duckdb_conn = duckdb.connect(':memory:')
 logger.info("DuckDB Connection created")
 
-# --- Encryption/Decryption Helper Functions ---
-
-def encrypt_data(data: bytes, key: bytes) -> "Tuple[bytes, bytes]":
-    """
-    Encrypt data using AES-256-CBC.
-    Returns: (encrypted_data, iv)
-    """
-    # Generate a random IV (Initialization Vector)
-    iv = secrets.token_bytes(16)  # 128-bit IV for AES
-
-    # Create cipher
-    cipher = Cipher(
-        algorithms.AES(key),
-        modes.CBC(iv),
-        backend=default_backend()
-    )
-    encryptor = cipher.encryptor()
-
-    # Pad the data to be a multiple of 16 bytes (AES block size)
-    padder = padding.PKCS7(128).padder()
-    padded_data = padder.update(data) + padder.finalize()
-
-    # Encrypt the data
-    encrypted_data = encryptor.update(padded_data) + encryptor.finalize()
-
-    return encrypted_data, iv
-
-def decrypt_data(encrypted_data: bytes, key: bytes, iv: bytes) -> bytes:
-    """
-    Decrypt data using AES-256-CBC.
-    """
-    # Create cipher
-    cipher = Cipher(
-        algorithms.AES(key),
-        modes.CBC(iv),
-        backend=default_backend()
-    )
-    decryptor = cipher.decryptor()
-
-    # Decrypt the data
-    decrypted_padded = decryptor.update(encrypted_data) + decryptor.finalize()
-
-    # Remove padding
-    unpadder = padding.PKCS7(128).unpadder()
-    decrypted_data = unpadder.update(decrypted_padded) + unpadder.finalize()
-
-    return decrypted_data
-
-def create_encrypted_package(data: bytes, key: bytes) -> bytes:
-    """
-    Create an encrypted package with IV prepended to encrypted data.
-    Format: [IV (16 bytes)][Encrypted Data]
-    """
-    encrypted_data, iv = encrypt_data(data, key)
-    # Prepend IV to encrypted data for storage
-    return iv + encrypted_data
-
-def extract_and_decrypt_package(package: bytes, key: bytes) -> bytes:
-    """
-    Extract IV and decrypt the package.
-    """
-    # First 16 bytes are the IV
-    iv = package[:16]
-    encrypted_data = package[16:]
-    return decrypt_data(encrypted_data, key, iv)
-
-# --- Separate fetch and decrypt functions ---
-
-def fetch_from_ipfs(cid: str) -> Optional[bytes]:
-    """
-    Fetch encrypted data from IPFS.
-    Returns encrypted data bytes or None on failure.
-    """
-    try:
-        resp = requests.post("http://localhost:5001/api/v0/cat", params={"arg": cid}, timeout=30)
-        if resp.status_code != 200:
-            logger.warning(f"Failed to fetch {cid} from IPFS: Status {resp.status_code}")
-            return None
-        return resp.content
-    except Exception as e:
-        logger.error(f"Error fetching CID {cid}: {e}")
-        return None
+# --- Encryption/Decryption & IPFS (shared modules) ---
+from crypto import encrypt, decrypt, create_encrypted_package, extract_and_decrypt_package
+from ipfs_utils import fetch_from_ipfs
 
 def decrypt_to_file(encrypted_data: bytes, cid: str, key: bytes) -> Optional[str]:
     """

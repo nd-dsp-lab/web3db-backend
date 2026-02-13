@@ -9,14 +9,11 @@ import json
 import os
 import sqlite3
 import logging
-import base64
-import secrets
-import requests as http_requests
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from fastapi.responses import Response
-from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
-from cryptography.hazmat.primitives import padding
-from cryptography.hazmat.backends import default_backend
+
+from crypto import load_key, encrypt, decrypt
+from ipfs_utils import ipfs_add, ipfs_cat
 
 logger = logging.getLogger(__name__)
 
@@ -24,25 +21,11 @@ router = APIRouter(prefix="/web3health", tags=["Web3Health Storage"])
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
-IPFS_API = "http://localhost:5001/api/v0"
-
 _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 _SQLITE_DIR = os.path.join(os.path.dirname(_SCRIPT_DIR), "sqlite")
 os.makedirs(_SQLITE_DIR, exist_ok=True)
 _DB_PATH = os.path.join(_SQLITE_DIR, "web3health_segments.db")
 _OLD_JSON_PATH = os.path.join(_SCRIPT_DIR, "web3health_segments.json")
-
-_encryption_key: bytes | None = None
-
-
-def _get_key() -> bytes:
-    """Return the AES-256 key, loading once from the same env var as app.py."""
-    global _encryption_key
-    if _encryption_key is None:
-        _encryption_key = base64.b64decode(
-            os.getenv("ENCRYPTION_KEY", "AlmbEPmAR2M4o+ohmFb2oyUV1/JqdNnlG1mG9/JbUBs=")
-        )
-    return _encryption_key
 
 
 # ── SQLite segment mapping ────────────────────────────────────────────────────
@@ -116,68 +99,6 @@ def _get_segment(segment_id: str) -> dict | None:
     return {"cid": row["cid"], "filename": row["filename"]}
 
 
-# ── Crypto helpers (mirror app.py's AES-256-CBC scheme) ───────────────────────
-
-def _encrypt(data: bytes) -> bytes:
-    """Encrypt with AES-256-CBC. Returns [IV (16 B) || ciphertext]."""
-    key = _get_key()
-    iv = secrets.token_bytes(16)
-    cipher = Cipher(algorithms.AES(key), modes.CBC(iv), backend=default_backend())
-    encryptor = cipher.encryptor()
-
-    padder = padding.PKCS7(128).padder()
-    padded = padder.update(data) + padder.finalize()
-
-    ciphertext = encryptor.update(padded) + encryptor.finalize()
-    return iv + ciphertext
-
-
-def _decrypt(package: bytes) -> bytes:
-    """Decrypt [IV (16 B) || ciphertext] with AES-256-CBC."""
-    key = _get_key()
-    iv = package[:16]
-    ciphertext = package[16:]
-
-    cipher = Cipher(algorithms.AES(key), modes.CBC(iv), backend=default_backend())
-    decryptor = cipher.decryptor()
-
-    padded = decryptor.update(ciphertext) + decryptor.finalize()
-
-    unpadder = padding.PKCS7(128).unpadder()
-    return unpadder.update(padded) + unpadder.finalize()
-
-
-# ── IPFS helpers ──────────────────────────────────────────────────────────────
-
-def _ipfs_add(data: bytes, filename: str) -> str:
-    """Upload bytes to IPFS via /api/v0/add (pins by default). Returns CID."""
-    resp = http_requests.post(
-        f"{IPFS_API}/add",
-        files={"file": (filename, data)},
-        stream=True,
-    )
-    resp.raise_for_status()
-    # IPFS Kubo uses chunked transfer encoding and keeps the connection open.
-    # Read only the first line (the JSON result) then close immediately.
-    line = resp.raw.readline()
-    resp.close()
-    return json.loads(line)["Hash"]
-
-
-def _ipfs_cat(cid: str) -> bytes:
-    """Fetch raw bytes from IPFS via /api/v0/cat."""
-    resp = http_requests.post(
-        f"{IPFS_API}/cat",
-        params={"arg": cid},
-        stream=True,
-        timeout=60,
-    )
-    if resp.status_code != 200:
-        resp.close()
-        raise HTTPException(status_code=404, detail=f"CID not found on IPFS: {cid}")
-    content = resp.content
-    resp.close()
-    return content
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
@@ -196,14 +117,14 @@ def store_content(segment_id: str = Form(...), file: UploadFile = File(...)):
 
     # Encrypt
     try:
-        encrypted = _encrypt(raw)
+        encrypted = encrypt(raw, load_key())
     except Exception as e:
         logger.error(f"[web3health/store] Encryption failed: {e}")
         raise HTTPException(status_code=500, detail="Encryption failed")
 
     # Upload to IPFS
     try:
-        cid = _ipfs_add(encrypted, f"{filename}.enc")
+        cid = ipfs_add(encrypted, f"{filename}.enc")
     except Exception as e:
         logger.error(f"[web3health/store] IPFS upload failed: {e}", exc_info=True)
         raise HTTPException(status_code=502, detail=f"Failed to upload to IPFS: {e}")
@@ -241,7 +162,7 @@ def fetch_content(segment_id: str):
 
     # Fetch from IPFS
     try:
-        encrypted = _ipfs_cat(cid)
+        encrypted = ipfs_cat(cid)
     except HTTPException:
         raise
     except Exception as e:
@@ -250,7 +171,7 @@ def fetch_content(segment_id: str):
 
     # Decrypt
     try:
-        decrypted = _decrypt(encrypted)
+        decrypted = decrypt(encrypted, load_key())
     except Exception as e:
         logger.error(f"[web3health/fetch] Decryption failed: {e}")
         raise HTTPException(status_code=500, detail="Decryption failed — wrong key or corrupted data")

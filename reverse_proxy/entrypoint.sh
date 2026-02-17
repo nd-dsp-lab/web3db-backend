@@ -64,6 +64,12 @@ if [ -z "$NGINX_SERVER_NAME" ] || [ "$NGINX_SERVER_NAME" = "null" ]; then
     NGINX_SERVER_NAME="$REMOTE_HOST"
 fi
 
+# Read global client_max_body_size from nginx section (optional)
+NGINX_CLIENT_MAX_BODY_SIZE=$(yq eval '.nginx.client_max_body_size' "$TUNNEL_CONFIG")
+if [ -z "$NGINX_CLIENT_MAX_BODY_SIZE" ] || [ "$NGINX_CLIENT_MAX_BODY_SIZE" = "null" ]; then
+    NGINX_CLIENT_MAX_BODY_SIZE=""
+fi
+
 # Display configuration
 echo "=========================================="
 echo "Reverse SSH Tunnel Configuration"
@@ -108,16 +114,33 @@ if [ -n "$NGINX_SITE_CONFIG" ] && [ -f "$NGINX_TEMPLATE" ]; then
         echo "server {"
         echo "    listen 80;"
         echo "    server_name $SERVER_NAME;"
+        
+        # Add global client_max_body_size if specified
+        if [ -n "$NGINX_CLIENT_MAX_BODY_SIZE" ]; then
+            echo "    client_max_body_size $NGINX_CLIENT_MAX_BODY_SIZE;"
+        fi
         echo ""
         
         # Add location blocks for each tunnel
         for TUNNEL_NAME in $TUNNEL_NAMES; do
             REMOTE_PORT=$(yq eval ".tunnels.$TUNNEL_NAME.remote_port" "$TUNNEL_CONFIG")
             if [ -n "$REMOTE_PORT" ] && [ "$REMOTE_PORT" != "null" ]; then
+                # Read per-tunnel client_max_body_size (optional)
+                TUNNEL_CLIENT_MAX_BODY_SIZE=$(yq eval ".tunnels.$TUNNEL_NAME.client_max_body_size" "$TUNNEL_CONFIG")
+                if [ -z "$TUNNEL_CLIENT_MAX_BODY_SIZE" ] || [ "$TUNNEL_CLIENT_MAX_BODY_SIZE" = "null" ]; then
+                    TUNNEL_CLIENT_MAX_BODY_SIZE=""
+                fi
+                
                 # Use tunnel name as path prefix (e.g., /web3db/)
                 LOCATION_PATH="/${TUNNEL_NAME}/"
                 echo "    location ${LOCATION_PATH} {"
                 echo "        proxy_pass http://127.0.0.1:${REMOTE_PORT}/;"
+                
+                # Add per-tunnel client_max_body_size if specified
+                if [ -n "$TUNNEL_CLIENT_MAX_BODY_SIZE" ]; then
+                    echo "        client_max_body_size $TUNNEL_CLIENT_MAX_BODY_SIZE;"
+                fi
+                
                 echo "    }"
             fi
         done

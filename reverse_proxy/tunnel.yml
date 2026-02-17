@@ -10,11 +10,14 @@ tunnels:
   web3db-backend:
     local_port: 8000
     remote_port: 8000
+    client_max_body_size: 100M
 
   web3db-fs-backend:
     local_port: 8090
     remote_port: 8090
+    client_max_body_size: 100M
 
+  # Note: config for another project
   nasa_project:
     local_port: 8001
     remote_port: 8001

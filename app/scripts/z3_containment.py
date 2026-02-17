@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Z3-Based Query Containment Checker for Semantic Cache
 

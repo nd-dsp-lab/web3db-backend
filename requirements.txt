@@ -10,3 +10,4 @@ pydantic>=2.0.0
 dotenv
 web3
 z3-solver
+python-multipart

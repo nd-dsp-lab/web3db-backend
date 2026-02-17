@@ -2810,5 +2810,6 @@ def shutdown_event():
 # Main execution block to start the FastAPI server
 if __name__ == "__main__":
     import uvicorn
-    logger.info("Starting FastAPI server...")
-    uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info", root_path="/web3db-backend")
+    port = int(os.getenv("PORT", "8000"))
+    logger.info(f"Starting FastAPI server on port {port}...")
+    uvicorn.run(app, host="0.0.0.0", port=port, log_level="info", root_path="/web3db-backend")

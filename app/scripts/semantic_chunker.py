@@ -107,6 +107,8 @@ class SemanticChunker:
 
         # Estimate row size for shard size calculations
         row_size_estimate = self._estimate_row_size(df)
+        # target_rows is the hard upper bound: no shard should exceed target_shard_size.
+        # Shards will range from [target/2, target], averaging ~0.75*target.
         target_rows = max(MIN_ROWS_PER_SHARD, self.target_shard_size // row_size_estimate)
         min_rows = max(MIN_ROWS_PER_SHARD, self.min_shard_size // row_size_estimate)
 
@@ -116,9 +118,30 @@ class SemanticChunker:
         self._shard_counter = 0
         shards = self._recursive_partition(df, global_ranges, target_rows, min_rows, depth=0)
 
-        # Compute shard sizes (parquet-estimated)
+        # Compute shard sizes (parquet-estimated) and enforce hard max
         for shard in shards:
             shard.size_bytes = self._estimate_shard_size(shard.data)
+
+        # Post-partition enforcement: re-split any shard that exceeds the target size.
+        # This handles estimation errors where actual Parquet size > row-estimate * rows.
+        max_split_passes = 5  # safety limit to avoid infinite loops
+        for _ in range(max_split_passes):
+            oversized = [s for s in shards if s.size_bytes > self.target_shard_size]
+            if not oversized:
+                break
+            logger.info(f"Post-partition: {len(oversized)} oversized shards, re-splitting...")
+            new_shards = []
+            for shard in shards:
+                if shard.size_bytes > self.target_shard_size and len(shard.data) > MIN_ROWS_PER_SHARD * 2:
+                    # Binary split this shard on the best attribute
+                    halves = self._split_shard_in_half(shard.data, global_ranges)
+                    for half_df in halves:
+                        new_shard = self._make_shard(half_df)
+                        new_shard.size_bytes = self._estimate_shard_size(new_shard.data)
+                        new_shards.append(new_shard)
+                else:
+                    new_shards.append(shard)
+            shards = new_shards
 
         # Build stats
         shard_sizes = [s.size_bytes for s in shards]
@@ -239,10 +262,36 @@ class SemanticChunker:
         self._shard_counter += 1
         return shard
 
+    def _split_shard_in_half(
+        self, df: pd.DataFrame, global_ranges: Dict[str, Tuple[float, float]]
+    ) -> List[pd.DataFrame]:
+        """Split a DataFrame into two halves on the best attribute (for post-partition enforcement)."""
+        best_attr = self._pick_split_attribute(df, global_ranges)
+        if best_attr is None:
+            # Can't split further — return as-is
+            return [df]
+
+        median_val = df[best_attr].median()
+        left_df = df[df[best_attr] <= median_val]
+        right_df = df[df[best_attr] > median_val]
+
+        if len(left_df) == 0 or len(right_df) == 0:
+            unique_vals = sorted(df[best_attr].unique())
+            if len(unique_vals) <= 1:
+                return [df]
+            split_val = unique_vals[len(unique_vals) // 2]
+            left_df = df[df[best_attr] < split_val]
+            right_df = df[df[best_attr] >= split_val]
+            if len(left_df) == 0 or len(right_df) == 0:
+                return [df]
+
+        return [left_df, right_df]
+
     def _estimate_row_size(self, df: pd.DataFrame) -> int:
         """Estimate average row size in bytes (Parquet-approximate)."""
-        # Sample-based estimation: take first 100 rows
-        sample = df.head(min(100, len(df)))
+        # Use a larger sample to amortize the fixed Parquet metadata overhead,
+        # which otherwise inflates the per-row estimate with small samples.
+        sample = df.head(min(10000, len(df)))
         import io
         import pyarrow as pa
         import pyarrow.parquet as pq

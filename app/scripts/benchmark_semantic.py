@@ -31,12 +31,12 @@ BASE = "http://localhost:8002"
 DATASETS = [
     {
         "label": "100K",
-        "file": "employee_100k.csv",
+        "file": "../dataset/employee_100k.csv",
         "rows": 100_000,
     },
     {
         "label": "1M",
-        "file": "employee_1m.csv",
+        "file": "../dataset/employee_1m.csv",
         "rows": 1_000_000,
     },
 ]

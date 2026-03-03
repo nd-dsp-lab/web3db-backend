@@ -458,9 +458,10 @@ def write_text_report(sweep_results: List[SweepPoint], output_path: str, runs: i
     lines.append("  SWEET SPOT ANALYSIS")
     lines.append("─" * w)
 
-    # Compute average pruning (selective queries only) per shard size
+    # Compute average pruning (selective queries Q1-Q8 only) per shard size
+    selective_ids = {q["id"] for q in QUERIES if q["selectivity"] in ("point", "narrow", "medium")}
     for sp in sweep_results:
-        selective = [qr for qr in sp.queries if qr.prune_pct > 0]
+        selective = [qr for qr in sp.queries if qr.query_id in selective_ids]
         if selective:
             avg_prune = sum(qr.prune_pct for qr in selective) / len(selective)
             avg_latency = sum(qr.total_ms for qr in selective) / len(selective)
@@ -640,8 +641,9 @@ def plot_sensitivity(sweep_results: List[SweepPoint], output_dir: str):
 
     avg_prune = []
     avg_latency = []
+    sel_ids = {q["id"] for q in QUERIES if q["selectivity"] in ("point", "narrow", "medium")}
     for sp in sweep_results:
-        sel = [qr for qr in sp.queries if qr.prune_pct > 0]
+        sel = [qr for qr in sp.queries if qr.query_id in sel_ids]
         if sel:
             avg_prune.append(sum(qr.prune_pct for qr in sel) / len(sel))
             avg_latency.append(sum(qr.total_ms for qr in sel) / len(sel))
@@ -701,12 +703,12 @@ def plot_sensitivity(sweep_results: List[SweepPoint], output_dir: str):
     # ══════════════════════════════════════════════════════════════════════
     fig, ax = plt.subplots(figsize=(8, 5))
 
-    # Average across selective queries for each shard size
+    # Average across selective queries (Q1-Q8) for each shard size
     avg_trav = []
     avg_fetch = []
     avg_duck = []
     for sp in sweep_results:
-        sel = [qr for qr in sp.queries if qr.prune_pct > 0]
+        sel = [qr for qr in sp.queries if qr.query_id in sel_ids]
         if sel:
             avg_trav.append(sum(qr.traversal_ms for qr in sel) / len(sel))
             avg_fetch.append(sum(qr.fetch_ms for qr in sel) / len(sel))

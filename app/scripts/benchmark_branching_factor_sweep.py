@@ -390,9 +390,10 @@ def main():
     lines.append("─" * w)
     lines.append("  SUMMARY (averages over selective queries Q1–Q8)")
     lines.append("─" * w)
+    selective_ids = {q["id"] for q in QUERIES if q["selectivity"] in ("point", "narrow", "medium")}
     for sp in sweep_results:
         bf = sp["upload"]["branching_factor"]
-        sel = [q for q in sp["queries"] if q["prune_pct"] > 0]
+        sel = [q for q in sp["queries"] if q["query_id"] in selective_ids]
         if sel:
             avg_prune = sum(q["prune_pct"] for q in sel) / len(sel)
             avg_trav = sum(q["traversal_ms"] for q in sel) / len(sel)

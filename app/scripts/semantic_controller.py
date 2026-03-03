@@ -274,7 +274,7 @@ async def dag_inspect(root_cid: str = Query(..., description="Root CID of the Me
         def _walk(cid: str, depth: int = 0) -> dict:
             resp = requests.post(
                 "http://localhost:5001/api/v0/dag/get",
-                params={"arg": cid}, timeout=30,
+                params={"arg": cid}, timeout=300,
             )
             resp.raise_for_status()
             node = resp.json()
@@ -333,7 +333,7 @@ async def dag_summary(root_cid: str = Query(..., description="Root CID of the Me
         def _walk(cid: str, depth: int = 0, prefix: str = "", is_last: bool = True):
             resp = requests.post(
                 "http://localhost:5001/api/v0/dag/get",
-                params={"arg": cid}, timeout=30,
+                params={"arg": cid}, timeout=300,
             )
             resp.raise_for_status()
             node = resp.json()

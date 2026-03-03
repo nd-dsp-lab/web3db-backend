@@ -30,6 +30,7 @@ from dataclasses import dataclass, field
 logger = logging.getLogger(__name__)
 
 IPFS_API_BASE = "http://localhost:5001/api/v0"
+IPFS_TIMEOUT = 300  # seconds — must be large for cross-network IPFS fetches
 
 
 @dataclass
@@ -199,7 +200,7 @@ class DAGBuilder:
         resp = requests.post(
             f"{IPFS_API_BASE}/add",
             files={"file": (filename, data)},
-            timeout=30,
+            timeout=IPFS_TIMEOUT,
         )
         resp.raise_for_status()
         return resp.json()["Hash"]
@@ -211,7 +212,7 @@ class DAGBuilder:
             f"{IPFS_API_BASE}/dag/put",
             files={"file": ("node.json", json_bytes)},
             params={"store-codec": "dag-cbor", "input-codec": "dag-json"},
-            timeout=30,
+            timeout=IPFS_TIMEOUT,
         )
         resp.raise_for_status()
         return resp.json()["Cid"]["/"]
@@ -221,7 +222,7 @@ class DAGBuilder:
         resp = requests.post(
             f"{IPFS_API_BASE}/dag/get",
             params={"arg": cid},
-            timeout=30,
+            timeout=IPFS_TIMEOUT,
         )
         resp.raise_for_status()
         return resp.json()
@@ -482,7 +483,7 @@ class DAGTraverser:
             resp = requests.post(
                 f"{IPFS_API_BASE}/cat",
                 params={"arg": cid},
-                timeout=30,
+                timeout=IPFS_TIMEOUT,
             )
             if resp.status_code != 200:
                 return None
@@ -496,7 +497,7 @@ class DAGTraverser:
         resp = requests.post(
             f"{IPFS_API_BASE}/dag/get",
             params={"arg": cid},
-            timeout=30,
+            timeout=IPFS_TIMEOUT,
         )
         resp.raise_for_status()
         return resp.json()

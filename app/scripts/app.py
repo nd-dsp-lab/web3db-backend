@@ -744,7 +744,7 @@ async def clear_cache():
 async def fetch_from_ipfs_endpoint(cid: str):
     logger.info(f"GET /ipfs/fetch/{cid}")
     try:
-        resp = requests.post("http://localhost:5001/api/v0/cat", params={"arg": cid}, timeout=30)
+        resp = requests.post("http://localhost:5001/api/v0/cat", params={"arg": cid}, timeout=300)
         if resp.status_code != 200:
             return {"status": "error", "message": resp.text}
         return {"status": "success", "size_bytes": len(resp.content)}

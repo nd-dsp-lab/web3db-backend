@@ -123,35 +123,69 @@
 \section{Introduction}
 %-------------------------------------------------------------------------------
 
-Decentralized databases built on peer-to-peer (P2P) storage networks such as the InterPlanetary File System (IPFS) provide censorship resistance, data sovereignty, and fault tolerance without a single point of failure. Recent systems form \emph{database consortia} in which multiple data providers pool their data on a shared P2P network while a blockchain-coordinated metadata layer manages access control and schema evolution~\cite{hossain2025mtdb, mukherjee2025web3db}. A major bottleneck in this architecture is the network connecting the query engine to the decentralized storage layer: every data access traverses a wide-area P2P overlay, incurring latencies that are 100--1\,000$\times$ higher than cloud-attached storage.
+Decentralized databases built on peer-to-peer (P2P) storage networks, such as the InterPlanetary File System (IPFS) \cite{benet2014ipfs}, provide censorship resistance, data sovereignty, and fault tolerance without a single point of failure. Recent data-sharing systems form \emph{database consortia} in which multiple data providers upload their data to a shared P2P network, while a blockchain-coordinated metadata layer manages access control and database indexes~\cite {hossain2025mtdb, mukherjee2025web3db}. Unlike cloud-based systems\cite{dageville2016snowflake,hunt2018s3, pandis2021evolution}, these systems are very inefficient for performing large-scale analytical queries. A major bottleneck in this architecture is the network connecting the query engine to the decentralized storage layer. Every data access traverses a wide-area P2P overlay, resulting in significantly higher latencies than those of centralized or cloud-based storage.
 
-Two solutions have been explored to mitigate an analogous (though far less severe) bottleneck in cloud-native disaggregated databases: \emph{caching} and \emph{computation pushdown}. Caching keeps hot data in the compute node's local memory, eliminating remote fetches for repeated accesses. Examples include Snowflake~\cite{dageville2016snowflake} and Redshift Spectrum, which maintain result caches or buffer pools to reduce storage-layer traffic. With computation pushdown, filtering and aggregation are pushed closer to the storage layer so that only relevant data crosses the network. Lakehouse architectures~\cite{armbrust2021lakehouse} and cloud-native databases such as FlexPushdownDB~\cite{yang2021flexpushdowndb} routinely push predicates down to the storage service or near-storage compute layer. The fundamental reasons that caching and pushdown are effective in cloud databases---local memory has higher bandwidth than the network, and selective filtering reduces the volume of transferred data---apply even more forcefully to decentralized databases, where the network penalty is orders of magnitude worse.
+Two solutions have been explored to mitigate an analogous (though far less severe) bottleneck in cloud-native disaggregated databases: \emph{caching} and \emph{computation pushdown}. Caching keeps hot data in the compute node's local memory, eliminating remote fetches for repeated accesses. Examples include Snowflake~\cite{dageville2016snowflake} and Redshift Spectrum\cite{pandis2021evolution}, which maintain result caches or buffer pools to reduce storage-layer traffic. With computation pushdown, filtering and aggregation are pushed closer to the storage layer so that only relevant data crosses the network. Lakehouse architectures~\cite{armbrust2021lakehouse} and cloud-native databases such as FlexPushdownDB~\cite{yang2021flexpushdowndb} routinely push predicates down to the storage service or near-storage compute layer.
 
-Existing decentralized DBMSs consider neither caching nor pushdown. Systems such as MtDB~\cite{hossain2025mtdb}, Web3DB~\cite{mukherjee2025web3db}, and Minerva~\cite{yao2024minerva} treat the P2P storage layer as a generic object store: every query fetches the full set of relevant partitions over the network without any local caching or storage-level filtering. Adapting the two techniques to this setting is non-trivial. IPFS is a content-addressed object store with no awareness of relational schemas or predicates; there is no S3~Select-style interface to push filters into the storage. Caching inside a trusted execution environment (TEE) enclave is constrained by limited Enclave Page Cache (EPC) memory~\cite{costan2016intel}. Moreover, traditional result caches key entries by query string and cannot exploit \emph{semantic overlap}: a cached result for \texttt{Age~>~50} is invisible to a subsequent query for \texttt{Age~>~60}, even though the latter is fully contained in the former.
+Existing decentralized DBMSs do not support caching or pushdown. Systems such as MtDB~\cite{hossain2025mtdb}, Web3DB~\cite{mukherjee2025web3db}, and Minerva~\cite{yao2024minerva} treat the P2P storage layer as a generic object store. Every query fetches the full set of relevant partitions over the network without any local caching or storage-level filtering. Adapting the two techniques to this setting is non-trivial, since unlike cloud databases, IPFS is a content-addressed object store with no awareness of relational schemas or predicates. There is no S3~Select-style\cite{hunt2018s3} interface to push filters into storage. Additionally, traditional result caches key entries by query string and cannot exploit \emph{semantic overlap}. For example, a cached result for \texttt{Age~>~50} is invisible to a subsequent query for \texttt{Age~>~60}, even though the latter is fully contained in the former.
 
-In this paper, we argue that caching and computation pushdown are \textbf{not orthogonal} in the decentralized setting, and that the rigid dichotomy of existing systems---supporting neither---leaves substantial performance benefits unexploited. A system that caches alone must still fetch every cold-miss object in full, paying the extreme P2P penalty. A system that pushes down predicates alone gains nothing from repeated queries over the same data. The two techniques are complementary: the cache eliminates fetches for repeated or overlapping queries, while pushdown reduces what must be fetched on a miss. We propose \ours{}, a hybrid system that combines the benefits of both. Specifically, this paper addresses the following research questions:
+\begin{figure}[t]
+    \centering
+    \begin{tikzpicture}[scale=0.88, every node/.style={font=\small}]
+        % --- Axes ---
+        \draw[-{Stealth[length=6pt]}, thick] (0,0) -- (6.4,0)
+            node[below, font=\footnotesize, yshift=-2pt, xshift=-30pt] {Cache size};
+        \draw[-{Stealth[length=6pt]}, thick] (0,0) -- (0,5.2)
+            node[above, rotate=90, anchor=south, font=\footnotesize, yshift=8pt, xshift=-16pt] {Query latency};
 
-\begin{enumerate}
-    \item[\textbf{RQ1.}] How can computation pushdown be realized on a content-addressed P2P storage layer that exposes no native query interface?
-    \item[\textbf{RQ2.}] How can a semantic cache exploit predicate-level overlap across queries to maximize reuse under the tight memory constraints of a TEE enclave?
-    \item[\textbf{RQ3.}] How should a hybrid system balance caching and pushdown to minimize end-to-end query latency when the miss penalty is orders of magnitude higher than in cloud databases?
-\end{enumerate}
+        % --- No optimization (flat, highest) ---
+        \draw[thick, gray!70, densely dashed]
+            (0.3,4.6) -- (5.9,4.6);
+        \node[right, font=\scriptsize, gray!70] at (5.95,4.6) {No optimization};
 
-To answer these questions, \ours{} introduces three cooperating mechanisms. First, the \emph{block reorganizer} transforms raw table data into a pushdown-friendly layout on IPFS by partitioning tables into range-bounded shards via extended KD-tree bisection and assembling them into a metadata-rich IPLD Merkle DAG. Internal DAG nodes carry per-attribute range summaries, turning IPFS from a semantically blind object store into a predicate-aware storage layer. Second, the \emph{cache manager} maintains a semantic cache inside the TEE enclave: each cache entry is annotated with the defining predicates of the query that produced it, and an SMT solver (Z3~\cite{de2008z3}) performs rigorous containment checking to determine when a new query can be answered from cached data, possibly with a residual filter. The cache manager also employs a novel \emph{utility-aware eviction policy} that accounts for the pushdown cost of re-fetching an entry. Third, the \emph{hybrid query engine} converts each incoming query into a \emph{separable query plan} that dispatches work to both the cache and the IPFS storage layer. An operator is \emph{separable} if it can be executed independently on cached and remote data, with the partial results merged afterward. We introduce a \emph{merge} operator to combine the outputs from caching and pushdown.
+        % --- Caching-only (decreasing curve) ---
+        \draw[thick, red!75!black, dashed]
+            plot[smooth, tension=0.65] coordinates
+            {(0.3,4.4) (1.3,3.6) (2.5,2.7) (3.8,1.8) (5.0,1.2) (5.9,0.85)};
+        \node[right, font=\scriptsize, red!75!black] at (5.95,0.85) {Caching-only};
 
-Separable operators open up new possibilities for cache utilization. Traditional cache replacement policies assume that each miss requires loading the missing data to the cache, incurring a constant cost. In \ours{}, however, this assumption no longer holds because we can push down computation instead of fetching entire objects. The cost of a miss now depends on how amenable the block is to pushdown---for high-selectivity predicates, the cost of a miss is substantially lower. We develop a utility-aware eviction framework that incorporates both caching and pushdown into a unified cost model to predict the best eviction decisions.
+        % --- Pushdown-only (flat, moderate) ---
+        \draw[thick, blue!75!black, densely dotted, line width=1.1pt]
+            (0.3,2.8) -- (5.9,2.8);
+        \node[right, font=\scriptsize, blue!75!black] at (5.95,2.8) {Pushdown-only};
 
-In summary, this paper makes the following key contributions:
+        % --- Hybrid / SieveDB (lowest curve) ---
+        \draw[thick, green!55!black, line width=1.2pt]
+            plot[smooth, tension=0.65] coordinates
+            {(0.3,2.55) (1.3,1.75) (2.5,1.1) (3.8,0.6) (5.0,0.35) (5.9,0.25)};
+        \node[right, font=\scriptsize\bfseries, green!55!black] at (5.95,0.25) {Hybrid (\ours{})};
+
+        % --- P2P penalty annotation ---
+        \draw[{Stealth[length=4pt]}-{Stealth[length=4pt]}, thick, orange!80!black]
+            (-0.35,0.25) -- (-0.35,4.6);
+        \node[rotate=90, font=\tiny, orange!80!black, align=center, xshift=-10pt] at (-0.75,2.42)
+            {P2P network penalty};
+    \end{tikzpicture}
+    \caption{Performance trade-off between caching, computation pushdown, and an ideal hybrid approach in a decentralized DBMS.}
+    \label{fig:tradeoff}
+\end{figure}
+
+In this paper, we argue that caching and computation pushdown are not orthogonal in the decentralized setting, and existing systems supporting neither leave substantial performance benefits unexploited. As shown in Figure~\ref{fig:tradeoff}, caching and pushdown complement each other by improving overall system performance. A system that caches alone must still fetch every cold-miss object in full, paying the extreme P2P penalty. A system that pushes down predicates alone gains nothing from repeated queries over the same data. Ideally, a system should adopt a hybrid design that combines both. 
+
+To establish this hypothesis, we propose \ours{}, the first hybrid decentralized data analytics platform that combines the benefits of both worlds. Specifically, our work addresses the following research questions: \textbf{RQ1.} How can computation pushdown be realized on a content-addressed P2P storage layer that exposes no native query interface? \textbf{RQ2.} How can a semantic cache exploit query containment to maximize cache hit rate under the tight memory constraints of a TEE enclave? and \textbf{RQ3.} How should a hybrid query engine balance caching and pushdown to minimize end-to-end query latency when the miss penalty is orders of magnitude higher than in cloud databases?
+To answer these questions, \ours{} introduces three cooperating mechanisms. First, the \textit{block reorganizer} partitions tables into range-bounded shards using extended KD-tree partitioning and assembles them into an InterPlanetary Linked Data (IPLD) Merkle DAG\cite{ipld2023spec}. IPLD provides a content-addressed data model that enables linking disparate structures via cryptographic hashes; by embedding per-attribute range summaries in internal nodes, we transform IPFS into a predicate-aware storage layer.
+
+Second, the \textit{cache manager} maintains a semantic cache within a TEE enclave. Each entry is annotated with its defining predicates, allowing an SMT solver (Z3~\cite{de2008z3}) to perform containment checking for query reuse. We also introduce a utility-aware cache eviction policy that integrates caching and pushdown into a unified cost model to predict optimal eviction decisions. Third, the \textit{hybrid query engine} decomposes queries into separable query plans to execute independently across the cache and IPFS, using a \textit{merge} operator that aggregates partial results.
+
+In summary, we make the following key contributions:
 \begin{itemize}
-    \item We develop a hybrid execution model for decentralized databases that combines the benefits of caching and computation pushdown. The hybrid mode outperforms both \emph{caching-only} and \emph{pushdown-only} configurations.
-    \item We design a pushdown-aware data organization for IPFS that embeds relational range metadata into the Merkle DAG, enabling predicate-based pruning at the storage layer despite the absence of any native query interface.
-    \item We propose a semantic cache with SMT-based query containment checking that exploits predicate overlap across queries, maximizing cache reuse in the presence of extreme miss penalties.
-    \item We develop a novel \emph{utility-aware} cache eviction policy that accounts for pushdown cost and reuse potential, outperforming conventional policies in the decentralized setting.
-    \item We present the detailed design and implementation of \ours{}, an end-to-end decentralized database system with secure in-enclave query processing. We believe it can benefit the community given the lack of hybrid caching and pushdown systems for decentralized databases.
+    \item We design a pushdown-aware data organization for IPFS that enables predicate-based filtering at the storage layer despite the absence of a native query interface. \textbf{(RQ1)}
+    \item We implement semantic cache and a novel \emph{utility-aware cache policy} that outperforms existing cache policies in a decentralized setting. \textbf{(RQ2)}
+    \item We develop a fine-grained hybrid execution model to combine the benefits of caching and pushdown in a decentralized DBMS architecture. The hybrid mode outperforms both Caching-only and Pushdown-only architectures. \textbf{(RQ3)}
+    \item We present the detailed design and implementation of \ours{}, an end-to-end decentralized database system with secure in-enclave query processing. The source code is available for reproducibility. 
 \end{itemize}
 
-The rest of the paper is organized as follows. Section~2 reviews the related literature. Section~3 presents the background and motivation of our design. After showing an overview of \ours{} in Section~4, Sections~5, 6, and 7 discuss the block reorganizer, the hybrid query engine, and the cache manager, respectively. Section~8 covers the implementation details. Section~9 evaluates the performance of \ours{}, and Section~10 concludes the paper.
-
+The rest of the paper is organized as follows. Section \ref{sec:litreview} reviews the related literature.
 
 \section{Literature Review}
 \label{sec:litreview}

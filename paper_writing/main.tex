@@ -118,7 +118,6 @@
 \showkot{Write later.}
 \end{abstract}
 
-
 %-------------------------------------------------------------------------------
 \section{Introduction}
 %-------------------------------------------------------------------------------
@@ -173,7 +172,7 @@ Existing decentralized DBMSs do not support caching or pushdown. Systems such as
 In this paper, we argue that caching and computation pushdown are not orthogonal in the decentralized setting, and existing systems supporting neither leave substantial performance benefits unexploited. As shown in Figure~\ref{fig:tradeoff}, caching and pushdown complement each other by improving overall system performance. A system that caches alone must still fetch every cold-miss object in full, paying the extreme P2P penalty. A system that pushes down predicates alone gains nothing from repeated queries over the same data. Ideally, a system should adopt a hybrid design that combines both. 
 
 To establish this hypothesis, we propose \ours{}, the first hybrid decentralized data analytics platform that combines the benefits of both worlds. Specifically, our work addresses the following research questions: \textbf{RQ1.} How can computation pushdown be realized on a content-addressed P2P storage layer that exposes no native query interface? \textbf{RQ2.} How can a semantic cache exploit query containment to maximize cache hit rate under the tight memory constraints of a TEE enclave? and \textbf{RQ3.} How should a hybrid query engine balance caching and pushdown to minimize end-to-end query latency when the miss penalty is orders of magnitude higher than in cloud databases?
-To answer these questions, \ours{} introduces three cooperating mechanisms. First, the \textit{block reorganizer} partitions tables into range-bounded shards using extended KD-tree partitioning and assembles them into an InterPlanetary Linked Data (IPLD) Merkle DAG\cite{ipld2023spec}. IPLD provides a content-addressed data model that enables linking disparate structures via cryptographic hashes; by embedding per-attribute range summaries in internal nodes, we transform IPFS into a predicate-aware storage layer.
+To answer these questions, \ours{} introduces three cooperating mechanisms. First, the \textit{block reorganizer} partitions tables into range-bounded shards using extended KD-tree partitioning and assembles them into an InterPlanetary Linked Data (IPLD) Merkle DAG\cite{ipld2023spec}. IPLD is a content-addressed data model that enables linking disparate structures via cryptographic hashes. By embedding per-attribute range summaries in internal IPLD nodes, we transform IPFS into a predicate-aware storage layer.
 
 Second, the \textit{cache manager} maintains a semantic cache within a TEE enclave. Each entry is annotated with its defining predicates, allowing an SMT solver (Z3~\cite{de2008z3}) to perform containment checking for query reuse. We also introduce a utility-aware cache eviction policy that integrates caching and pushdown into a unified cost model to predict optimal eviction decisions. Third, the \textit{hybrid query engine} decomposes queries into separable query plans to execute independently across the cache and IPFS, using a \textit{merge} operator that aggregates partial results.
 
@@ -182,7 +181,7 @@ In summary, we make the following key contributions:
     \item We design a pushdown-aware data organization for IPFS that enables predicate-based filtering at the storage layer despite the absence of a native query interface. \textbf{(RQ1)}
     \item We implement semantic cache and a novel \emph{utility-aware cache policy} that outperforms existing cache policies in a decentralized setting. \textbf{(RQ2)}
     \item We develop a fine-grained hybrid execution model to combine the benefits of caching and pushdown in a decentralized DBMS architecture. The hybrid mode outperforms both Caching-only and Pushdown-only architectures. \textbf{(RQ3)}
-    \item We present the detailed design and implementation of \ours{}, an end-to-end decentralized database system with secure in-enclave query processing. The source code is available for reproducibility. 
+    \item We present the detailed design and implementation of \ours{}, an end-to-end decentralized analytics platform with secure in-enclave query processing. The source code is available for reproducibility. 
 \end{itemize}
 
 The rest of the paper is organized as follows. Section \ref{sec:litreview} reviews the related literature.

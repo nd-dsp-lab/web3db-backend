@@ -54,8 +54,9 @@
 
 % to be able to draw some self-contained figs
 \usepackage{tikz}
-\usetikzlibrary{arrows.meta, fit, positioning, calc, backgrounds, patterns}
+\usetikzlibrary{arrows.meta, fit, positioning, calc, backgrounds, patterns, shapes.geometric}
 \usepackage{amsmath}
+\usepackage{listings}
 % \usepackage{algorithm}
 % \usepackage{algpseudocode}
 \usepackage[ruled,linesnumbered]{algorithm2e}
@@ -94,7 +95,7 @@
 \date{}
 
 % make title bold and 14 pt font (Latex default is non-bold, 16 pt)
-\title{\Large \bf \ours : Pushdown and Caching in Decentralized Databases}
+\title{\Large \bf \ours : Pushdown and Caching for Decentralized Consortium of Databases}
 
 %for single author (just remove % characters)
 % \author{
@@ -121,8 +122,56 @@
 %-------------------------------------------------------------------------------
 \section{Introduction}
 %-------------------------------------------------------------------------------
-\showkot{Write later.} \\
-Decentralized databases built on peer-to-peer (P2P) storage networks, such as the InterPlanetary File System (IPFS) \cite{benet2014ipfs}, offer strong benefits, including censorship resistance, data sovereignty, and fault tolerance, but they often suffer from poor query performance. Every data access requires one or more P2P network fetches; each is orders of magnitude slower than a local disk read, making network I/O the dominant bottleneck~\cite{trautwein2022design, henningsen2020mapping, daniel2022ipfs}. Although decades of research have optimized cache and indexing for centralized and cloud-hosted databases~\cite{graefe2011modern, armbrust2021lakehouse}, these techniques assume low-latency local storage and do not apply to decentralized settings where queries must traverse Merkle DAGs over content-addressed P2P networks.
+
+Decentralized databases built on peer-to-peer (P2P) storage networks such as the InterPlanetary File System (IPFS) provide censorship resistance, data sovereignty, and fault tolerance without a single point of failure. Recent systems form \emph{database consortia} in which multiple data providers pool their data on a shared P2P network while a blockchain-coordinated metadata layer manages access control and schema evolution~\cite{hossain2025mtdb, mukherjee2025web3db}. A major bottleneck in this architecture is the network connecting the query engine to the decentralized storage layer: every data access traverses a wide-area P2P overlay, incurring latencies that are 100--1\,000$\times$ higher than cloud-attached storage.
+
+Two solutions have been explored to mitigate an analogous (though far less severe) bottleneck in cloud-native disaggregated databases: \emph{caching} and \emph{computation pushdown}. Caching keeps hot data in the compute node's local memory, eliminating remote fetches for repeated accesses. Examples include Snowflake~\cite{dageville2016snowflake} and Redshift Spectrum, which maintain result caches or buffer pools to reduce storage-layer traffic. With computation pushdown, filtering and aggregation are pushed closer to the storage layer so that only relevant data crosses the network. Lakehouse architectures~\cite{armbrust2021lakehouse} and cloud-native databases such as FlexPushdownDB~\cite{yang2021flexpushdowndb} routinely push predicates down to the storage service or near-storage compute layer. The fundamental reasons that caching and pushdown are effective in cloud databases---local memory has higher bandwidth than the network, and selective filtering reduces the volume of transferred data---apply even more forcefully to decentralized databases, where the network penalty is orders of magnitude worse.
+
+Existing decentralized DBMSs consider neither caching nor pushdown. Systems such as MtDB~\cite{hossain2025mtdb}, Web3DB~\cite{mukherjee2025web3db}, and Minerva~\cite{yao2024minerva} treat the P2P storage layer as a generic object store: every query fetches the full set of relevant partitions over the network without any local caching or storage-level filtering. Adapting the two techniques to this setting is non-trivial. IPFS is a content-addressed object store with no awareness of relational schemas or predicates; there is no S3~Select-style interface to push filters into the storage. Caching inside a trusted execution environment (TEE) enclave is constrained by limited Enclave Page Cache (EPC) memory~\cite{costan2016intel}. Moreover, traditional result caches key entries by query string and cannot exploit \emph{semantic overlap}: a cached result for \texttt{Age~>~50} is invisible to a subsequent query for \texttt{Age~>~60}, even though the latter is fully contained in the former.
+
+In this paper, we argue that caching and computation pushdown are \textbf{not orthogonal} in the decentralized setting, and that the rigid dichotomy of existing systems---supporting neither---leaves substantial performance benefits unexploited. A system that caches alone must still fetch every cold-miss object in full, paying the extreme P2P penalty. A system that pushes down predicates alone gains nothing from repeated queries over the same data. The two techniques are complementary: the cache eliminates fetches for repeated or overlapping queries, while pushdown reduces what must be fetched on a miss. We propose \ours{}, a hybrid system that combines the benefits of both.
+
+\ours{} introduces three cooperating mechanisms. First, the \emph{block reorganizer} transforms raw table data into a pushdown-friendly layout on IPFS by partitioning tables into range-bounded shards via extended KD-tree bisection and assembling them into a metadata-rich IPLD Merkle DAG. Internal DAG nodes carry per-attribute range summaries, turning IPFS from a semantically blind object store into a predicate-aware storage layer. Second, the \emph{cache manager} maintains a semantic cache inside the TEE enclave: each cache entry is annotated with the defining predicates of the query that produced it, and an SMT solver (Z3~\cite{de2008z3}) performs rigorous containment checking to determine when a new query can be answered from cached data, possibly with a residual filter. The cache manager also employs a novel \emph{utility-aware eviction policy} that accounts for the pushdown cost of re-fetching an entry. Third, the \emph{hybrid query engine} converts each incoming query into a \emph{separable query plan} that dispatches work to both the cache and the IPFS storage layer. An operator is \emph{separable} if it can be executed independently on cached and remote data, with the partial results merged afterward. We introduce a \emph{merge} operator to combine the outputs from caching and pushdown.
+
+Separable operators open up new possibilities for cache utilization. Traditional cache replacement policies assume that each miss requires loading the missing data to the cache, incurring a constant cost. In \ours{}, however, this assumption no longer holds because we can push down computation instead of fetching entire objects. The cost of a miss now depends on how amenable the block is to pushdown---for high-selectivity predicates, the cost of a miss is substantially lower. We develop a utility-aware eviction framework that incorporates both caching and pushdown into a unified cost model to predict the best eviction decisions.
+
+In summary, this paper makes the following key contributions:
+\begin{itemize}
+    \item We develop a hybrid execution model for decentralized databases that combines the benefits of caching and computation pushdown. The hybrid mode outperforms both \emph{caching-only} and \emph{pushdown-only} configurations.
+    \item We design a pushdown-aware data organization for IPFS that embeds relational range metadata into the Merkle DAG, enabling predicate-based pruning at the storage layer despite the absence of any native query interface.
+    \item We propose a semantic cache with SMT-based query containment checking that exploits predicate overlap across queries, maximizing cache reuse in the presence of extreme miss penalties.
+    \item We develop a novel \emph{utility-aware} cache eviction policy that accounts for pushdown cost and reuse potential, outperforming conventional policies in the decentralized setting.
+    \item We present the detailed design and implementation of \ours{}, an end-to-end decentralized database system with secure in-enclave query processing. We believe it can benefit the community given the lack of hybrid caching and pushdown systems for decentralized databases.
+\end{itemize}
+
+The rest of the paper is organized as follows. Section~2 reviews the related literature. Section~3 presents the background and motivation of our design. After showing an overview of \ours{} in Section~4, Sections~5, 6, and 7 discuss the block reorganizer, the hybrid query engine, and the cache manager, respectively. Section~8 covers the implementation details. Section~9 evaluates the performance of \ours{}, and Section~10 concludes the paper.
+
+
+\section{Literature Review}
+\label{sec:litreview}
+
+Decentralized databases built on peer to peer storage networks such as the InterPlanetary File System offer resistance to censorship, data sovereignty, and fault tolerance. However, they suffer from poor query performance because network retrieval is the dominant bottleneck~\cite{trautwein2022design, henningsen2020mapping, daniel2022ipfs}. Decades of research have optimized cache and indexing for centralized databases~\cite{graefe2011modern, armbrust2021lakehouse}, but these techniques assume fast local storage and fail in decentralized settings. To contextualize SieveDB, the following sections review the literature universe across five domains that map directly to our system architecture. Section \ref{sec:ipfs} covers decentralized storage foundations. Section \ref{sec:tee} establishes the baseline privacy and coordination models. Section \ref{sec:sharding} explores data sharding mechanisms relevant to our block reorganizer. Section \ref{sec:containment} discusses predicate pushdown strategies used by our hybrid query engine. Finally, Section \ref{sec:caching} examines semantic caching approaches that inform our cache manager.
+
+\subsection{IPFS and Decentralized Databases}
+\label{sec:ipfs}
+The InterPlanetary File System provides content addressed storage using a distributed hash table to locate peers and a Merkle directed acyclic graph to structure objects~\cite{benet2014ipfs}. Retrieval latency is severe because multi hop distributed hash table lookups add substantial delay. The InterPlanetary Linked Data model structures this data but lacks native filtering~\cite{ipld2023spec}. To build databases on this storage, early architectures layered relational semantics over blockchain consensus, which severely restricted throughput~\cite{mcconaghy2016bigchaindb}. Later designs distributed query execution across storage peers~\cite{yao2024minerva} or used smart contracts for metadata coordination~\cite{hossain2025mtdb, mukherjee2025web3db}. However, these approaches uniformly treat the storage layer as a generic object store. They omit caching and predicate aware data organization, forcing full retrieval of remote partitions.
+
+\subsection{Trusted Execution and Blockchain Databases}
+\label{sec:tee}
+Trusted execution environments offer isolated memory regions to guarantee confidentiality during execution~\cite{costan2016intel}. Secure database processing frequently operates within these enclaves to protect analytical workloads~\cite{priebe2018enclavedb, zheng2017opaque}. Other paradigms achieve privacy through adjustable encryption directly over ciphertexts~\cite{popa2011cryptdb}. All these privacy preserving engines operate within fast local or cloud data centers and completely ignore the extreme delays of decentralized networking. An adjacent research domain merges cryptographic blockchains with confidential computing. The primary focus of these hybrid systems is strict computational privacy or verifiable correctness proofs rather than query acceleration~\cite{zyskind2018enigma, xu2019vchain}. SieveDB utilizes established blockchain metadata coordination~\cite{hossain2025mtdb} to securely manage access but radically alters the off chain storage and caching methodologies to optimize the retrieval latency neglected by prior secure databases.
+
+\subsection{Data Sharding and Indexing}
+\label{sec:sharding}
+Parallel database environments heavily rely on range and hash partitioning to distribute workloads~\cite{dewitt1992parallel}. Modern cloud databases dynamically split shards and rebalance data to maintain performance~\cite{taft2020cockroachdb, bacon2017spanner, luo2022dynahash}. These strategies implicitly require mutable storage. Decentralized networks enforce immutable content addressing, which forces the creation of entirely new storage graphs rather than in place updates. Consequently, indexing strategies for decentralized networks are severely restricted. Current approaches primarily facilitate simple keyword lookups or track data provenance rather than optimizing relational queries~\cite{arer2022efficient, rathee2019blockchain}. While adaptive and learned index structures are prevalent in mutable databases~\cite{kraska2018case}, they fail to map onto immutable architectures. SieveDB repurposes the inherent cryptographic directed acyclic graph into a spatial index. Internal nodes aggregate multidimensional bounds to permit hierarchical pruning.
+
+\subsection{Query Containment and Predicate Pushdown}
+\label{sec:containment}
+The process of determining if one query result completely contains another is computationally complex~\cite{chandra1977optimal}. Symbolic constraint solvers offer a robust mechanism for verifying these query equivalences offline~\cite{he2024verieql, chu2017cosette}. SieveDB shifts this paradigm by using solvers online to identify valid subsets dynamically. Beyond caching, performance relies heavily on predicate pushdown. Lakehouse architectures routinely push filters down to the storage layer to reduce data transfer~\cite{armbrust2021lakehouse, yang2021flexpushdowndb}. Unfortunately, a decentralized node lacks native filtering capabilities and exposes no query interface. SieveDB solves this missing feature by embedding range metadata directly into the storage graph, achieving native pushdown filtering without intermediary services.
+
+\subsection{Database Caching and Semantic Caching}
+\label{sec:caching}
+Traditional caching mechanisms including buffer pools, memory stores, and distributed analytics caches optimize for fast local or cloud attached disks~\cite{graefe2011modern, fitzpatrick2004distributed, redis2009, dageville2016snowflake, melnik2010dremel}. Modern distributed environments often deploy multi tier caching strategies to balance large scale storage loads~\cite{liu2019distcache, durner2021crystal, tang2024data, zhao2013hycache, wang2022metadata}. However, these designs expect rapid storage and fail to address the extreme latency penalties inherent to peer to peer retrieval. Standard result caches index by query string, completely missing overlapping data. The alternative is semantic caching, which attaches defining predicates to cached results to evaluate containment~\cite{dar1996semantic}. Extensions to this concept incorporate predicate indexing and intermediate result reuse~\cite{keller1996predicate, roy2000don}, while newer approaches use heuristic overlap representations for data warehouse workloads~\cite{you2025soc}. Because heuristic overlap is imprecise, SieveDB leverages a constraint solver~\cite{de2008z3} for rigorous containment validation. Furthermore, cache eviction logic must account for retrieval costs. Classical eviction policies typically treat cache entries as opaque blocks~\cite{megiddo2003arc, einziger2017tinylfu, jiang2002lirs, zhang2024sieve}. Recent advancements optimize promotion and demotion efficiency but still ignore semantic relationships. Since cost aware eviction is critical when retrieval penalties are severe~\cite{podlipnig2003survey}, SieveDB introduces utility aware tracking to prioritize entries with high reuse potential.
+
 
 \section{Background and Motivation}
  
@@ -149,20 +198,17 @@ We propose a \emph{hybrid} architecture (Figure~\ref{fig:arch}(c)), that extends
             font=\scriptsize, align=center, thick
         },
         ipfsnode/.style={
-            draw, circle, minimum size=0.32cm, thick, fill=gray!15
+            draw, cylinder, shape border rotate=90, aspect=0.35,
+            minimum height=0.4cm, minimum width=0.32cm, thick, fill=gray!15
         },
         dagnode/.style={
             draw, circle, minimum size=0.28cm, thick, fill=white
         },
-        hollowarrow/.style={
-            -{Triangle[length=8pt,width=10pt,fill=white]},
-            line width=1.15pt, draw=black
-        },
-        thinarrow/.style={
-            -{Stealth[length=4pt]}, thick
+        modernarrow/.style={
+            -{Stealth[length=8pt, width=7pt]}, line width=1.5pt, draw=black!85
         },
         doublearrow/.style={
-            {Stealth[length=4pt]}-{Stealth[length=4pt]}, thick
+            {Stealth[length=5pt, width=5pt]}-{Stealth[length=5pt, width=5pt]}, thick, draw=black!85
         },
         paneltitle/.style={font=\footnotesize\bfseries},
         annot/.style={font=\scriptsize, text=black!70},
@@ -174,71 +220,76 @@ We propose a \emph{hybrid} architecture (Figure~\ref{fig:arch}(c)), that extends
     \def\ylabel{-3.45}
 
     % =========================================================
-    % (a) Monolithic
+    % (a) Siloed / Direct Fetch (No P2P)
     % =========================================================
     \begin{scope}[shift={(0,0)}]
         \node[box, fill=blue!12, minimum width=1.95cm] (qe-a) at (0,\ytop) {Query Engine};
 
-        \node[box, fill=orange!10, minimum width=3.05cm, minimum height=1.5cm] (p2p-a) at (0,\ynet) {};
+        \node[box, fill=orange!10, minimum width=3.05cm, minimum height=1.6cm] (p2p-a) at (0,\ynet) {};
 
-        \node[ipfsnode] (n1a) at (-0.62,-1.72) {};
-        \node[ipfsnode] (n2a) at ( 0.00,-1.50) {};
-        \node[ipfsnode] (n3a) at ( 0.62,-1.72) {};
-        \node[ipfsnode] (n4a) at (-0.34,-2.23) {};
-        \node[ipfsnode] (n5a) at ( 0.34,-2.23) {};
-        \draw[thin, gray]
-            (n1a)--(n2a) (n2a)--(n3a) (n1a)--(n4a)
-            (n4a)--(n5a) (n3a)--(n5a) (n2a)--(n5a);
+        % Independent data providers
+        \node[ipfsnode, font=\tiny\itshape] (n1a) at (-0.85,-1.85) {p1};
+        \node[ipfsnode, font=\tiny\itshape] (n2a) at ( 0.00,-1.85) {p2};
+        \node[annot, font=\small\bfseries]   (n4a) at ( 0.40, -1.85){...};
+        \node[ipfsnode, font=\tiny\itshape] (n3a) at ( 0.85,-1.85) {pN};
 
-        \node[annot, yshift=2pt] at (0,-2.63) {IPFS P2P Network};
+        \node[annot, yshift=2pt] at (0,-2.68) {Independent Data Providers};
 
-        \draw[hollowarrow]
-            (p2p-a.north) -- node[right, annot, xshift=3pt, yshift=-2pt] {fetch full data}
-            (qe-a.south);
+        % Individual fetch arrows directly to the query engine
+        \draw[modernarrow] (n1a.north) -- ([xshift=-0.65cm]qe-a.south);
+        \draw[modernarrow] (n2a.north) -- (qe-a.south);
+        \draw[modernarrow] (n3a.north) -- ([xshift=0.65cm]qe-a.south);
 
-        \node[paneltitle, yshift=-2pt] at (0,\ylabel) {(a) Monolithic};
+        % Added white fill to mask the lines behind it perfectly
+        \node[annot, fill=white, inner xsep=3pt, inner ysep=2pt] at (0,-0.85) {fetch full data};
+
+        \node[paneltitle, yshift=-2pt] at (0,\ylabel) {(a) Siloed};
     \end{scope}
 
     % =========================================================
-    % (b) Blockchain-coordinated
+    % (b) Blockchain-coordinated (Consortium)
     % =========================================================
     \begin{scope}[shift={(4.85,0)}]
-        \fill[blue!4, rounded corners=3pt] (-1.45,-0.58) rectangle (1.45,0.78);
-        \draw[dashed, thick, rounded corners=3pt] (-1.45,-0.58) rectangle (1.45,0.78);
-        \node[smallannot, font=\scriptsize\bfseries, yshift=2pt] at (0,0.88) {TEE Enclave};
+        % TEE Enclave box with label masking the dashed line
+        \draw[dashed, thick, rounded corners=3pt, fill=blue!4] (-1.35,-0.45) rectangle (1.35,0.55);
+        \node[smallannot, font=\scriptsize\bfseries, fill=white, inner xsep=2pt, inner ysep=0pt] at (0,0.55) {TEE Enclave};
 
         \node[box, fill=blue!12, minimum width=1.95cm] (qe-b) at (0,\ytop) {Query Engine};
         \node[box, fill=yellow!20, minimum width=1.8cm] (bc-b) at (2.65,\ytop) {Blockchain\\Metadata};
 
-        \node[box, fill=orange!10, minimum width=3.05cm, minimum height=1.5cm] (p2p-b) at (0,\ynet) {};
+        % Fix: Adjusted box size and center so it fully contains the text at the bottom.
+        \node[box, fill=orange!10, minimum width=3.05cm, minimum height=1.8cm] (p2p-b) at (0,-1.9) {};
 
-        \node[ipfsnode] (n1b) at (-0.62,-1.72) {};
-        \node[ipfsnode] (n2b) at ( 0.00,-1.50) {};
-        \node[ipfsnode] (n3b) at ( 0.62,-1.72) {};
-        \node[ipfsnode] (n4b) at (-0.34,-2.23) {};
-        \node[ipfsnode] (n5b) at ( 0.34,-2.23) {};
+        % Consortium P2P network
+        \node[ipfsnode, font=\tiny\itshape] (n1b) at (-0.90,-1.65) {p1};
+        \node[ipfsnode, font=\tiny\itshape] (n2b) at ( 0.00,-1.35) {p2};
+        \node[ipfsnode, font=\tiny\itshape] (n3b) at ( 0.90,-1.65) {p3};
+        \node[ipfsnode, font=\tiny\itshape] (n4b) at (-0.55,-2.25) {p4};
+        \node[annot, font=\small\bfseries]   (n6b) at ( 0.00,-2.25) {...};
+        \node[ipfsnode, font=\tiny\itshape] (n5b) at ( 0.55,-2.25) {pN};
+        
         \draw[thin, gray]
             (n1b)--(n2b) (n2b)--(n3b) (n1b)--(n4b)
             (n4b)--(n5b) (n3b)--(n5b) (n2b)--(n5b);
 
-        \node[annot, yshift=2pt] at (0,-2.63) {IPFS P2P Network};
+        \node[annot, yshift=2pt] at (0,-2.68) {Database Consortium (P2P)};
 
-        \draw[hollowarrow]
-            (p2p-b.north) -- node[right, annot, xshift=3pt, yshift=-4pt] {fetch relevant CIDs}
-            (qe-b.south);
+        % Arrow natively anchored to the nodes
+        \draw[modernarrow]
+            (n2b.north) -- node[right, annot, xshift=2pt] {fetch relevant CIDs} (qe-b.south);
 
-        \draw[doublearrow] (1.45,0) -- (bc-b.west);
+        \draw[doublearrow] (1.35,0) -- (bc-b.west);
 
-        \node[paneltitle, yshift=-2pt] at (0.55,\ylabel) {(b) Blockchain-coordinated};
+        \node[paneltitle, yshift=-2pt] at (0.45,\ylabel) {(b) Blockchain-coordinated};
     \end{scope}
 
     % =========================================================
-    % (c) SieveDB (Hybrid)
+    % (c) SieveDB (Hybrid Consortium)
     % =========================================================
     \begin{scope}[shift={(11.1,0)}]
-        \fill[blue!4, rounded corners=3pt] (-2.15,-0.58) rectangle (2.15,0.78);
-        \draw[dashed, thick, rounded corners=3pt] (-2.15,-0.58) rectangle (2.15,0.78);
-        \node[smallannot, font=\scriptsize\bfseries, yshift=2pt] at (0,0.88) {TEE Enclave};
+        % TEE Enclave box
+        \draw[dashed, thick, rounded corners=3pt, fill=blue!4] (-2.15,-0.45) rectangle (2.15,0.55);
+        \node[smallannot, font=\scriptsize\bfseries, fill=white, inner xsep=2pt, inner ysep=0pt] at (0,0.55) {TEE Enclave};
 
         \node[box, fill=green!15, minimum width=1.8cm] (cache-c) at (-0.98,\ytop) {Semantic\\[-1pt]Cache};
         \node[box, fill=blue!12, minimum width=1.8cm] (qe-c) at (0.98,\ytop) {Query Engine};
@@ -247,20 +298,23 @@ We propose a \emph{hybrid} architecture (Figure~\ref{fig:arch}(c)), that extends
         \node[box, fill=yellow!20, minimum width=1.8cm] (bc-c) at (3.75,\ytop) {Blockchain\\Metadata};
         \draw[doublearrow] (2.15,0) -- (bc-c.west);
 
-        \node[box, fill=orange!10, minimum width=5.7cm, minimum height=1.75cm] (p2p-c) at (0,\ynet) {};
+        % Fix: Adjusted box height and position to fit labels without boundary overlap. Slightly widened to fit shifted texts.
+        \node[box, fill=orange!10, minimum width=5.8cm, minimum height=1.8cm] (p2p-c) at (0,-1.9) {};
 
-        % left half: P2P network
-        \node[ipfsnode] (n1c) at (-1.72,-1.68) {};
-        \node[ipfsnode] (n2c) at (-1.14,-1.47) {};
-        \node[ipfsnode] (n3c) at (-0.57,-1.68) {};
-        \node[ipfsnode] (n4c) at (-1.47,-2.18) {};
-        \node[ipfsnode] (n5c) at (-0.88,-2.18) {};
+        % left half: Consortium P2P network
+        \node[ipfsnode, font=\tiny\itshape] (n1c) at (-2.15,-1.65) {p1};
+        \node[ipfsnode, font=\tiny\itshape] (n2c) at (-1.25,-1.35) {p2};
+        \node[ipfsnode, font=\tiny\itshape] (n3c) at (-0.35,-1.65) {p3};
+        \node[ipfsnode, font=\tiny\itshape] (n4c) at (-1.80,-2.25) {p4};
+        \node[annot, font=\small\bfseries]   (n6c) at (-1.25,-2.25) {...};
+        \node[ipfsnode, font=\tiny\itshape] (n5c) at (-0.70,-2.25) {pN};
+        
         \draw[thin, gray]
             (n1c)--(n2c) (n2c)--(n3c) (n1c)--(n4c)
             (n4c)--(n5c) (n3c)--(n5c) (n2c)--(n5c);
 
-        % divider
-        \draw[thin, gray!50, dashed] (0,-1.22) -- (0,-2.78);
+        % divider (adjusted y-bounds to stay inside the newly sized box)
+        \draw[thin, gray!50, dashed] (0,-1.05) -- (0,-2.75);
 
         % right half: DAG
         \node[dagnode, fill=green!32] (dag-root) at (1.08,-1.48) {};
@@ -278,31 +332,36 @@ We propose a \emph{hybrid} architecture (Figure~\ref{fig:arch}(c)), that extends
         \draw[thick, black!25, dashed] (dag-root)--(dag-r1);
         \draw[thin, black!20, dashed] (dag-r1)--(dag-r2a);
         \draw[thin, black!20, dashed] (dag-r1)--(dag-r2b);
+        
+        % Arrow connecting P2P node (n3c) to DAG root
+        \draw[-{Stealth[length=6pt, width=6pt]}, dashed, thick, draw=black!70] (n3c.east) to[out=15, in=165] (dag-root.west);
 
         \node[font=\small\bfseries, text=red!70] at (1.91,-1.66) {$\times$};
 
-        \node[annot] at (-1.12,-2.60) {IPFS P2P Network};
-        \node[annot] at (1.08,-2.60) {Merkle DAG};
+        % Fix: Shifted these apart horizontally by defining absolute positions and standardized yshift.
+        \node[annot, yshift=2pt] at (-1.45,-2.68) {Database Consortium (P2P)};
+        \node[annot, yshift=2pt] at (1.45,-2.68) {Custom Merkle DAG};
 
-        \draw[hollowarrow] (p2p-c.north) -- node[right, annot, xshift=3pt] {fetch matching shards} (0,-0.58);
+        % Ensure perfectly vertical arrow between DAG and Query Engine
+        \draw[modernarrow] (dag-root.north) -- node[right, annot, xshift=1pt, yshift=2pt] {fetch matching shards} (dag-root.north |- qe-c.south);
 
         % legend below panel c
-        \node[dagnode, fill=green!28, minimum size=0.22cm, yshift=-2pt] at (0.70,-3.05) {};
-        \node[smallannot, anchor=west, yshift=-2pt] at (0.86,-3.05) {matched};
+        \node[dagnode, fill=green!28, minimum size=0.22cm, yshift=-2pt] at (0.70,-3.12) {};
+        \node[smallannot, anchor=west, yshift=-2pt] at (0.86,-3.12) {matched};
 
-        \node[dagnode, fill=red!16, draw=red!40, minimum size=0.22cm, yshift=-2pt] at (1.85,-3.05) {};
-        \node[smallannot, anchor=west, yshift=-2pt] at (2.01,-3.05) {pruned};
+        \node[dagnode, fill=red!16, draw=red!40, minimum size=0.22cm, yshift=-2pt] at (1.85,-3.12) {};
+        \node[smallannot, anchor=west, yshift=-2pt] at (2.01,-3.12) {pruned};
 
-        \node[annot, font=\scriptsize\itshape, xshift=-10pt, yshift=-2pt] at (-0.55,-3.05) {Pushdown-aware storage};
+        \node[annot, font=\scriptsize\itshape, xshift=-10pt, yshift=-2pt] at (-0.55,-3.12) {Pushdown-aware storage};
 
-        \node[paneltitle, yshift=-2pt] at (0.55,\ylabel) {(c) \ours{} (Hybrid)};
+        \node[paneltitle, yshift=-2pt] at (0.45,\ylabel) {(c) SieveDB (Hybrid)};
     \end{scope}
 
     \end{tikzpicture}
     \caption{Decentralized database architectures.
-    \textbf{(a)} Monolithic: the query engine fetches the full database state from IPFS.
-    \textbf{(b)} Blockchain-coordinated: on-chain metadata helps locate relevant CIDs, but neither caching nor predicate pushdown is supported.
-    \textbf{(c)} \ours{}: a semantic cache and a pushdown-aware Merkle DAG reduce network I/O by reusing cached results and pruning irrelevant shards before fetching each CID.}
+    \textbf{(a)} Siloed: fetch full database state directly from each individual, independent data providers.
+    \textbf{(b)} Blockchain-coordinated: data providers form a P2P consortium; on-chain metadata helps locate relevant CIDs, but neither caching nor predicate pushdown is supported.
+    \textbf{(c)} SieveDB: a semantic cache and a pushdown-aware Merkle DAG reduce network I/O by reusing cached results and pruning irrelevant shards before fetching from the consortium.}
     \label{fig:arch}
 \end{figure*}
  
@@ -329,6 +388,7 @@ Existing decentralized database systems support neither caching nor pushdown, le
 
 We address this gap with a hybrid design. The semantic cache layer reuses cached results across queries via SMT-based query containment checking, and the pushdown layer organizes table data into a metadata-rich IPLD Merkle DAG, enabling predicate-based filtering at the IPFS level. Together, the cache eliminates fetches for repeated or overlapping queries, while the pushdown DAG eliminates retrieval for irrelevant data partitions.
 
+
 \section{\ours{} Overview}
 \label{sec:overview}
  
@@ -341,235 +401,23 @@ Figure~\ref{fig:arch}(c) shows the high-level architecture of \ours{}, and Figur
 The block reorganizer is an offline component that transforms raw table data into a pushdown-friendly layout on IPFS. It takes an input table, partitions it into range-bounded shards using extended KD-tree bisection (Section~\ref{sec:partitioning}), and then builds a custom IPLD Merkle DAG over those shards (Section~\ref{sec:dag_construction}). Each shard is serialized to Parquet, compressed with Snappy to reduce its footprint, encrypted with the enclave key, and then uploaded to IPFS. The Merkle DAG encodes per-attribute \texttt{[min, max]} range summaries at every internal node, which turns IPFS from a semantically blind object store into a predicate-aware storage. The root CID of the DAG is recorded on the blockchain-managed global metadata and serves as the entry point for all subsequent queries on that table.
  
 \textbf{Cache manager.}
-The cache manager maintains a two-tier semantic cache inside the enclave. Unlike traditional result caches that match queries by their hash of SQL string, \ours{}'s cache manager annotates each entry with the defining predicates of the query that produced it and uses Z3-based SMT containment checking~\cite{de2008z3} to detect when a new query's results are a subset of a cached result (Section~\ref{sec:containment_reuse}). When containment holds, the system applies the residual filter in-enclave and returns the result without any IPFS access. For eviction, the cache manager uses our \emph{Utility-aware Eviction Policy} (Section~\ref{}) that enables eviction of cache entries based on their pushdown cost and reuse potential. The cache manager determines which data should be admitted to the cache, which should be evicted, and when to fall back to pushdown. The tradeoff is analogous to the one in cloud-disaggregated systems~\cite{yang2021flexpushdowndb}: processing cached data is faster than fetching new data, but the cache is constrained by enclave memory.
+The cache manager maintains a two-tier semantic cache. Tier 1 cache is stored within the enclave and used to store extremely hot data. Tier 2 cache is securely stored outside the enclave (e.g., SSD). When the enclave's memory is full, the enclave moves its cache out via a process called \textit{seal}. None can access the sealed cache except the enclave. Unlike traditional result caches that match queries by their hash of SQL string, \ours{}'s cache manager annotates each entry with the defining predicates of the query that produced it and uses Z3-based SMT containment checking~\cite{de2008z3} to detect when a new query's results are a subset of a cached result (Section~\ref{sec:z3}). When containment holds, the system applies the residual filter in-enclave and returns the result without any IPFS access. 
+
+For eviction, the cache manager uses our \emph{Utility-aware Cache Eviction Policy} (Section~\ref{sec:utility_aware}) that enables eviction of cache entries based on their pushdown cost and reuse potential. The cache manager determines which data should be admitted to the cache, which should be evicted, and when to fall back to pushdown. The tradeoff is analogous to the one in cloud-disaggregated systems~\cite{yang2021flexpushdowndb}: processing cached data is faster than fetching new data, but the cache is constrained by enclave memory.
  
 \textbf{Hybrid query engine.}
 The hybrid query engine converts each incoming query plan into a \emph{separable query plan} that dispatches work to both the cache and the IPFS storage layer (Section~\ref{sec:hqe}). An operator is \emph{separable} if it can be executed independently on cached data and on remotely fetched data, with the partial results combined afterward. Filtering scans, projections, and aggregations are all separable; the engine processes the cached portion locally and pushes down predicates to the Merkle DAG for the uncached portion. A \emph{merge} operator then combines the two partial results into a single output. This design allows \ours{} to exploit partial cache hits: even if only parts of the data needed by a query are cached, the engine benefits from both the cached portion and the pushdown-filtered remote portion, rather than treating the query as a full miss.
+
+\textbf{Pushdown-aware decentralized storage.} \\
+
+\textbf{Blockchain.}
  
  
 \begin{figure}[t]
     \centering
-    \begin{tikzpicture}[
-        component/.style={
-            draw, rounded corners=3pt,
-            minimum width=2.4cm,
-            minimum height=0.7cm,
-            font=\scriptsize,
-            align=center,
-            thick
-        },
-        smallbox/.style={
-            draw, rounded corners=2pt,
-            minimum width=1.5cm,
-            minimum height=0.45cm,
-            font=\tiny,
-            align=center,
-            thick
-        },
-        solidarrow/.style={-{Stealth[length=5pt]}, thick},
-        doublearrow/.style={{Stealth[length=4pt]}-{Stealth[length=4pt]}, thick},
-        dashedarrow/.style={-{Stealth[length=5pt]}, thick, dashed},
-        annot/.style={font=\tiny, text=black!70},
-        sublabel/.style={font=\tiny\itshape, text=black!50},
-        ipfsnode/.style={draw, circle, minimum size=0.24cm, thick, fill=gray!15},
-        dagnode/.style={draw, circle, minimum size=0.22cm, thick, fill=white},
-        scale=0.82,
-        every node/.style={scale=0.82}
-    ]
-
-    %% =========================================================
-    %% Query / Result (top)
-    %% =========================================================
-    \node[
-        draw, rounded corners=2pt,
-        minimum width=1.8cm, minimum height=0.4cm,
-        fill=gray!8, font=\tiny\ttfamily
-    ] (query-box) at (-1.4, 6.4) {Query plan};
-
-    \node[
-        draw, rounded corners=2pt,
-        minimum width=1.8cm, minimum height=0.4cm,
-        fill=gray!8, font=\tiny\ttfamily
-    ] (result-box) at (1.4, 6.4) {Query result};
-
-    %% =========================================================
-    %% Hybrid Query Engine
-    %% =========================================================
-    \node[component, fill=blue!12, minimum width=3.6cm] (hqe) at (0, 5.2)
-        {Hybrid Query Engine};
-
-    \draw[solidarrow] (query-box.south) -- ([xshift=-1.4cm]hqe.north);
-    \draw[solidarrow] ([xshift=1.4cm]hqe.north) -- (result-box.south);
-
-    %% =========================================================
-    %% Cache Manager (left)
-    %% =========================================================
-    \node[component, fill=green!15, minimum width=2.8cm, minimum height=1.8cm] (cache-mgr) at (-3.0, 3.0) {};
-    \node[font=\scriptsize\bfseries, anchor=north] at ([yshift=-2pt]cache-mgr.north) {Cache Manager};
-
-    \node[smallbox, fill=green!8, minimum width=2.3cm] (z3box) at (-3.0, 2.75) {Z3 Containment Checker};
-    \node[smallbox, fill=green!8, minimum width=2.3cm] (evbox) at (-3.0, 2.1) {Semantic Sieve Eviction};
-
-    %% Tier 1 Cache
-    \node[
-        component, fill=green!10,
-        minimum width=2.8cm, minimum height=0.55cm,
-        font=\tiny
-    ] (tier1) at (-3.0, 0.85) {Tier~1 Cache: Enclave Memory};
-
-    \draw[solidarrow] (cache-mgr.south) --
-        node[annot, right, xshift=2pt] {admit / evict}
-        (tier1.north);
-
-    %% =========================================================
-    %% Block Reorganizer (right)
-    %% =========================================================
-    \node[component, fill=orange!12, minimum width=2.8cm, minimum height=1.8cm] (blk-reorg) at (3.0, 3.0) {};
-    \node[font=\scriptsize\bfseries, anchor=north] at ([yshift=-2pt]blk-reorg.north) {Block Reorganizer};
-
-    \node[smallbox, fill=orange!8, minimum width=2.3cm] at (3.0, 2.75) {KD-Tree Partitioner};
-    \node[smallbox, fill=orange!8, minimum width=2.3cm] at (3.0, 2.1) {IPLD Merkle DAG Builder};
-
-    %% =========================================================
-    %% TEE Enclave boundary (background)
-    %% =========================================================
-    \begin{scope}[on background layer]
-        \fill[blue!3, rounded corners=6pt]
-            ([xshift=-30pt, yshift=18pt]cache-mgr.north west |- hqe.north)
-            rectangle
-            ([xshift=30pt, yshift=-10pt]blk-reorg.south east |- tier1.south);
-    \end{scope}
-
-    \node[
-        draw, dashed, rounded corners=6pt,
-        inner xsep=25pt, inner ysep=15pt,
-        fit=(hqe)(cache-mgr)(blk-reorg)(tier1),
-        label={[annot, yshift=-1pt, font=\tiny\bfseries]above:TEE Enclave}
-    ] (tee) {};
-
-    %% =========================================================
-    %% HQE -> manager connections
-    %% =========================================================
-    \draw[doublearrow]
-        ([yshift=-2pt]hqe.west) -|
-        node[annot, pos=0.3, above] {lookup / store}
-        ([yshift=8pt]cache-mgr.north);
-
-    \draw[solidarrow]
-        ([yshift=-2pt]hqe.east) -|
-        node[annot, pos=0.3, above, xshift=5pt] {predicate pushdown}
-        ([yshift=8pt]blk-reorg.north);
-
-    %% =========================================================
-    %% Tier 2 (outside enclave)
-    %% =========================================================
-    \node[
-        component, fill=green!5,
-        minimum width=2.8cm, minimum height=0.55cm,
-        font=\tiny, draw=black!60
-    ] (tier2) at (-3.0, -0.45) {Tier~2 Cache: Encrypted SSD};
-
-    \node[annot, font=\tiny\itshape, text=black!40] at ([yshift=-8pt]tier2.south) {(outside enclave)};
-
-    \draw[doublearrow] (tier1.south) --
-        node[annot, right, xshift=2pt] {seal / unseal}
-        (tier2.north);
-
-    %% =========================================================
-    %% Blockchain (bottom-left)
-    %% =========================================================
-    \node[
-        component, fill=yellow!25,
-        minimum width=2.0cm,
-        pattern=north east lines,
-        pattern color=yellow!8
-    ] (blockchain) at (-0.8, -2.0)
-    {Blockchain\\[-1pt]\tiny{(On-chain Metadata)}};
-
-    \draw[doublearrow] (blockchain.north) -- ++(0, 0.7)
-        node[annot, right, xshift=2pt, yshift=-4pt] {root CIDs};
-
-    %% =========================================================
-    %% IPFS Storage (bottom-right)
-    %% =========================================================
-    \node[
-        draw, rounded corners=3pt, fill=orange!8, thick,
-        minimum width=4.4cm, minimum height=1.5cm
-    ] (ipfs-box) at (3.0, -2.0) {};
-
-    %% Left half: P2P network nodes
-    \node[ipfsnode] (pn1) at (1.5, -1.7) {};
-    \node[ipfsnode] (pn2) at (1.95, -1.5) {};
-    \node[ipfsnode] (pn3) at (2.4, -1.7) {};
-    \node[ipfsnode] (pn4) at (1.7, -2.1) {};
-    \node[ipfsnode] (pn5) at (2.15, -2.1) {};
-
-    \draw[gray]
-        (pn1)--(pn2) (pn2)--(pn3) (pn1)--(pn4)
-        (pn4)--(pn5) (pn3)--(pn5) (pn2)--(pn5);
-
-    %% Divider
-    \draw[gray!50, dashed] (2.8, -1.25) -- (2.8, -2.65);
-
-    %% Right half: Merkle DAG
-    \node[dagnode, fill=green!30] (dag-root) at (3.55, -1.45) {};
-    \node[dagnode, fill=green!25] (dag-l1)   at (3.15, -1.75) {};
-    \node[dagnode, fill=red!20]   (dag-r1)   at (3.95, -1.75) {};
-    \node[dagnode, fill=green!20] (dag-l2a)  at (2.98, -2.05) {};
-    \node[dagnode, fill=green!20] (dag-l2b)  at (3.32, -2.05) {};
-    \node[dagnode, fill=red!20]   (dag-r2a)  at (3.78, -2.05) {};
-    \node[dagnode, fill=red!20]   (dag-r2b)  at (4.12, -2.05) {};
-
-    %% Solid edges for matched subtree
-    \draw[thick, black!60] (dag-root) -- (dag-l1);
-    \draw[black!50] (dag-l1) -- (dag-l2a);
-    \draw[black!50] (dag-l1) -- (dag-l2b);
-
-    %% Dashed edges for pruned subtree
-    \draw[thick, black!35, dashed] (dag-root) -- (dag-r1);
-    \draw[black!30, dashed] (dag-r1) -- (dag-r2a);
-    \draw[black!30, dashed] (dag-r1) -- (dag-r2b);
-
-    %% Pruned cross mark
-    \node[font=\scriptsize\bfseries, text=red!70] at (4.15, -1.58) {$\times$};
-
-    %% Sub-labels inside IPFS box
-    \node[font=\tiny, text=black!50] at (1.95, -2.45) {IPFS P2P};
-    \node[font=\tiny, text=black!50] at (3.55, -2.45) {Merkle DAG};
-
-    %% Region label
-    \node[annot, font=\tiny\itshape, yshift=-5pt] at (3.0, -2.85) {Pushdown-aware decentralized storage};
-
-    %% =========================================================
-    %% Storage connections
-    %% =========================================================
-    %% Upload shards
-    \draw[solidarrow]
-        ([yshift=-2pt]blk-reorg.south) --
-        node[annot, right, xshift=-2pt, yshift=10pt] {upload shards}
-        (ipfs-box.north -| blk-reorg);
-
-    %% Fetch matching shards on miss
-    \draw[dashedarrow, draw=blue!60!black, line width=0.9pt]
-        ([xshift=-30pt]ipfs-box.north) -- ++(0, 0.6)
-        -| node[annot, pos=0.25, above, text=blue!60!black, font=\small\bfseries]
-           {fetch on miss}
-        ([xshift=5pt]tier1.south east);
-
-    %% =========================================================
-    %% Legend
-    %% =========================================================
-    \node[dagnode, fill=green!25, minimum size=0.18cm] at (-1.0, -3.35) {};
-    \node[font=\tiny, text=black!55, anchor=west] at (-0.82, -3.35) {matched};
-
-    \node[dagnode, fill=red!20, minimum size=0.18cm] at (0.4, -3.35) {};
-    \node[font=\tiny, text=black!55, anchor=west] at (0.58, -3.35) {pruned ($\times$)};
-
-    \end{tikzpicture}
-
+    \includegraphics[width=\columnwidth]{figure/sievedb_architecture.pdf}
     \caption{System architecture of \ours{}.
     The hybrid query engine dispatches work to the cache manager (left) and the block reorganizer (right).
-    Tier~1 is the in-enclave cache; Tier~2 is encrypted SSD outside the enclave.
     On a cache miss, the engine traverses the Merkle DAG and fetches only matching shards from IPFS;
     unmatched subtrees (marked in \textcolor{red!70}{red}) are skipped entirely.}
     \label{fig:overview}
@@ -582,9 +430,9 @@ The hybrid query engine converts each incoming query plan into a \emph{separable
 Designing a hybrid caching and pushdown system for a decentralized DBMS requires two high-level decisions: \emph{what to cache} and \emph{at what granularity} to cache and partition. We discuss the tradeoffs below.
  
 \textbf{Caching query results vs.\ table data.}
-Two types of data can potentially be cached: \emph{table data} (raw rows or columns of the input tables) and \emph{query results} (the final or intermediate outputs of a query). Table-data caching is conceptually simpler---the cache holds IPFS shard contents, and any query that touches a cached shard avoids the P2P fetch. However, this approach cannot exploit semantic overlap: if the cache holds a shard containing rows with \texttt{Age} in $[40, 80]$, it cannot determine whether a query for \texttt{Age > 60} can be answered from that shard alone, because the cache has no predicate-level metadata.
+Two types of data can potentially be cached: \emph{table data} (raw rows or columns of the input tables) and \emph{query results} (the final or intermediate outputs of a query). Table-data caching is conceptually simpler -- the cache holds IPFS shard contents, and any query that touches a cached shard avoids the P2P fetch. However, this approach cannot exploit semantic overlap: if the cache holds a shard containing rows with \texttt{Age} in $[40, 80]$, it cannot determine whether a query for \texttt{Age > 60} can be answered from that shard alone, because the cache has no predicate-level metadata.
  
-Query-result caching annotates each cached entry with the predicates that define its contents, enabling the SMT-based containment checking described in Section~\ref{sec:containment_reuse}. A cached result for \texttt{Age > 50} can serve any future query for \texttt{Age > 60} by applying a residual filter in-enclave. The cost is that query results are less reusable for queries with different projection lists or aggregations. \ours{} adopts query-result caching because the extreme IPFS miss penalty (100--5000~ms) makes semantic reuse far more valuable than the modest generality of table-data caching. Queries with full column lists (\texttt{SELECT *}) maximize reuse potential and receive higher utility scores in the Utility-aware cache eviction policy (Section~\ref{sec:semantic_sieve}).
+Query-result caching annotates each cached entry with the predicates that define its contents, enabling the SMT-based containment checking described in Section~\ref{sec:z3}. A cached result for \texttt{Age > 50} can serve any future query for \texttt{Age > 60} by applying a residual filter in-enclave. The cost is that query results are less reusable for queries with different projection lists or aggregations. \ours{} adopts query-result caching because the extreme IPFS miss penalty (100--5000~ms) makes semantic reuse far more valuable than the modest generality of table-data caching. Queries with full column lists (\texttt{SELECT *}) maximize reuse potential and receive higher utility scores in the Utility-aware cache eviction policy (Section~\ref{sec:utility_aware}).
  
 \textbf{Partitioning and caching granularity.}
 The basic unit of data organization on IPFS is a \emph{shard}: a Parquet-serialized, encrypted subset of a table. The shard size directly affects the effectiveness of both pushdown and caching. If shards are too large, pushdown pruning is coarse and more data is fetched per cache miss. If shards are too small, the Merkle DAG grows deep, increasing metadata traversal overhead, and each shard incurs a separate P2P round-trip.
@@ -649,13 +497,13 @@ This partitioning step produces shards that are both network-efficient and seman
  
 Partitioning alone reduces the size of individual fetches but does not tell the query engine \emph{which} shards to fetch for a given predicate. To support predicate pushdown, \ours{} builds a custom Merkle DAG over the shards using IPLD~\cite{ipld2023spec}, the linked-data layer of IPFS. The key idea is to attach range metadata to internal DAG nodes so that query predicates can be evaluated during top-down traversal. Unlike the default IPFS Merkle DAG, which is organized around byte-level chunking and is oblivious to table semantics, our DAG is organized around relational shards and their attribute ranges.
  
-\paragraph{Leaf nodes.}
+\textbf{Leaf nodes.}
 For each shard $S_i$, the system serializes the data to Parquet, compresses it with Snappy, encrypts the result with the enclave key, and uploads the ciphertext to IPFS, producing a data CID $c_i^{\text{data}}$. A leaf DAG node is then created containing: (1)~an IPLD link to $c_i^{\text{data}}$, (2)~the shard bounding box $\mathcal{B}(S_i)$, (3)~the row count, and (4)~the serialized size in bytes. The leaf node is stored via \texttt{dag/put} using the \texttt{dag-cbor} codec, yielding a leaf CID $c_i^{\text{leaf}}$.
  
-\paragraph{Internal nodes.}
+\textbf{Internal nodes.}
 Leaf CIDs are grouped into batches of size $b$ (the DAG branching factor; default $b = 4$). For each batch, \ours{} constructs an internal node containing IPLD links to its children and an aggregate range summary computed attribute-wise: the minimum of child lower bounds and the maximum of child upper bounds. Each internal node therefore summarizes the full predicate-relevant extent of its subtree in a single small metadata object.
  
-\paragraph{Recursive aggregation.}
+\textbf{Recursive aggregation.}
 The system repeats this bottom-up aggregation until a single root node remains. The resulting root CID $c_{\text{root}}$ is recorded on the blockchain-managed global index and serves as the entry point for all subsequent queries on that table. Algorithm~\ref{alg:dag_build} gives the full construction procedure.
  
 \begin{algorithm}[t]
@@ -690,9 +538,9 @@ $\mathit{cids} \gets [\,]$\;
  
 At query time, the DAG enables top-down pruning. Given a set of predicates extracted from the query's \texttt{WHERE} clause, the system begins at the root and checks whether each child node's aggregate range overlaps with the predicate. Subtrees whose ranges are entirely disjoint from the predicate are discarded immediately, without retrieving any descendant shards. Only leaf nodes whose bounding boxes intersect the predicate trigger an IPFS fetch; the corresponding encrypted shard is retrieved, decrypted inside the enclave, and passed to the query engine for further processing.
  
-The height of the DAG is $h = \lceil \log_b k \rceil$ for $k$ shards and branching factor $b$. With the default $b = 4$ and 256\,KB shards, a 1\,GB table produces approximately 4{,}000 shards and a DAG of height $\lceil \log_4 4000 \rceil = 6$. Because each internal node is a small CBOR-encoded metadata object (typically under 1\,KB), the storage overhead of the entire index structure is negligible relative to the underlying data---well under 1\% of the table size. Traversing these metadata nodes is also fast: each node requires a single IPFS \texttt{dag/get} call that returns in milliseconds for locally pinned metadata, compared to the seconds-scale latency of fetching full data shards from remote peers.
+% The height of the DAG is $h = \lceil \log_b k \rceil$ for $k$ shards and branching factor $b$. With the default $b = 4$ and 256\,KB shards, a 1\,GB table produces approximately 4{,}000 shards and a DAG of height $\lceil \log_4 4000 \rceil = 6$. Because each internal node is a small CBOR-encoded metadata object (typically under 1\,KB), the storage overhead of the entire index structure is negligible relative to the underlying data---well under 1\% of the table size. Traversing these metadata nodes is also fast: each node requires a single IPFS \texttt{dag/get} call that returns in milliseconds for locally pinned metadata, compared to the seconds-scale latency of fetching full data shards from remote peers.
  
-Crucially, this construction turns IPFS from a content-addressed, semantically blind object store into a predicate-aware access path for relational data. The DAG is the index: no separate B$^+$-tree or external metadata service is required. All range summaries are content-addressed and immutable, inheriting the same integrity and availability guarantees as the data itself.
+% Crucially, this construction turns IPFS from a content-addressed, semantically blind object store into a predicate-aware access path for relational data. The DAG is the index: no separate B$^+$-tree or external metadata service is required. All range summaries are content-addressed and immutable, inheriting the same integrity and availability guarantees as the data itself.
 
 \section{Hybrid Query Engine}
 \label{sec:hqe}
@@ -707,7 +555,7 @@ output.  This section defines the notion of operator separability
 (\S\ref{sec:separable_ops}), describes how separable plans are
 constructed (\S\ref{sec:separable_plan}), and walks through a
 concrete query to illustrate end-to-end execution
-(\S\ref{sec:example_exec}).
+(\S\ref{sec:example_join}).
  
 %% ----------------------------------------------------------
 \subsection{Separable Operators}
@@ -719,20 +567,18 @@ of its input relation $R$ into disjoint subsets $R_c$ (cached) and
 $R_p$ (remote), there exists a merge function $\oplus$ such that
 $\mathcal{O}(R) = \mathcal{O}(R_c) \oplus \mathcal{O}(R_p)$. Whether a particular operator instance is separable depends on both the operator semantics and the current cache contents.  Below we classify the relational operators supported by \ours{}.
  
-\paragraph{Projection.}
-Column selection commutes with partitioning: the engine projects
+\textbf{Projection.} Column selection commutes with partitioning: the engine projects
 over the cached rows locally and over the IPFS-fetched rows after
 pushdown.  The two column subsets are concatenated and forwarded
 to downstream operators.
  
-\paragraph{Filter scan.}
-A filter scan with predicate $P_n$ is separable whenever the cache
+\textbf{Filter scan.} A filter scan with predicate $P_n$ is separable whenever the cache
 holds a result whose defining predicate $P_c$ overlaps with~$P_n$.
 Three cases arise.
 \emph{(i)~Full containment} ($P_n \Rightarrow P_c$): the cached
 result is a superset of the needed rows; the engine applies $P_n$
-as a residual filter in-enclave and returns immediately---no IPFS
-access occurs.
+as a residual filter in-enclave and returns immediately -- no IPFS
+access needed.
 \emph{(ii)~Partial overlap}: the cache covers a sub-range of~$P_n$.
 The engine evaluates $P_n$ on the cached data locally and computes
 a \emph{residual predicate} $P_r = P_n \wedge \neg P_c$ that
@@ -740,35 +586,40 @@ captures the uncovered portion; $P_r$ is pushed down through the
 Merkle DAG so that only the shards satisfying $P_r$ are fetched.
 \emph{(iii)~No overlap}: all predicates are pushed down to the DAG.
  
-\paragraph{Aggregation.}
-Distributive aggregates (\texttt{SUM}, \texttt{COUNT}, \texttt{MIN},
-\texttt{MAX}) and algebraic aggregates (\texttt{AVG}~=~SUM/COUNT) are
+\textbf{Aggregation.} Distributive aggregates (\texttt{SUM}, \texttt{COUNT}, \texttt{MIN},
+\texttt{MAX}) and algebraic aggregates (\texttt{AVG}) are
 separable: the engine computes partial aggregates over the cached and
-pushdown subsets independently and merges them with the corresponding
+pushdown subsets independently and merge them with the corresponding
 algebraic identity.  For example, both paths return (sum, count)
 tuples for an \texttt{AVG}; the merge divides their combined sum
 by the combined count.
  
-\paragraph{Join.}
-IPFS provides no computation model, so a join cannot be pushed down
+\textbf{Join.} IPFS provides no computation model, so a join cannot be pushed down
 as a whole.  However, each input relation can be independently split
 into its cached and uncached portions, fetched as described above,
-and then joined locally in-enclave.  When the inner (build) relation
-is fully cached, the engine constructs the hash table from the cache
-and streams the outer relation's shards through it, issuing IPFS
-fetches only for the larger side.
- 
-\paragraph{Sort.}
-Both the cached and remotely fetched subsets can be sorted
+and then joined locally in-enclave (Section \ref{sec:example_join}).
+
+\textbf{Sort.} Both the cached and remotely fetched subsets can be sorted
 independently and combined via a single merge-sort pass.
 Because IPFS has no sort capability, the benefit of separation is
-limited to reducing the input size: pushdown pruning eliminates
-irrelevant shards before the sort.
+limited to reducing the input size: pushdown filtering eliminates irrelevant shards before the sort.
  
 %% ----------------------------------------------------------
 \subsection{Separable Query Plans}
 \label{sec:separable_plan}
 %% ----------------------------------------------------------
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=\columnwidth]{figure/sep_plan.pdf}
+    \caption{Traditional vs.\ separable query plan. \textbf{(a)} Fetch all data from IPFS before any processing.
+    \textbf{(b)} The separable plan evaluates cached data locally
+    (left) and pushes residual predicates to the Merkle DAG for
+    uncached data (right); partial aggregates are combined by a
+    \textit{merge} operator.}
+    \label{fig:separable_plan}
+\end{figure}
+
 
 Given a query $Q$ with predicates $P_n$ and the current cache state,
 the engine constructs a separable plan by first invoking the Z3-based
@@ -798,306 +649,186 @@ shard fetch costs 100--5\,000\,ms---even modest pruning ratios yield
 large latency savings.  Figure~\ref{fig:separable_plan} contrasts a
 conventional plan that fetches every shard before processing with a
 separable plan that exploits both the cache and pushdown pruning.
- 
- 
-\begin{figure}[t]
+
+
+\subsection{Example: Separable Query Execution}
+\label{sec:example_join}
+
+\begin{figure*}[t]
     \centering
     \begin{tikzpicture}[
-        node distance=0.6cm and 0.8cm,
-        comp/.style={draw, rounded corners=2pt, minimum width=1.4cm,
-                     minimum height=0.45cm, font=\tiny, align=center, thick},
-        storage/.style={draw, rounded corners=2pt, minimum width=1.2cm,
-                       minimum height=0.35cm, font=\tiny, align=center,
-                       thick, fill=orange!10},
-        cache/.style={draw, rounded corners=2pt, minimum width=1.2cm,
-                     minimum height=0.35cm, font=\tiny, align=center,
-                     thick, fill=green!10},
-        arr/.style={-{Stealth[length=4pt]}, thick},
-        annot/.style={font=\tiny, text=black!60},
-        scale=0.85, every node/.style={scale=0.85}
+        scale=0.9, transform shape,
+        >=Stealth,
+        % --- Query Operator Styles (Flat Colors for Print) ---
+        op/.style={draw=cyan!80!black, fill=cyan!5, rounded corners=4pt, minimum width=2.8cm, minimum height=0.65cm, font=\sffamily\scriptsize, align=center, thick},
+        mergebox/.style={draw=violet!80!black, fill=violet!5, rounded corners=4pt, minimum width=2.0cm, minimum height=0.65cm, font=\sffamily\scriptsize\bfseries, align=center, thick},
+        % --- Shard Styles ---
+        shard/.style={draw=black!60, minimum width=1.6cm, minimum height=0.6cm, font=\sffamily\tiny\bfseries, align=center, thick, rounded corners=2pt},
+        cached/.style={shard, fill=green!10, draw=green!60!black},
+        % --- IPFS Node Styles ---
+        dagleaf/.style={draw=black!60, minimum width=0.35cm, minimum height=0.35cm, font=\sffamily\tiny\bfseries, align=center, thick, rounded corners=1pt, inner sep=0pt},
+        dagpruned/.style={dagleaf, fill=red!5, draw=red!50!black, text=red!60!black},
+        dagfetched/.style={dagleaf, fill=blue!10, draw=blue!60!black},
+        dagnode/.style={draw=black!60, circle, minimum size=0.4cm, inner sep=0pt, font=\sffamily\tiny\bfseries, thick},
+        dagroot/.style={dagnode, fill=gray!10},
+        dagmatch/.style={dagnode, fill=blue!10, draw=blue!60!black},
+        dagprune/.style={dagnode, fill=red!5, draw=red!50!black, text=red!60!black},
+        % --- Lines & Misc ---
+        arr/.style={->, thick, draw=black!70},
+        dataarr/.style={->, semithick, draw=black!50},
+        crossmark/.style={font=\sffamily\scriptsize\bfseries, text=red!80!black},
+        % --- Path Label Styles ---
+        cachepath/.style={font=\sffamily\fontsize{6}{7}\selectfont\itshape, text=green!60!black},
+        pushpath/.style={font=\sffamily\fontsize{6}{7}\selectfont\itshape, text=orange!80!black}
     ]
- 
-    %% (a) Conventional Plan
-    \begin{scope}[shift={(-2.2,0)}]
-        \node[comp, fill=blue!8] (scan-a) at (0, 0) {Scan};
-        \node[comp, fill=blue!8] (filter-a) at (0, 0.85) {Filter};
-        \node[comp, fill=yellow!10] (agg-a) at (0, 1.7) {Aggregate};
- 
-        \node[storage] (ipfs-a) at (0, -0.9) {IPFS Shards};
- 
-        \draw[arr] (ipfs-a) -- (scan-a);
-        \draw[arr] (scan-a) -- (filter-a);
-        \draw[arr] (filter-a) -- (agg-a);
- 
-        \node[annot] at (0, -1.5) {(a) Conventional Plan};
+
+    % =========================================================
+    %  Upper Query Plan (Join & Aggregation)
+    % =========================================================
+    \node[op] (groupby) at (0, 8.5) {Group-by\\[-1pt]\tiny\texttt{(P.Dept)}};
+    \draw[arr] (groupby.north) -- ++(0, 0.4);
+    
+    \node[op] (hashjoin) at (0, 7.2) {Inner Join\\[-1pt]\tiny\texttt{P.ProjID = T.ProjID}};
+    \draw[arr] (hashjoin) -- (groupby);
+
+    % =========================================================
+    %  Merge Nodes (Separable Boundaries)
+    % =========================================================
+    \node[mergebox] (mergeP) at (-3, 5.8) {Merge\\[-1pt]\tiny(Relation P)};
+    \node[mergebox] (mergeT) at (3, 5.8) {Merge\\[-1pt]\tiny(Relation T)};
+    
+    \draw[arr] (mergeP) -- (hashjoin.south west) node[midway, left, xshift=-2pt, yshift=2pt] {\scriptsize $P$};
+    \draw[arr] (mergeT) -- (hashjoin.south east) node[midway, right, xshift=2pt, yshift=2pt] {\scriptsize $T$};
+
+    % =========================================================
+    %  Filter Scans
+    % =========================================================
+    % Relation P Filter Scans
+    \node[op, draw=green!60!black, fill=green!5] (scanP_cache) at (-4.8, 4.4) {Local Scan\\[-1pt]\tiny\texttt{Valid: P.Budget >} $x_c$};
+    \node[op, draw=orange!70!black, fill=orange!5, xshift=-3pt] (scanP_ipfs) at (-1.4, 4.4) {Residual Pushdown\\[-1pt]\tiny$x < \texttt{Budget} \le x_c$};
+    
+    \draw[arr] (scanP_cache) -- (mergeP) node[midway, left=2pt, cachepath, align=right] {\normalsize $R_c$};
+    \draw[arr] (scanP_ipfs) -- (mergeP) node[midway, right=2pt, pushpath, align=left] {\normalsize $R_p$};
+
+    % Relation T Filter Scans
+    \node[op, draw=green!60!black, fill=green!5, xshift=3pt] (scanT_cache) at (1.4, 4.4) {Local Scan\\[-1pt]\tiny\texttt{Valid: T.Hours >} $y_c$};
+    \node[op, draw=orange!70!black, fill=orange!5] (scanT_ipfs) at (4.8, 4.4) {Residual Pushdown\\[-1pt]\tiny$y < \texttt{Hours} \le y_c$};
+    
+    \draw[arr] (scanT_cache) -- (mergeT) node[midway, left=2pt, cachepath, align=right] {\normalsize $R_c$};
+    \draw[arr] (scanT_ipfs) -- (mergeT) node[midway, right=2pt, pushpath, align=left] {\normalsize $R_p$};
+
+    % =========================================================
+    %  Storage Layer: Semantic Cache (Left)
+    % =========================================================
+    \begin{scope}[on background layer]
+        \fill[green!2, rounded corners=8pt] (-6.6, -0.2) rectangle (-0.2, 3.2);
+        \draw[green!50!black, thick, dashed, rounded corners=8pt] (-6.6, -0.2) rectangle (-0.2, 3.2);
     \end{scope}
- 
-    %% (b) Separable Plan
-    \begin{scope}[shift={(2.2,0)}]
-        %% Merge at top
-        \node[comp, fill=purple!12] (merge) at (0, 2.55) {Merge};
- 
-        %% Left: cached path
-        \node[comp, fill=blue!8] (scan-c) at (-1.2, 0.85) {Scan};
-        \node[comp, fill=blue!8] (filter-c) at (-1.2, 1.7) {Filter};
-        \node[cache] (cache-box) at (-1.2, 0) {Cache};
- 
-        %% Right: pushdown path
-        \node[comp, fill=blue!8] (scan-p) at (1.2, 0.85) {Scan};
-        \node[comp, fill=blue!8] (filter-p) at (1.2, 1.7) {Filter};
-        \node[storage] (ipfs-p) at (1.2, 0) {IPFS Shards};
- 
-        %% Pruned indicator
-        \node[font=\tiny\itshape, text=red!60] at (1.2, -0.35)
-            {(pruned via DAG)};
- 
-        \draw[arr] (cache-box) -- (scan-c);
-        \draw[arr] (scan-c) -- (filter-c);
-        \draw[arr] (filter-c) -- (merge);
-        \draw[arr] (ipfs-p) -- (scan-p);
-        \draw[arr] (scan-p) -- (filter-p);
-        \draw[arr] (filter-p) -- (merge);
- 
-        \node[annot] at (0, -1.5) {(b) Separable Plan};
+    \node[font=\sffamily\scriptsize\bfseries, text=green!60!black] at (-3.4, 2.8) {Local Cache};
+
+    % Cached Data Results
+    \node[cached] (cacheP) at (-4.8, 1.2) {Cached Result $P$\\[-1pt]\tiny\texttt{Budget >} $x_c$};
+    \node[cached] (cacheT) at (-1.8, 1.2) {Cached Result $T$\\[-1pt]\tiny\texttt{Hours >} $y_c$};
+
+    \draw[dataarr] (cacheP.north) -- (scanP_cache.south);
+
+    % =========================================================
+    %  Storage Layer: IPFS Merkle DAG (Right)
+    % =========================================================
+    \begin{scope}[on background layer]
+        \fill[orange!2, rounded corners=8pt] (0.2, -0.2) rectangle (7.4, 3.2);
+        \draw[orange!70!black, thick, rounded corners=8pt] (0.2, -0.2) rectangle (7.4, 3.2);
     \end{scope}
- 
+    \node[font=\sffamily\scriptsize\bfseries, text=orange!80!black] at (3.8, 2.8) {P2P Storage (Merkle DAG)};
+
+    % ---------------------------------------------------------
+    % DAG for P (Fetch 4, Prune 4)
+    % ---------------------------------------------------------
+    \node[dagroot] (rootP) at (1.9, 2.3) {$r_P$};
+    
+    \node[dagmatch] (intP1) at (1.1, 1.6) {};
+    \node[dagprune] (intP2) at (2.7, 1.6) {};
+
+    \draw[thick, black!60] (rootP) -- (intP1);
+    \draw[thick, black!30, dashed] (rootP) -- (intP2) node[midway, crossmark] {$\times$};
+
+    % P Leaves
+    \node[dagfetched] (p1) at (0.5, 0.7) {$p_1$};
+    \node[dagfetched] (p2) at (0.9, 0.7) {$p_2$};
+    \node[dagfetched] (p3) at (1.3, 0.7) {$p_3$};
+    \node[dagfetched] (p4) at (1.7, 0.7) {$p_4$};
+
+    \node[dagpruned] (p5) at (2.1, 0.7) {$p_5$};
+    \node[dagpruned] (p6) at (2.5, 0.7) {$p_6$};
+    \node[dagpruned] (p7) at (2.9, 0.7) {$p_7$};
+    \node[dagpruned] (p8) at (3.3, 0.7) {$p_8$};
+
+    \draw[semithick, black!50] (intP1) -- (p1.north);
+    \draw[semithick, black!50] (intP1) -- (p2.north);
+    \draw[semithick, black!50] (intP1) -- (p3.north);
+    \draw[semithick, black!50] (intP1) -- (p4.north);
+
+    \draw[semithick, black!30, dashed] (intP2) -- (p5.north);
+    \draw[semithick, black!30, dashed] (intP2) -- (p6.north);
+    \draw[semithick, black!30, dashed] (intP2) -- (p7.north);
+    \draw[semithick, black!30, dashed] (intP2) -- (p8.north);
+
+    % ---------------------------------------------------------
+    % DAG for T (Fetch 2, Prune 6)
+    % ---------------------------------------------------------
+    \node[dagroot] (rootT) at (5.5, 2.3) {$r_T$};
+    
+    \node[dagmatch] (intT1) at (4.7, 1.6) {};
+    \node[dagprune] (intT2) at (6.3, 1.6) {};
+
+    \draw[thick, black!60] (rootT) -- (intT1);
+    \draw[thick, black!30, dashed] (rootT) -- (intT2) node[midway, crossmark] {$\times$};
+
+    % T Leaves
+    \node[dagfetched] (t1) at (4.1, 0.7) {$t_1$};
+    \node[dagfetched] (t2) at (4.5, 0.7) {$t_2$};
+    \node[dagpruned] (t3) at (4.9, 0.7) {$t_3$};
+    \node[dagpruned] (t4) at (5.3, 0.7) {$t_4$};
+
+    \node[dagpruned] (t5) at (5.7, 0.7) {$t_5$};
+    \node[dagpruned] (t6) at (6.1, 0.7) {$t_6$};
+    \node[dagpruned] (t7) at (6.5, 0.7) {$t_7$};
+    \node[dagpruned] (t8) at (6.9, 0.7) {$t_8$};
+
+    \draw[semithick, black!50] (intT1) -- (t1.north);
+    \draw[semithick, black!50] (intT1) -- (t2.north);
+    \draw[semithick, black!30, dashed] (intT1) -- (t3.north) node[midway, crossmark] {$\times$};
+    \draw[semithick, black!30, dashed] (intT1) -- (t4.north) node[midway, crossmark] {$\times$};
+
+    \draw[semithick, black!30, dashed] (intT2) -- (t5.north);
+    \draw[semithick, black!30, dashed] (intT2) -- (t6.north);
+    \draw[semithick, black!30, dashed] (intT2) -- (t7.north);
+    \draw[semithick, black!30, dashed] (intT2) -- (t8.north);
+
+    % ---------------------------------------------------------
+    % Crossing lines from Data Sources to Scans
+    % ---------------------------------------------------------
+    \draw[dataarr] (intP1.north) to[out=90, in=270] (scanP_ipfs.south);
+    \draw[dataarr] (intT1.north) to[out=90, in=270] (scanT_ipfs.south);
+    \draw[dataarr] (cacheT.north) to[out=90, in=270] (scanT_cache.south);
+
     \end{tikzpicture}
-    \caption{Conventional vs.\ separable query plan. \textbf{(a)}~All
-    shards are fetched from IPFS before any processing.
-    \textbf{(b)}~The separable plan evaluates cached data locally and
-    pushes residual predicates to the Merkle DAG for uncached data;
-    a merge operator combines the two partial results.}
-    \label{fig:separable_plan}
-\end{figure}
- 
-%% ----------------------------------------------------------
-\subsection{Example: End-to-End Query Execution}
-\label{sec:example_exec}
-%% ----------------------------------------------------------
+    \caption{Example of a Separable Join Plan in SieveDB. The SMT containment checker identifies that the cache satisfies \texttt{P.Budget > $x_c$} and \texttt{T.Hours > $y_c$}. The query executor pushes the remaining residual constraints ($x < \texttt{P.Budget} \le x_c$ and $y < \texttt{T.Hours} \le y_c$) down to the IPFS Merkle DAGs. For relation $P$, 4 out of 8 partitions are fetched, and for relation $T$, only 2 out of 8 are fetched, significantly reducing network I/O before the final merge and join.}
+    \label{fig:separable_join}
+\end{figure*}
 
-\begin{figure}[t]
-    \centering
-    \begin{tikzpicture}[
-        %% -- node styles --
-        op/.style={draw, rounded corners=3pt, minimum width=1.8cm,
-                   minimum height=0.55cm, font=\scriptsize, align=center,
-                   thick, fill=white},
-        mergebox/.style={draw, rounded corners=3pt, minimum width=1.4cm,
-                   minimum height=0.5cm, font=\scriptsize\bfseries,
-                   align=center, thick, fill=red!8, draw=red!50},
-        shard/.style={draw, minimum width=0.55cm, minimum height=0.42cm,
-                   font=\tiny\bfseries, align=center, thick, rounded corners=1pt},
-        pruned/.style={shard, fill=red!12, draw=red!40, text=red!50},
-        cached/.style={shard, fill=green!15, draw=green!50!black},
-        fetched/.style={shard, fill=blue!12, draw=blue!50!black},
-        %% -- arrow styles --
-        arr/.style={-{Stealth[length=4pt]}, thick},
-        dataarr/.style={-{Stealth[length=3.5pt]}, semithick, draw=black!60},
-        %% -- annotation --
-        annot/.style={font=\tiny, text=black!60},
-        scale=0.88, every node/.style={scale=0.88}
-    ]
 
-    %% =========================================================
-    %%  Row 0 (top): GROUP BY
-    %% =========================================================
-    \node[op, fill=blue!6] (groupby) at (0, 8.4)
-        {Group-by\\[-1pt]{\tiny(\texttt{Department})}};
-    \draw[arr] (groupby.north) -- ++(0, 0.35);
+\begin{lstlisting}[breaklines=true, basicstyle=\ttfamily\small]
+  SELECT P.Dept, SUM(T.Cost)
+  FROM Projects P, Tasks T
+  WHERE P.ProjID = T.ProjID AND P.Budget > x AND T.Hours > y
+  GROUP BY P.Dept
+\end{lstlisting}
+\textbf{Listing 1: Example query joining relations $P$ and $T$.}
 
-    %% =========================================================
-    %%  Row 1: MERGE
-    %% =========================================================
-    \node[mergebox] (merge) at (0, 7.1) {Merge};
-    \draw[arr] (merge) -- (groupby);
+We use the join query above to demonstrate how the hybrid query executor handles multi-table queries (Figure~\ref{fig:separable_join}). The database contains two relations, $P$ (Projects) and $T$ (Tasks), stored as Merkle DAGs in IPFS. The in-enclave semantic cache already holds partial results for both relations from prior queries that satisfy subsets of the current predicates. 
 
-    %% Labels on merge arrows
-    \node[annot, font=\tiny, anchor=south east] at (-0.2, 6.65)
-        {$R_c$};
-    \node[annot, font=\tiny, anchor=south west] at (0.2, 6.65)
-        {$R_p$};
-
-    %% =========================================================
-    %%  Row 2: Partial Aggregation  (two branches)
-    %% =========================================================
-    \node[op, fill=green!8] (pagg-c) at (-2.5, 5.7)
-        {Partial Agg\\[-1pt]{\tiny$\langle$sum$_c$, cnt$_c$$\rangle$}};
-    \node[op, fill=orange!8] (pagg-p) at (2.5, 5.7)
-        {Partial Agg\\[-1pt]{\tiny$\langle$sum$_p$, cnt$_p$$\rangle$}};
-
-    \draw[arr] (pagg-c) -- (merge);
-    \draw[arr] (pagg-p) -- (merge);
-
-    %% =========================================================
-    %%  Row 3: Filter Scans
-    %% =========================================================
-    \node[op, fill=green!8] (fscan-c) at (-2.5, 4.4)
-        {Filter Scan\\[-1pt]{\tiny\texttt{Salary > 80k}}};
-    \node[op, fill=orange!8] (fscan-p) at (2.5, 4.4)
-        {Filter Scan\\[-1pt]{\tiny$P_r$: residual predicate}};
-
-    %% Pushdown icon
-    \node[font=\tiny, text=black!40] at (4.05, 4.4) {$\Downarrow$};
-
-    \draw[arr] (fscan-c) -- (pagg-c);
-    \draw[arr] (fscan-p) -- (pagg-p);
-
-    %% =========================================================
-    %%  Shard row: cached shards (left)
-    %% =========================================================
-    \node[cached] (cs1) at (-3.3, 3.5) {$S_{14}$};
-    \node[cached] (cs2) at (-2.5, 3.5) {$S_{15}$};
-    \node[cached] (cs3) at (-1.7, 3.5) {$S_{16}$};
-
-    \draw[dataarr] (cs1.north) -- ([xshift=-8pt]fscan-c.south);
-    \draw[dataarr] (cs2.north) -- (fscan-c.south);
-    \draw[dataarr] (cs3.north) -- ([xshift=8pt]fscan-c.south);
-
-    %% =========================================================
-    %%  Shard row: fetched shards (right)
-    %% =========================================================
-    \node[fetched] (ps1) at (1.7, 3.5) {$S_5$};
-    \node[fetched] (ps2) at (2.5, 3.5) {$S_7$};
-    \node[fetched] (ps3) at (3.3, 3.5) {$S_8$};
-
-    \draw[dataarr] (ps1.north) -- ([xshift=-8pt]fscan-p.south);
-    \draw[dataarr] (ps2.north) -- (fscan-p.south);
-    \draw[dataarr] (ps3.north) -- ([xshift=8pt]fscan-p.south);
-
-    %% =========================================================
-    %%  SEMANTIC CACHE region (left)
-    %% =========================================================
-    \begin{scope}[on background layer]
-        \fill[green!5, rounded corners=5pt]
-            (-4.25, 1.0) rectangle (-0.75, 3.85);
-        \draw[green!40!black, thick, dashed, rounded corners=5pt]
-            (-4.25, 1.0) rectangle (-0.75, 3.85);
-    \end{scope}
-
-    \node[font=\scriptsize\bfseries, text=green!40!black]
-        at (-2.5, 1.25) {Semantic Cache};
-
-    %% Cache contents description
-    \node[draw, rounded corners=2pt, fill=green!6, thick,
-          minimum width=2.8cm, minimum height=0.9cm,
-          font=\tiny, align=left, inner sep=4pt]
-        (cache-table) at (-2.5, 2.2)
-        {\texttt{Cached result for:}\\
-         \texttt{SELECT * WHERE Age > 55}\\[1pt]
-         {\scriptsize covers $S_{14}$, $S_{15}$, $S_{16}$}};
-
-    %% Arrow from cache contents to shard row
-    \draw[dataarr, dashed, draw=green!50!black]
-        (cache-table.north) -- ++(0, 0.7);
-
-    %% =========================================================
-    %%  IPFS MERKLE DAG region (right)
-    %% =========================================================
-    \begin{scope}[on background layer]
-        \fill[orange!4, rounded corners=5pt]
-            (0.15, -0.5) rectangle (4.85, 3.85);
-        \draw[orange!50!black, thick, rounded corners=5pt]
-            (0.15, -0.5) rectangle (4.85, 3.85);
-    \end{scope}
-
-    \node[font=\scriptsize\bfseries, text=orange!50!black]
-        at (2.5, -0.15) {IPFS Merkle DAG};
-
-    %% -- DAG tree --
-    %% Root node
-    \node[draw, circle, minimum size=0.38cm, thick,
-          fill=white, font=\tiny\bfseries] (root) at (2.5, 2.55) {$r$};
-
-    %% Level 1: 4 children (2 match, 2 pruned)
-    \node[draw, circle, minimum size=0.32cm, thick,
-          fill=green!25, font=\tiny] (n1) at (1.2, 1.5) {};
-    \node[draw, circle, minimum size=0.32cm, thick,
-          fill=green!25, font=\tiny] (n2) at (2.2, 1.5) {};
-    \node[draw, circle, minimum size=0.32cm, thick,
-          fill=red!18, font=\tiny]   (n3) at (3.1, 1.5) {};
-    \node[draw, circle, minimum size=0.32cm, thick,
-          fill=red!18, font=\tiny]   (n4) at (3.9, 1.5) {};
-
-    %% Pruning crosses
-    \node[font=\scriptsize\bfseries, text=red!70] at (3.35, 1.7) {$\times$};
-    \node[font=\scriptsize\bfseries, text=red!70] at (4.15, 1.7) {$\times$};
-
-    %% Root -> children edges
-    \draw[thick, black!60] (root) -- (n1);
-    \draw[thick, black!60] (root) -- (n2);
-    \draw[thick, black!35, dashed] (root) -- (n3);
-    \draw[thick, black!35, dashed] (root) -- (n4);
-
-    %% Level 2: leaves under n1 (S5 fetched, S6 pruned, S7 fetched)
-    \node[fetched, minimum size=0.25cm] (l1) at (0.75, 0.5) {$S_5$};
-    \node[pruned,  minimum size=0.25cm] (l2) at (1.3,  0.5) {$S_6$};
-    \node[fetched, minimum size=0.25cm] (l3) at (1.85, 0.5) {$S_7$};
-
-    %% Leaves under n2 (S8 fetched, S9,S10 pruned)
-    \node[fetched, minimum size=0.25cm] (l4) at (2.35, 0.5) {$S_8$};
-    \node[pruned,  minimum size=0.25cm] (l5) at (2.9,  0.5) {$S_9$};
-    \node[pruned,  minimum size=0.25cm] (l6) at (3.55, 0.5) {$S_{10}$};
-
-    %% Pruning crosses on leaves
-    \node[font=\tiny\bfseries, text=red!60] at (1.3,  0.12) {$\times$};
-    \node[font=\tiny\bfseries, text=red!60] at (2.9,  0.12) {$\times$};
-    \node[font=\tiny\bfseries, text=red!60] at (3.55, 0.12) {$\times$};
-
-    %% Edges to leaves
-    \draw[thin, black!50] (n1) -- (l1);
-    \draw[thin, black!30, dashed] (n1) -- (l2);
-    \draw[thin, black!50] (n1) -- (l3);
-    \draw[thin, black!50] (n2) -- (l4);
-    \draw[thin, black!30, dashed] (n2) -- (l5);
-    \draw[thin, black!30, dashed] (n2) -- (l6);
-
-    %% =========================================================
-    %%  Path labels (rotated, outside regions)
-    %% =========================================================
-    \node[font=\tiny\itshape, text=green!40!black,
-          rotate=90, anchor=south] at (-4.6, 2.4)
-        {Cached path (in-enclave)};
-    \node[font=\tiny\itshape, text=orange!50!black,
-          rotate=-90, anchor=south] at (5.2, 1.5)
-        {Pushdown path (IPFS)};
-
-    %% =========================================================
-    %%  Legend (below both regions)
-    %% =========================================================
-    \node[fetched, minimum size=0.22cm] at (-2.2, -0.9) {};
-    \node[font=\tiny, anchor=west] at (-1.85, -0.9) {fetched};
-    \node[pruned, minimum size=0.22cm] at (-0.6, -0.9) {};
-    \node[font=\tiny, anchor=west] at (-0.25, -0.9) {pruned};
-    \node[cached, minimum size=0.22cm] at (0.9, -0.9) {};
-    \node[font=\tiny, anchor=west] at (1.25, -0.9) {from cache};
-    \node[font=\tiny, text=black!60] at (0, -1.3)
-        {3 of 16 shards fetched from IPFS (81\% reduction)};
-
-\end{tikzpicture}
-    \caption{Separable query plan for the OLAP example.
-    The merge operator combines partial aggregates from two paths:
-    the \emph{cached path} (left, dashed green) filters the semantic
-    cache result in-enclave, while the \emph{pushdown path} (right,
-    solid orange) traverses the Merkle DAG, prunes subtrees whose
-    ranges are disjoint from the residual predicate~$P_r$
-    ({\color{red!60}red}, $\times$), and fetches only the 3~matching
-    shards out of 16.  The Group-by operator finalizes the
-    departmental averages from the merged partial sums and counts.}
-    \label{fig:separable_plan}
-\end{figure}
-
-We trace the following OLAP query through the hybrid engine to
-show how caching, pushdown, and merging interact
-(Figure~\ref{fig:separable_plan}):
-
-\begin{small}
-\begin{verbatim}
-  SELECT Department, AVG(Salary), COUNT(*)
-  FROM   Employees
-  WHERE  Age > 40 AND Salary > 80000
-  GROUP BY Department
-\end{verbatim}
-\end{small}
+The hybrid engine constructs a separable plan by decomposing the data access for both relations. For relation $P$, the engine evaluates the cached shards locally and pushes the residual predicate (\texttt{P.Budget > 50000}) down to the IPFS Merkle DAG, pruning irrelevant subtrees before fetching. The same separation occurs for relation $T$ using the predicate \texttt{T.Status = 'Active'}. The fetched shards are decrypted, filtered in-enclave, and then merged with the cached subsets. Finally, the unified relations are joined using an in-memory Hash Join, followed by the Group-by aggregation. This plan maximizes cache reuse while exploiting predicate pushdown to minimize P2P network transfers for the join inputs.
 
 \noindent
 \textbf{Setup.}  The \texttt{Employees} table has 16 leaf shards
@@ -1179,10 +910,12 @@ combining cached-path and pushdown-path execution.}
 
 \section{Cache Manager}
 \label{sec:cache}
+\subsection{Z3 Query Containment Checking}
+\label{sec:z3}
 \subsection{Integration with Hybrid Query Engine}
-\subsection{Utility-Aware Caching Framework}
 \subsection{Traditional Cache Eviction Policy}
-\subsection{Semantic Sieve Eviction Policy}
+\subsection{Utility-aware Cache Policy}
+\label{sec:utility_aware}
 
 \section{Implementation}
 \subsection{Decentralized Storage}
@@ -1191,153 +924,10 @@ combining cached-path and pushdown-path execution.}
 
 \section{Evaluation}
 
-
-\section{Related Work}
-\label{sec:litreview}
-\showkot{Need to shorten later.}
-% This review surveys work that informs \ours{}, which contributes (1)~a TEE-based, multi-layer semantic-aware caching system with SMT-based query containment, and (2)~a content-addressed, multi-dimensional sharding technique that enables predicate pushdown at the IPFS storage layer.
-
-%% ---------------------------------------------------------------
-\subsection{IPFS and Decentralized Databases}
-\label{sec:ipfs}
-%% ---------------------------------------------------------------
-
-IPFS~\cite{benet2014ipfs} introduced content-addressed storage on a Kademlia-based DHT with Merkle DAG data structures, where every object is identified by its cryptographic Content Identifier (CID). Large-scale measurements report that the median IPFS retrieval latency is 2-5 seconds for unpinned content, with multi-hop DHT lookups adding hundreds of milliseconds per round~\cite{trautwein2022design, henningsen2020mapping, daniel2022ipfs}. While IPLD~\cite{ipld2023spec} provides a linked-data model layer atop IPFS, it doesn't natively support pushdown storage-level filtering for relational data to reduce I/O costs.
-
-Several systems build database abstractions on decentralized storage. Early efforts, such as BigChainDB~\cite{mcconaghy2016bigchaindb}, overlay database semantics on blockchain consensus but inherit throughput limitations, while key-value and document interfaces on IPFS lack relational query support. Minerva~\cite{yao2024minerva} distributes query execution across IPFS peers with a cost-based planner but does not incorporate caching or predicate-aware data organization, leaving content retrieval latency unaddressed.
-
-Most relevant to our work are MtDB~\cite{hossain2025mtdb} and Web3DB~\cite{mukherjee2025web3db}. MtDB integrates IPFS storage, Ethereum smart contracts for metadata coordination, and Intel SGX for secure query execution; its delta-based on-chain index enables partition discovery but not predicate pushdown within a partition. Web3DB provides blockchain-managed access control for relational queries, but lacks enclave-based secure query execution. Both of these systems lack a caching or data organization layer to reduce I/O bottlenecks. \ours{} builds on MtDB's architecture, adding semantic caching and content-addressed sharding to reduce IPFS I/O and query latency.
+\section{Conclusion}
+\showkot{Write later.}
 
 
-%% ---------------------------------------------------------------
-\subsection{Database Caching and Semantic Caching}
-\label{sec:caching}
-%% ---------------------------------------------------------------
-
-Traditional database caching -- buffer pools~\cite{graefe2011modern}, key-value stores such as Memcached~\cite{fitzpatrick2004distributed}, Redis~\cite{redis2009} and result caches in cloud warehouses~\cite{dageville2016snowflake, melnik2010dremel} -- reduces I/O to local or cloud-attached disk, where cache miss penalties are microseconds. In distributed settings, DistCache~\cite{liu2019distcache} provides provably balanced caching for large-scale storage, Crystal~\cite{durner2021crystal} unifies columnar and row-based caching for analytics, and the work of Tang et al.~\cite{tang2024data} coordinates multi-layer caching for petabyte-scale OLAP. Metadata caching in Presto~\cite{wang2022metadata} eliminates redundant metastore calls, while HyCache~\cite{zhao2013hycache} interposes application-aware caching in distributed file systems. All these systems target predictable, low-latency storage and do not address the fundamentally different cost model of P2P content retrieval, where a cache miss costs 100-5000 ms.
-
-Result caches keyed by normalized SQL strings~\cite{dageville2016snowflake, melnik2010dremel} cannot exploit overlap between queries: a query for \texttt{Age > 60} is a miss even if \texttt{Age > 50} is cached. Semantic caching addresses this by annotating cached results with defining predicates and checking containment~\cite{dar1996semantic}. Keller and Basu~\cite{keller1996predicate} extended the approach with predicate indices, and Roy et al.~\cite{roy2000don} advocated caching intermediate results for cross-query reuse. Most recently, You et al. \cite{you2025soc} propose succinct semantic representations for OLAP caching but rely on heuristic predicate overlap rather than formal containment, and target cloud warehouses with fast storage. We use SMT-based containment via Z3~\cite{de2008z3} to guarantee soundness, and the extreme IPFS miss penalty makes the 2-15 ms predicate-checking overhead negligible.
-
-Cache eviction is a core component of any caching system -- especially in an in-memory cache, given limited storage capacity. For eviction, classical policies \cite{megiddo2003arc, einziger2017tinylfu,jiang2002lirs,zhang2024sieve} treat each cache object as opaque. Recently, the SIEVE algorithm~\cite{zhang2024sieve} achieves both eager promotion and quick demotion of cache entries using a single visited bit, but it ignores semantic relationships, which are essential in our scenario. Cost-aware eviction consistently outperforms cost-oblivious policies~\cite{podlipnig2003survey} when cache miss cost is high (e.g., 100--5000 ms). Our cache eviction algorithm augments SIEVE with a second utility bit encoding the semantic reuse potential of each entry, preserving O(1) complexity.
-
-
-%% ---------------------------------------------------------------
-\subsection{Query Containment and Predicate Pushdown}
-\label{sec:containment}
-%% ---------------------------------------------------------------
-
-Query containment -- determining whether one query's results are a subset of another's -- was formalized by Chandra and Merlin~\cite{chandra1977optimal} as NP-complete for conjunctive queries. SMT solvers~\cite{de2008z3} provide a natural encoding for containment checks. VeriEQL~\cite{he2024verieql} leverages Z3 for bounded equivalence verification of SQL queries under integrity constraints, while Cosette~\cite{chu2017cosette} approaches query equivalence via symbolic constraint solving. These systems are designed for offline verification; in contrast, our containment checker operates online, where soundness (no false positives) is required but incompleteness is acceptable.
-
-Predicate pushdown is a standard optimization in lakehouse and columnar systems~\cite{armbrust2021lakehouse}. FlexPushdownDB~\cite{yang2021flexpushdowndb} dynamically decides whether to push predicates to cloud storage (e.g., S3 Select) or process them locally, trading off network cost against computation. In decentralized databases~\cite{hossain2025mtdb, mukherjee2025web3db}, however, the pushdown target is not a cloud service with native filtering support, but an IPFS node that exposes no query interface. We address this gap by constructing a custom DAG over IPFS that encodes range metadata using IPLD~\cite{ipld2023spec}, enabling predicate filtering at the storage layer without any intermediate middleware. To our knowledge, no prior work has achieved pushdown filtering directly at the IPFS level.
-
-
-%% ---------------------------------------------------------------
-\subsection{Data Sharding and Indexing}
-\label{sec:sharding}
-%% ---------------------------------------------------------------
-
-Range, hash, and composite partitioning are well-established for parallel databases~\cite{dewitt1992parallel}. Cloud-native systems like CockroachDB~\cite{taft2020cockroachdb} and Spanner~\cite{bacon2017spanner} use adaptive range partitioning with automatic shard splitting. DynaHash~\cite{luo2022dynahash} addresses efficient data rebalancing in AsterixDB via extensible hashing. All assume mutable, low-latency storage; IPFS's immutable content-addressed model requires constructing new Merkle DAGs rather than rebalancing in place.
-
-Indexing for decentralized storage remains limited. Existing IPFS indexing frameworks target key-value or keyword lookups~\cite{arer2022efficient}, and blockchain-anchored indices focus on provenance~\cite{rathee2019blockchain} rather than query optimization. The Merkle DAG~\cite{benet2014ipfs, merkle1987digital} is a natural index for content-addressed systems. Our technique constructs a custom DAG in which internal nodes record min/max ranges across multiple attributes, enabling top-down traversal with branch pruning -- analogous to B$^+$-tree scans but adapted to immutable IPFS. Learned indices~\cite{kraska2018case} and related adaptive indexing techniques assume mutable storage and do not transfer to our setting.
-
-
-%% ---------------------------------------------------------------
-\subsection{TEE and Blockchain-based Databases}
-\label{sec:tee}
-%% ---------------------------------------------------------------
-
-Trusted execution environments (TEEs) provide isolated execution with protected memory and confidentiality guarantees. Intel SGX~\cite{costan2016intel}, one of the most widely used TEEs, supports application-level enclaves and remote attestation. TEEs are well-suited for secure database caching, where both the cache state and the query execution logic can be carefully scoped to fit within enclave memory.
-
-Several database systems have leveraged TEEs for secure query processing. EnclaveDB~\cite{priebe2018enclavedb} executes SQL operators inside SGX enclaves, while Opaque~\cite{zheng2017opaque} integrates SGX with Spark to support secure data analytics. CryptDB~\cite{popa2011cryptdb}, although not TEE-based, enables SQL queries over encrypted data using adjustable encryption schemes, but still leaks access patterns. However, these systems are designed for local or cloud-backed storage environments with relatively low-latency data access. As a result, they do not address the core challenges of peer-to-peer storage latency.
-
-A related line of work combines blockchain systems with confidential computation. For example, Enigma~\cite{zyskind2018enigma} uses blockchain coordination together with privacy-preserving computation, but its primary goal is computation confidentiality rather than query acceleration. Similarly, verifiable query processing systems such as vChain~\cite{xu2019vchain} focus on correctness guarantees through cryptographic proofs, often incurring additional overhead without improving latency. MtDB~\cite{hossain2025mtdb} provides the underlying blockchain-based metadata coordination model that we build upon. In contrast, \ours{} introduces new mechanisms entirely at the off-chain caching and data-organization layers, targeting lower query latency and higher efficiency for decentralized database workloads.
-
-
-\section{Cache Manager}
-
-\ours{} complements pushdown with a two-tier semantic cache deployed in enclave memory and on SSD. The cache operates on two principles: (1) reuse cached results across queries via SMT-based predicate containment checking, and (2) retain high-utility entries using an extended eviction algorithm. Together, these mechanisms reduce IPFS fetches by serving future queries from cached results when their predicates are satisfied.
-
-\subsection{Multi-Layer Cache Architecture}
-
-The cache operates in two tiers:
-
-\begin{itemize}
-    \item \textbf{Tier 1 (Enclave memory):} A fast, in-memory cache for recent query results, living within the SGX enclave to preserve confidentiality. Enclave memory is limited (default 128\,GB under SGX v2), so the tier is sized to hold the most valuable results as determined by utility scoring.
-    \item \textbf{Tier 2 (SSD):} A secondary cache on encrypted persistent SSD. Results that fall out of enclave memory can be sealed and stored here, remaining available for future containment checks after a decrypt-on-hit penalty.
-\end{itemize}
-
-Query execution first checks the in-memory cache. On a miss, it checks the SSD tier via deserialization. A miss from both tiers triggers an IPFS fetch via the pushdown DAG.
-
-\subsection{Query Containment and Result Reuse}
-
-When a new query arrives, \ours{} checks whether its results can be derived from a cached result via predicate containment. The key insight is that if a cached query $Q_c$ has looser (weaker) predicates than a new query $Q_n$, then $\text{result}(Q_n) \subseteq \text{result}(Q_c)$, and the cached result can serve the new query after applying additional filtering.
-
-For example, if the cache holds a result for \texttt{SELECT * WHERE Age > 50}, and a new query \texttt{SELECT * WHERE Age > 60} arrives, the new result is a subset of the cached result. The system can filter the cached result with the additional predicate \texttt{Age > 60} instead of re-fetching from IPFS.
-
-\ours{} uses the Z3 SMT solver~\cite{de2008z3} to check predicate containment soundly. Given a cached query $Q_c$ and new query $Q_n$, the containment checker:
-
-\begin{enumerate}
-    \item Verifies that both queries target the same table(s) and have compatible join structures (e.g., both are INNER JOIN, preserving NULL semantics).
-    \item For each table, constructs a Z3 formula encoding the predicates: $P_c \wedge \neg P_n$, where $P_c$ and $P_n$ are the predicate formulas of the cached and new queries, respectively.
-    \item Queries Z3: does there exist a tuple satisfying $P_n$ but not $P_c$? If the answer is SAT (satisfiable), containment fails. If UNSAT, the new query $Q_n$ is proven contained in $Q_c$.
-    \item If contained, \ours{} executes $Q_n$ by filtering the cached result in-enclave using the additional predicates (\texttt{AND}'d together), avoiding IPFS entirely.
-\end{enumerate}
-
-Soundness is formally guaranteed by Z3's SMT proving: an UNSAT response proves that no counter-example exists. For JOIN queries, \ours{} enforces join type compatibility (e.g., a LEFT JOIN result cannot serve an INNER JOIN, since LEFT JOIN introduces NULL rows that are absent in INNER JOIN) to preserve semantics.
-
-The SMT check typically requires 2--15\,ms per query, but this overhead is negligible compared to IPFS latencies of 100--5000\,ms. As a result, \ours{} favors recall over precision, checking every in-memory cache entry.
-
-\subsection{Utility-Aware Eviction: Semantic Sieve}
-
-Enclave memory is a scarce resource. \ours{} uses a utility-aware extension of the SIEVE cache eviction algorithm~\cite{zhang2024sieve} to decide which cached results to retain. SIEVE uses a single visited bit; we extend it to a 2-bit model: the Visited (V) bit tracks temporal recency, while a Utility (U) bit tracks semantic value.
-
-Each cached result is assigned a \emph{Utility Score} at insertion time:
-\begin{equation}
-    U(Q) = \frac{\text{Cost}(Q)}{\text{Size}(Q)} \times \text{Retain}(Q) \times \text{Breadth}(Q)
-    \label{eq:utility}
-\end{equation}
-
-where:
-\begin{itemize}
-    \item \textbf{Cost} is the IPFS latency incurred to fetch the source data (100--5000\,ms).
-    \item \textbf{Size} is the result's memory footprint in bytes.
-    \item \textbf{Retain} is 1.0 for \texttt{SELECT *} (full information), lower for projections (0.6--0.9), and 0.05 for lossy aggregations (e.g., \texttt{COUNT}).
-    \item \textbf{Breadth} encodes the containment potential based on predicate types: open ranges like \texttt{Age > 50} score 0.9, while equality predicates score 0.1.
-\end{itemize}
-
-During eviction, the algorithm traverses a FIFO queue with a hand pointer and applies utility-aware rules:
-
-\begin{itemize}
-    \item \textbf{V=0, U=0} (no recent hits, low utility): Evict immediately.
-    \item \textbf{V=0, U=1} (high utility, no recent hits): Check if the entry is \emph{subsumed} by another cached entry (i.e., its result can be derived from another cached result via containment). If subsumed, evict. Otherwise, decay U to 0, allowing it one more pass through the queue.
-    \item \textbf{V=1} (recent hit): Reset V to 0 and skip. The entry survives this eviction pass.
-\end{itemize}
-
-This design preserves SIEVE's O(1) complexity and lockless hit path while incorporating semantic awareness. A high-utility entry (U=1) survives at most 2 cold passes before eviction, ensuring bounded memory overhead.
-
-\subsubsection{Integration with Pushdown}
-
-Caching and pushdown work in tandem to minimize IPFS I/O. A new query is first checked against the cache via containment. If a hit is found, any additional filter predicates are applied in-enclave to produce the final result. If no cache hit, the query traverses the pushdown DAG to identify relevant IPFS shards, fetches them, decrypts them within the enclave, and inserts the result into the cache for potential reuse by future queries.
-
-The multi-tier cache thus reduces IPFS I/O on two fronts: (1) by serving overlapping queries from cached results via containment checking, and (2) by enabling fine-grained predicate pushdown to reduce the number of shards fetched for new queries. Recent results kept in Tier 1 (enclave memory) further amplify the benefit by avoiding even the deserialization penalty of Tier 2 (SSD).
-
-
-%-------------------------------------------------------------------------------
-\section*{Acknowledgments}
-%-------------------------------------------------------------------------------
-
-The USENIX latex style is old and very tired, which is why
-there's no \textbackslash{}acks command for you to use when
-acknowledging. Sorry.
-
-%-------------------------------------------------------------------------------
-\section*{Availability}
-%-------------------------------------------------------------------------------
-
-USENIX program committees give extra points to submissions that are
-backed by artifacts that are publicly available. If you made your code
-or data available, it's worth mentioning this fact in a dedicated
-section.
 
 %-------------------------------------------------------------------------------
 \bibliographystyle{plain}

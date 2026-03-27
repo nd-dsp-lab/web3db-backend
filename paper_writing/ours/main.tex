@@ -979,143 +979,203 @@ We use the join query above to demonstrate how the hybrid query executor handles
 \section{Cache Manager}
 \label{sec:cache}
 
-The cache manager is responsible for storing, retrieving, and evicting query results inside the TEE enclave. Its design is driven by two observations specific to the decentralized setting. First, the extreme IPFS miss penalty (100--5000~ms per shard) makes every cache hit disproportionately valuable compared to cloud databases. Second, enclave memory is constrained (e.g., 512~GB EPC in SGX v2~\cite{lutsch2024benchmarking}), so eviction decisions must account for the cost of re-fetching evicted data from the P2P network. This section formalizes the Z3-based containment checking that enables semantic cache reuse (\S\ref{sec:z3}), describes the integration with the hybrid query engine (\S\ref{sec:cache_integration}), surveys existing eviction policies and their limitations (\S\ref{sec:traditional_eviction}), and presents our utility-aware eviction policy (\S\ref{sec:utility_aware}).
+The cache manager is responsible for storing, indexing, and evicting query results inside the TEE enclave.
+It exposes two core operations to the hybrid query engine: \emph{lookup}, which determines whether a new query can be answered (fully or partially) from cached results, and \emph{admit}, which inserts a newly computed result into the cache.
+Both operations rely on a formal notion of query containment (Section~\ref{sec:z3}), which the cache manager evaluates at runtime using an SMT solver.
+When the cache is full, a utility-aware eviction policy (Section~\ref{sec:utility_aware}) selects victims by jointly considering recency, frequency, and the cost of re-fetching the evicted data from IPFS via pushdown.
 
+%% ---------------------------------------------------------------
 \subsection{Z3 Query Containment Checking}
 \label{sec:z3}
+%% ---------------------------------------------------------------
 
-The key mechanism that distinguishes \ours{}'s cache from a traditional result cache is \emph{semantic containment checking}: the ability to determine whether a new query's results can be derived from a cached result, even when the two queries have different predicates. We formalize this problem and describe how \ours{} solves it using the Z3 SMT solver~\cite{de2008z3}.
+The central mechanism that distinguishes \ours{}'s cache from a traditional result cache is \emph{semantic} reuse. A cached result for one query can serve a different query, provided that the new query's result set is provably contained in the cached result.
+We formalize this notion and describe how it can be efficiently evaluated at query time.
 
-\textbf{Problem formulation.}
-Let $P_c$ denote the defining predicate of a cached entry and $P_n$ denote the predicate of an incoming query, both expressed as conjunctions of range constraints over a shared set of attributes $A = \{a_1, \ldots, a_d\}$. \ours{} supports predicates of the form $a_j \;\theta\; v$, where $\theta \in \{<, \leq, >, \geq, =\}$ and $v$ is a constant. A cached entry \emph{contains} the new query if every row satisfying $P_n$ also satisfies $P_c$:
-
+\textbf{Predicate representation.}
+Let $Q$ be a conjunctive selection query over a table $T$ with attributes $A = \{a_1, \ldots, a_d\}$.
+We represent the filtering condition of $Q$ as a conjunction of range predicates:
 \begin{equation}
-    \text{contains}(P_c, P_n) \;\iff\; \forall\, \mathbf{x} :\; P_n(\mathbf{x}) \Rightarrow P_c(\mathbf{x})
+    P_Q \;=\; \bigwedge_{j=1}^{d} \bigl(l_j \leq a_j \leq u_j\bigr)
+    \label{eq:predicate}
+\end{equation}
+where $l_j, u_j \in \mathbb{R} \cup \{-\infty, +\infty\}$ denote the lower and upper bounds on attribute $a_j$.
+An unconstrained attribute is represented by setting $l_j = -\infty$ and $u_j = +\infty$.
+Each cache entry $e$ stores the result relation $R_e$ together with its defining predicate $P_e$.
+
+\textbf{Containment definition.}
+Given a new query $Q_n$ with predicate $P_n$ and a cache entry $e$ with predicate $P_e$, we say that $Q_n$ is \emph{contained} in $e$ if every row satisfying $P_n$ also satisfies $P_e$:
+\begin{equation}
+    P_n \Rightarrow P_e
+    \;\;\Longleftrightarrow\;\;
+    \forall\, \mathbf{x} \in \mathbb{R}^d :\; P_n(\mathbf{x}) \;\to\; P_e(\mathbf{x})
     \label{eq:containment}
 \end{equation}
-where $\mathbf{x} = (x_1, \ldots, x_d)$ is a tuple of attribute values. Equivalently, the cached result does \emph{not} contain the new query if and only if there exists an assignment satisfying $P_n \wedge \neg P_c$.
+Equivalently, containment holds if and only if the formula $P_n \wedge \neg P_e$ is unsatisfiable.
+When Equation~\ref{eq:containment} holds, the result of $Q_n$ can be obtained by applying $P_n$ as a \emph{residual filter} over $R_e$ entirely within the enclave, avoiding any IPFS access.
+
+\textbf{Partial overlap.}
+When full containment does not hold, the cache may still cover a portion of the query.
+We define the \emph{covered sub-predicate} as $P_c = P_n \wedge P_e$ and the \emph{residual predicate} as:
+\begin{equation}
+    P_r \;=\; P_n \;\wedge\; \neg\, P_e
+    \label{eq:residual}
+\end{equation}
+The covered portion $P_c$ is evaluated locally on $R_e$, while $P_r$ is forwarded to the pushdown path for DAG traversal.
+For range predicates, partial overlap reduces to per-attribute interval arithmetic.
+Consider attribute $a_j$ with cache bounds $[l_j^e, u_j^e]$ and query bounds $[l_j^n, u_j^n]$.
+The residual range for $a_j$ is the set difference $[l_j^n, u_j^n] \setminus [l_j^e, u_j^e]$, which yields at most two disjoint intervals.
+In practice, analytic workloads are dominated by one-sided range predicates (e.g., \texttt{Age > 50}), and the residual is a single contiguous range.
 
 \textbf{SMT encoding.}
-We reduce containment checking to a satisfiability query. For each attribute $a_j$, we declare an integer or real SMT variable $x_j$. The predicates $P_n$ and $P_c$ are translated into conjunctions of linear arithmetic constraints. The solver checks the satisfiability of the formula:
+We encode the containment check $P_n \wedge \neg P_e$ as a quantifier-free linear arithmetic (QF\_LRA) formula and submit it to Z3~\cite{de2008z3}.
+For each attribute $a_j$, we introduce a real-valued variable $x_j$ and assert the conjunction of bound constraints from $P_n$ together with the negation of the bound constraints from $P_e$:
 \begin{equation}
-    \phi = P_n(\mathbf{x}) \;\wedge\; \neg\, P_c(\mathbf{x})
-    \label{eq:smt_formula}
+    \varphi \;=\; \bigwedge_{j=1}^{d}\bigl(l_j^n \leq x_j \leq u_j^n\bigr)
+                  \;\wedge\;
+                  \bigvee_{j=1}^{d}\bigl(x_j < l_j^e \;\vee\; x_j > u_j^e\bigr)
+    \label{eq:smt}
 \end{equation}
-If $\phi$ is \emph{unsatisfiable}, then $P_n \Rightarrow P_c$ holds and the cached result fully contains the new query. If $\phi$ is \emph{satisfiable}, the solver returns a counterexample---a tuple that satisfies $P_n$ but not $P_c$---indicating that the cache does not fully cover the new query.
+If Z3 returns \textsc{unsat}, full containment holds.
+If Z3 returns \textsc{sat} with a satisfying assignment $\mathbf{x}^*$, the assignment identifies which attribute dimensions are not covered, and we extract the residual predicate $P_r$ accordingly.
+Because QF\_LRA is decidable in polynomial time and the number of variables equals the number of partitioning attributes (typically $d \leq 8$), each containment check completes in 2--15\,ms---negligible compared to the 100--5\,000\,ms cost of a single IPFS round-trip.
 
-\textbf{Containment outcomes.}
-\label{sec:containment_reuse}
-Given a new query with predicate $P_n$ and a set of cache entries $\{(P_{c_1}, R_1), \ldots, (P_{c_m}, R_m)\}$, the containment checker produces one of three outcomes for each entry:
+\textbf{Soundness guarantee.}
+The containment checker is \emph{sound}: if it reports full containment, the cached result is guaranteed to be a superset of the query result.
+False negatives (reporting no containment when containment actually holds) are possible only when the predicates fall outside the supported fragment (e.g., disjunctions over non-contiguous ranges), in which case the system conservatively falls back to the pushdown path.
+This design ensures correctness: the cache never returns an incomplete result.
 
-\emph{(i)~Full containment.} $P_n \Rightarrow P_{c_i}$: the cached result $R_i$ is a superset of the rows needed by $P_n$. The engine applies $P_n$ as a residual filter on $R_i$ in-enclave and returns immediately without any IPFS access.
+\textbf{Lookup procedure.}
+On each incoming query $Q_n$, the cache manager iterates over all cache entries and invokes the SMT check for each.
+Because the number of cache entries is bounded by enclave memory (typically hundreds to low thousands), and each check takes only a few milliseconds, the total lookup overhead remains small relative to even a single IPFS fetch.
+The cache manager selects the entry $e^*$ that maximizes the \emph{coverage ratio}---the fraction of $P_n$'s attribute-space volume covered by $P_e$---thereby minimizing the residual that must be fetched via pushdown.
 
-\emph{(ii)~Partial overlap.} The cached entry covers a strict subset of $P_n$. The cache satisfies the sub-predicate $P_n \wedge P_{c_i}$, and the \emph{residual predicate} $P_r = P_n \wedge \neg P_{c_i}$ captures the uncovered portion. For instance, if $P_{c_i} = (\texttt{Age} > 55)$ and $P_n = (\texttt{Age} > 40)$, then $P_r = (40 < \texttt{Age} \leq 55)$. The residual $P_r$ is forwarded to the pushdown path for Merkle DAG traversal.
-
-\emph{(iii)~No overlap.} The predicate ranges are entirely disjoint ($P_n \wedge P_{c_i}$ is unsatisfiable). The entry cannot contribute to the query.
-
-\textbf{Soundness and complexity.}
-Because Z3 is a complete solver for quantifier-free linear arithmetic, the containment check is \emph{sound}: a full-containment verdict guarantees that every row in the query result is present in the cache. In our setting, predicates are conjunctions of at most $d$ range constraints, so the SMT formula has $O(d)$ variables and $O(d)$ clauses. Empirically, Z3 solves these instances in 2--15~ms (Section~\ref{sec:overview}), which is negligible relative to the 100--5000~ms cost of a single IPFS fetch. The checker iterates over all $m$ cache entries, yielding an overall complexity of $O(m \cdot d)$ solver invocations per query. Since $m$ is bounded by the cache capacity and $d$ is typically small (2--5 attributes), this overhead is acceptable.
-
-
+%% ---------------------------------------------------------------
 \subsection{Integration with Hybrid Query Engine}
-\label{sec:cache_integration}
+\label{sec:containment_reuse}
+%% ---------------------------------------------------------------
 
-The cache manager exposes a lookup interface that the hybrid query engine invokes at the start of every query. Given an incoming query $Q$ with predicate $P_n$, the integration proceeds in three steps.
+The cache manager is tightly integrated with the hybrid query engine described in Section~\ref{sec:hqe}.
+When a new query $Q_n$ arrives, the engine invokes the cache manager's lookup procedure before constructing a query plan.
+The lookup returns one of three outcomes, which directly determine the plan structure.
 
-\textbf{Step~1: Cache probe.}
-The engine passes $P_n$ to the containment checker, which evaluates $P_n$ against every cache entry. The checker returns the best-matching entry---the one whose defining predicate $P_{c}$ maximizes the overlap with $P_n$, measured by the fraction of the predicate range covered.
+\emph{Full hit.}
+If the containment checker identifies an entry $e^*$ such that $P_n \Rightarrow P_{e^*}$, the engine constructs a cache-only plan.
+It applies $P_n$ as a residual filter over $R_{e^*}$ inside the enclave and returns the result with zero IPFS traffic.
 
-\textbf{Step~2: Plan construction.}
-Based on the containment outcome, the engine constructs a separable plan (Section~\ref{sec:separable_plan}). On full containment, the plan consists of a single cached-path scan with $P_n$ as a residual filter. On partial overlap, the plan forks into a cached branch (evaluated under $P_n \wedge P_c$) and a pushdown branch (evaluated under the residual $P_r = P_n \wedge \neg P_c$). On no overlap, the entire query is dispatched to the pushdown path.
+\emph{Partial hit.}
+If no single entry fully contains $P_n$ but partial overlap exists, the cache manager returns the best-matching entry $e^*$ along with the residual predicate $P_r = P_n \wedge \neg P_{e^*}$.
+The engine then constructs a separable plan (Section~\ref{sec:separable_plan}): the cached branch applies $P_n$ over $R_{e^*}$ locally, while the pushdown branch traverses the Merkle DAG under $P_r$ to fetch only the uncovered shards.
+A merge operator combines the two partial results.
 
-\textbf{Step~3: Result admission.}
-After the pushdown path completes, its result $R_p$ is inserted into the cache under the residual predicate $P_r$. The cache manager evaluates whether the new entry should be admitted based on the utility-aware policy (Section~\ref{sec:utility_aware}). If the cache is full, the policy selects a victim for eviction before admitting $R_p$.
+\emph{Full miss.}
+When no cache entry overlaps with $P_n$, the engine constructs a pushdown-only plan that traverses the DAG under the original predicate $P_n$.
 
-This three-step protocol ensures that the cache manager and hybrid query engine operate in a tight feedback loop: the cache informs plan construction, and query execution feeds new results back into the cache.
+After execution, the engine passes the newly computed result back to the cache manager for admission.
+The cache manager annotates the result with $P_n$ (or $P_r$, for partial hits) and inserts it into the cache, subject to the eviction policy described below.
+Caching the pushdown result under $P_r$ rather than the full $P_n$ avoids duplicating data already present in $R_{e^*}$, improving cache utilization.
 
-
+%% ---------------------------------------------------------------
 \subsection{Traditional Cache Eviction Policies}
-\label{sec:traditional_eviction}
+\label{sec:trad_eviction}
+%% ---------------------------------------------------------------
 
-Cache eviction determines which entries to discard when the cache is full and a new entry must be admitted. A large body of work has studied this problem in settings where the miss penalty is uniform or low. We briefly survey the most relevant policies and explain why none is sufficient for \ours{}.
+When the cache is full and a new result must be admitted, the cache manager must evict one or more existing entries.
+Classical eviction policies make this decision based on access recency, frequency, or a combination of both, treating every cached object as opaque\cite{}.
+LRU evicts the least recently used entry, which works well for workloads with strong temporal locality but is vulnerable to scan pollution.
+ARC~\cite{megiddo2003arc} dynamically balances recency and frequency by maintaining ghost lists, adapting to shifting workload patterns.
+LIRS~\cite{jiang2002lirs} tracks inter-reference recency to distinguish hot and cold entries.
+TinyLFU~\cite{einziger2017tinylfu} uses a compact frequency sketch as an admission filter, rejecting entries unlikely to be reused.
+Most recently, the SIEVE algorithm~\cite{zhang2024sieve} achieves both eager promotion and quick demotion using a single \emph{visited bit} per entry, matching or outperforming these policies with lower implementation complexity.
 
-\textbf{Recency- and frequency-based policies.}
-LRU (Least Recently Used) evicts the entry that has not been accessed for the longest time. While simple and widely deployed, LRU is vulnerable to scan pollution: a single sequential scan can flush the entire cache. ARC~\cite{megiddo2003arc} addresses this by maintaining two LRU lists---one for recency and one for frequency---and dynamically adjusting their sizes based on workload, providing scan resistance. LIRS~\cite{jiang2002lirs} further refines recency tracking by distinguishing between inter-reference recency and stack distance, improving hit rates for workloads with variable reuse patterns. TinyLFU~\cite{einziger2017tinylfu} combines a frequency sketch (based on Count-Min) with a small admission window to filter out infrequent items, achieving near-optimal hit rates for web caches.
+All of these policies share a common limitation: they are \emph{cost-oblivious}.
+They assume that every cache miss incurs the same penalty, which is a reasonable assumption in conventional systems where the miss cost is a uniform disk or network fetch.
+In \ours{}, however, cache misses are not equally expensive.
+A miss for a query whose predicates align well with the Merkle DAG structure---pruning most subtrees and fetching only a few small shards---incurs a modest cost.
+In contrast, a miss for a broad query that matches many shards triggers numerous P2P round-trips, each costing hundreds of milliseconds.
 
-\textbf{Lazy promotion.}
-SIEVE~\cite{zhang2024sieve} simplifies cache management by replacing the LRU doubly-linked list with a FIFO queue indexed by a single visited bit. On eviction, a moving hand scans the queue: entries with visited bit set are retained (bit cleared), while the first unvisited entry is evicted. SIEVE achieves both eager promotion (frequently accessed entries survive) and quick demotion (one-hit wonders are evicted promptly), matching or exceeding ARC and TinyLFU hit rates with $O(1)$ overhead.
+Furthermore, traditional policies ignore \emph{semantic relationships} between cache entries.
+A cached result for \texttt{Age > 50} has high reuse value because it can serve future queries for \texttt{Age > 55}, \texttt{Age > 60}, and so on, via containment checking.
+A cached result for a narrow range such as \texttt{Age} $\in [47, 48]$ is far less likely to serve future queries.
+Cost-oblivious policies cannot distinguish between these two entries; they would evict whichever was accessed less recently, regardless of its semantic reuse potential.
 
-\textbf{Gap: cost-oblivious eviction.}
-All of the above policies treat every cache object as opaque: the eviction decision depends only on access history (recency, frequency, or a combination), not on the \emph{cost} of re-fetching the evicted object. In a cloud database, this is a reasonable simplification because the miss penalty is low and roughly uniform (a few milliseconds to fetch from S3 or SSD). In \ours{}, however, the miss penalty varies by orders of magnitude: an evicted entry whose data can be recovered via pushdown pruning (fetching only a few matching shards) costs far less to reconstruct than an entry requiring a full table scan over IPFS. Moreover, no existing policy accounts for the \emph{semantic relationships} among cache entries---evicting an entry that partially overlaps with many other queries forfeits more reuse potential than evicting a narrowly scoped entry. Cost-aware eviction has been shown to outperform cost-oblivious policies when miss costs are heterogeneous~\cite{podlipnig2003survey}, and the extreme cost variability in the decentralized setting amplifies this advantage.
+Cost-aware eviction has been shown to consistently outperform cost-oblivious policies when miss penalties vary significantly across objects~\cite{podlipnig2003survey}.
+In \ours{}, where the miss penalty spans two orders of magnitude (tens of milliseconds for a well-pruned DAG traversal versus seconds for a broad scan), the case for cost-awareness is especially strong.
+These observations motivate the design of a utility-aware eviction policy that accounts for both the pushdown cost of re-fetching an entry and its semantic reuse potential.
 
-
-\subsection{\ours{} Utility-Aware Cache Policy}
+%% ---------------------------------------------------------------
+\subsection{\ours{} Utility-aware Cache Eviction Policy}
 \label{sec:utility_aware}
+%% ---------------------------------------------------------------
 
-We propose a \emph{utility-aware} eviction policy that augments SIEVE's lazy-promotion mechanism~\cite{zhang2024sieve} with a second \emph{utility bit} encoding the semantic reuse potential of each cache entry. The policy preserves SIEVE's $O(1)$ per-operation complexity while incorporating the cost model specific to a hybrid caching-and-pushdown system.
+We introduce a \emph{utility-aware} eviction policy that extends the SIEVE framework~\cite{zhang2024sieve} with a second dimension of information: the \emph{utility score} of each cache entry, which captures both the cost of re-fetching the entry via pushdown and its potential for semantic reuse.
+The policy retains SIEVE's $O(1)$ per-operation complexity while making eviction decisions that are informed by the unique cost structure of decentralized storage.
 
-\textbf{Cost model.}
-For a cache entry $e$ with defining predicate $P_e$ and result size $|R_e|$ rows, we define its \emph{pushdown cost} $C_{\text{pd}}(e)$ as the estimated latency of reconstructing the entry from IPFS via pushdown:
+\textbf{Utility score.}
+For each cache entry $e$ with defining predicate $P_e$, we define the utility score $U(e)$ as:
 \begin{equation}
-    C_{\text{pd}}(e) = n_{\text{shards}}(P_e) \cdot \bar{L}_{\text{fetch}}
-    \label{eq:pushdown_cost}
+    U(e) \;=\; \alpha \cdot C_{\text{fetch}}(e) \;+\; (1-\alpha) \cdot S_{\text{reuse}}(e)
+    \label{eq:utility}
 \end{equation}
-where $n_{\text{shards}}(P_e)$ is the number of Merkle DAG leaf nodes whose bounding boxes overlap with $P_e$ (i.e., the shards that would be fetched if the entry were evicted and later re-requested), and $\bar{L}_{\text{fetch}}$ is the average per-shard IPFS fetch latency. Higher $C_{\text{pd}}(e)$ means evicting $e$ is more expensive.
+where $C_{\text{fetch}}(e)$ is the estimated cost of re-fetching $e$ from IPFS via pushdown, $S_{\text{reuse}}(e)$ is the semantic reuse potential of $e$, and $\alpha \in [0,1]$ is a tunable parameter that balances the two components (default $\alpha = 0.5$).
 
-We define the \emph{semantic reuse potential} $S(e)$ as the number of recent queries whose predicates partially or fully overlap with $P_e$:
+\textbf{Fetch cost estimation.}
+The fetch cost $C_{\text{fetch}}(e)$ estimates the latency of re-executing the pushdown path for predicate $P_e$.
+We approximate this as:
 \begin{equation}
-    S(e) = \bigl|\{Q_i \in W : P_{Q_i} \wedge P_e \text{ is satisfiable}\}\bigr|
-    \label{eq:reuse_potential}
+    C_{\text{fetch}}(e) \;=\; n_{\text{shards}}(P_e) \;\times\; \bar{t}_{\text{rtt}}
+    \label{eq:fetch_cost}
 \end{equation}
-where $W$ is a sliding window of the last $w$ queries (default $w = 100$). Entries with high $S(e)$ serve more future queries and should be retained.
+where $n_{\text{shards}}(P_e)$ is the number of leaf shards in the Merkle DAG whose bounding boxes overlap with $P_e$, and $\bar{t}_{\text{rtt}}$ is the exponentially weighted moving average of recent IPFS round-trip times.
+The shard count is obtained cheaply by replaying the DAG traversal logic (Section~\ref{sec:dag_traversal}) over the locally cached metadata nodes without fetching any data shards.
+Entries with high fetch cost are expensive to re-acquire and should be retained longer.
 
-The \emph{utility score} of entry $e$ combines both factors:
+\textbf{Semantic reuse potential.}
+The reuse potential $S_{\text{reuse}}(e)$ estimates how likely entry $e$ is to satisfy future queries via containment.
+We define it as:
 \begin{equation}
-    U(e) = \alpha \cdot \frac{C_{\text{pd}}(e)}{C_{\max}} + (1 - \alpha) \cdot \frac{S(e)}{S_{\max}}
-    \label{eq:utility_score}
+    S_{\text{reuse}}(e) \;=\; \prod_{j=1}^{d} \frac{u_j^e - l_j^e}{R_j^{\text{global}}}
+    \label{eq:reuse}
 \end{equation}
-where $C_{\max}$ and $S_{\max}$ are normalization constants (the maximum pushdown cost and reuse potential across all cache entries), and $\alpha \in [0, 1]$ is a tunable parameter that balances reconstruction cost against semantic reuse (default $\alpha = 0.5$).
+where $[l_j^e, u_j^e]$ is the range of attribute $a_j$ covered by $P_e$ and $R_j^{\text{global}}$ is the global range of $a_j$ (as defined in Equation~\ref{eq:split_attr}).
+Intuitively, $S_{\text{reuse}}(e)$ measures the fraction of the attribute space covered by $e$.
+A cached result for a broad predicate (e.g., \texttt{SELECT * WHERE Age > 30}) covers a large region and can serve many future queries; a narrow predicate covers little and is unlikely to be reused.
+This metric also captures why \texttt{SELECT *} queries are more reusable: they retain all columns, allowing downstream projections and aggregations to be applied in-enclave without additional fetches.
 
-\textbf{Eviction mechanism.}
-Each cache entry maintains two bits: a \emph{visited bit} $v$ (as in SIEVE) and a \emph{utility bit} $u$. The utility bit is set when the entry's utility score exceeds a threshold $U(e) > \bar{U}$, where $\bar{U}$ is the running mean utility across all entries. On eviction, a moving hand scans the FIFO queue with a two-tier demotion rule:
+\textbf{Eviction procedure.}
+We maintain a circular buffer of cache entries in insertion order, following SIEVE's design.
+Each entry carries two bits of metadata: a \emph{visited bit} $v$ (set on every access, as in SIEVE) and a \emph{utility class} $u \in \{0, 1\}$, computed at admission time as:
+\begin{equation}
+    u(e) =
+    \begin{cases}
+        1 & \text{if } U(e) \geq \bar{U} \\
+        0 & \text{otherwise}
+    \end{cases}
+    \label{eq:utility_class}
+\end{equation}
+where $\bar{U}$ is the running mean of utility scores across all cache entries.
 
+When eviction is triggered, a hand pointer sweeps the circular buffer.
+At each position, the policy inspects the visited bit and utility class of the entry:
 \begin{enumerate}
-    \item If $v = 1$: clear $v$, retain the entry (same as SIEVE).
-    \item If $v = 0$ and $u = 1$: clear $u$, retain the entry (utility-based reprieve).
-    \item If $v = 0$ and $u = 0$: evict this entry.
+    \item If $v = 1$: clear the visited bit ($v \gets 0$) and advance the hand.  The entry survives this sweep regardless of its utility class, preserving SIEVE's recency-awareness.
+    \item If $v = 0$ and $u = 0$: evict this entry.  It has not been accessed recently and has low re-fetch cost and low reuse potential.
+    \item If $v = 0$ and $u = 1$: demote the utility class ($u \gets 0$) and advance the hand.  The entry gets one additional chance before eviction, reflecting its high value to the system.
 \end{enumerate}
+This three-state demotion (visited $\to$ high-utility unvisited $\to$ low-utility unvisited $\to$ evicted) preserves the quick-demotion property of SIEVE for low-value entries while giving high-value entries a second chance proportional to their utility.
+The hand advances at most twice around the buffer before an eviction occurs, so the worst-case cost per eviction remains $O(n)$ with amortized $O(1)$ per operation, identical to SIEVE.
 
-This two-tier mechanism gives high-utility entries a second chance beyond the standard SIEVE reprieve. Entries that are both infrequently accessed and low-utility are evicted first, while entries with high pushdown cost or high semantic overlap survive longer, even if they have not been accessed recently.
+\textbf{Admission.}
+When a new result is admitted, the cache manager computes its utility score via Equations~\ref{eq:fetch_cost} and~\ref{eq:reuse}, sets the visited bit to 1, assigns the utility class per Equation~\ref{eq:utility_class}, and inserts the entry at the current hand position.
+If the cache is full, the eviction procedure runs first to free space.
 
-\textbf{Admission control.}
-When a new result $R_p$ is returned from the pushdown path, the cache manager computes $U(R_p)$ and admits it only if $U(R_p) > U_{\min}$, where $U_{\min}$ is the utility of the current eviction candidate. This prevents low-value entries from polluting the cache, similar to TinyLFU's admission filter~\cite{einziger2017tinylfu} but based on semantic utility rather than frequency.
+\textbf{Adaptive $\alpha$ tuning.}
+The balance parameter $\alpha$ can be adjusted at runtime based on observed workload characteristics.
+When the DAG pruning ratio is high (most queries prune $>$80\% of shards), pushdown is effective and $\alpha$ should decrease to favor semantic reuse.
+When pruning is poor, $\alpha$ should increase to protect entries that are expensive to re-fetch.
+We use an exponentially weighted moving average of the pruning ratio over the last $w$ queries (default $w = 100$) and set $\alpha = 1 - \bar{p}$, where $\bar{p}$ is the average fraction of shards pruned.
+This allows the policy to adapt as the workload evolves, without manual tuning.
 
-Algorithm~\ref{alg:utility_evict} summarizes the eviction procedure.
-
-\begin{algorithm}[t]
-\caption{\textsc{Utility-Aware Eviction}}
-\label{alg:utility_evict}
-\DontPrintSemicolon
-\KwIn{Cache $\mathcal{C}$, new entry $e_{\text{new}}$ with predicate $P_{\text{new}}$ and result $R_{\text{new}}$}
-\KwOut{Updated cache $\mathcal{C}$}
-Compute $U(e_{\text{new}})$ using Eq.~\ref{eq:utility_score}\;
-\While{$|\mathcal{C}| + |R_{\text{new}}| > \text{capacity}$}{
-    $e \gets \text{entry at hand position}$\;
-    \uIf{$e.v = 1$}{
-        $e.v \gets 0$\; advance hand\;
-    }\uElseIf{$e.u = 1$}{
-        $e.u \gets 0$\; advance hand\;
-    }\Else{
-        \lIf{$U(e_{\text{new}}) > U(e)$}{
-            evict $e$ from $\mathcal{C}$
-        }
-        \lElse{reject $e_{\text{new}}$ and \Return $\mathcal{C}$}
-    }
-}
-insert $e_{\text{new}}$ into $\mathcal{C}$\;
-set $e_{\text{new}}.v \gets 1$,\; $e_{\text{new}}.u \gets \mathbf{1}[U(e_{\text{new}}) > \bar{U}]$\;
-\Return $\mathcal{C}$\;
-\end{algorithm}
 
 \section{Implementation}
 \subsection{Decentralized Storage}

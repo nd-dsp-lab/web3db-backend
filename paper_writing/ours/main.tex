@@ -708,15 +708,8 @@ temporary tables and the original SQL query is re-executed over their
 union, delegating all operator semantics to a mature execution engine.
 
 Two heuristics guide plan construction.  First, the engine always
-\emph{prefers the cache}: cached data is processed locally, and only
-the residual is pushed down, avoiding P2P latency entirely for the
-covered portion.  Second, the engine \emph{prefers pushdown over full
-fetch}: predicate-based DAG traversal retrieves far fewer shards than
-a full table scan, and in the decentralized setting---where each
-shard fetch costs 100--5\,000\,ms---even modest pruning ratios yield
-large latency savings.  Figure~\ref{fig:separable_plan} contrasts a
-conventional plan that fetches every shard before processing with a
-separable plan that exploits both the cache and pushdown pruning.
+\emph{prefers the cache}: cached data is processed locally, and only the residual is pushed down, avoiding P2P latency entirely for the covered portion.  Second, the engine \emph{prefers pushdown over full fetch}: predicate-based DAG traversal retrieves far fewer shards than a full table scan, and in the decentralized setting---where each shard fetch costs 100--5\,000\,ms---even modest pruning ratios yield large latency savings.  Figure~\ref{fig:separable_plan} contrasts a
+conventional plan that fetches every shard before processing with a separable plan that exploits both the cache and pushdown pruning.
 
 
 \subsection{Example: Separable Query Execution}
@@ -976,6 +969,23 @@ We use the join query above to demonstrate how the hybrid query executor handles
 % \end{table}
 
 \subsection{Access Control}
+\label{sec:access_control}
+
+In a database consortium, multiple data providers publish tables to a shared IPFS network, but each provider retains control over who may query its data and which rows are visible to each querier. \ours{} adopts MtDB's predicate-based access-control model~\cite{hossain2025mtdb}, in which fine-grained policies are stored on-chain and enforced at query time through SQL rewriting inside the TEE enclave.
+
+\textbf{Policy model.}
+An access-control policy is a triple $(t,\; w,\; P_{\mathit{ac}})$, where $t$ is a table identifier, $w$ is the Ethereum wallet address of the authorized querier, and $P_{\mathit{ac}}$ is a SQL predicate over the columns of $t$ that defines the accessible row subset. For example, a provider who publishes a \texttt{Patients} table may grant hospital~$A$ access only to its own patients by registering the policy $(\texttt{Patients},\; w_A,\; \texttt{HospitalID} = \text{`A'})$. Policies are recorded in the \texttt{TableRegistry} smart contract (Section~\ref{sec:impl_blockchain}) and are immutable once written; a provider revokes access by submitting a new transaction that removes the policy entry.
+
+\textbf{Query rewriting.}
+When a query $Q$ referencing table $t$ arrives from wallet $w$, the query engine retrieves all policies $(t, w, P_{\mathit{ac}}^{(i)})$ associated with $w$ from the smart contract. If no matching policy exists, the query is rejected. Otherwise, the engine rewrites $Q$ by injecting an additional conjunctive filter:
+\begin{equation}
+    Q' \;=\; Q \;\wedge\; \Bigl(\bigvee_{i} P_{\mathit{ac}}^{(i)}\Bigr)
+    \label{eq:rewrite}
+\end{equation}
+The disjunction combines all applicable policies for $w$, so a querier who holds multiple grants (e.g., from different data providers) sees the union of all authorized rows. The rewritten query $Q'$ then follows the normal execution path: the cache manager checks containment against $Q'$'s predicates, and the pushdown engine traverses the Merkle DAG under $Q'$'s combined predicate, including the access-control filter. Because the rewriting occurs inside the enclave before any data is accessed, unauthorized rows are never decrypted or returned.
+
+\textbf{Integration with caching and pushdown.}
+The injected access-control predicate participates in both the semantic cache and the DAG traversal without special handling. When the cache manager performs Z3 containment checking (Section~\ref{sec:z3}), the access-control conjunct is part of the query predicate, so a cached result produced under one policy is never served to a querier with a different policy. Similarly, during Merkle DAG traversal (Section~\ref{sec:dag_traversal}), the access-control predicate further prunes shards whose bounding boxes fall outside the authorized range, reducing network I/O beyond what the user's analytic predicates alone would achieve.
 
 \section{Cache Manager}
 \label{sec:cache}
@@ -1212,6 +1222,7 @@ On each incoming query, the cache manager invokes the Z3 solver (v4.12)~\cite{de
 Cache contents are managed by the utility-aware eviction policy (Section~\ref{sec:utility_aware}), which balances re-fetch cost against semantic reuse potential.
 
 \textbf{Blockchain coordination.}
+\label{sec:impl_blockchain}
 The metadata registry and access-control layer are implemented as a Solidity smart contract deployed on Ethereum.
 The contract maintains three on-chain structures:
 (1)~a mapping from table--attribute keys to their Merkle DAG root CIDs,

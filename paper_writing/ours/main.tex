@@ -1179,13 +1179,56 @@ This allows the policy to adapt as the workload evolves, without manual tuning.
 
 
 \section{Implementation}
-\subsection{Decentralized Storage and Data Format}
-\subsection{In-Enclave Parallel Processing}
-\subsection{Blockchain Coordination}
+\label{sec:implementation}
+
+We implement \ours{} in approximately 6{,}500 lines of code: the query engine, block reorganizer, and cache manager in Python (FastAPI); smart contracts in Solidity; and a management UI in JavaScript.
+All core modules run inside the SGX enclave via the Gramine library OS~\cite{kuvaiskii2022computation}, which allows unmodified Linux applications to execute in an enclave with minimal porting effort.
+
+\textbf{Decentralized storage and data format.}
+\ours{} adopts IPFS Kubo as its decentralized storage layer.
+The computation node communicates with the IPFS daemon through its HTTP RPC interface, and Merkle DAG nodes are stored using the DAG-CBOR codec to produce IPLD-native linked-data objects~\cite{ipld2023spec}.
+
+\ours{} stores table data in Parquet format.
+Within the query engine and the cache, we use Apache Arrow as the unified in-memory columnar representation; table data is converted to Arrow within the scan operator.
+Using the same format for both execution and caching eliminates an extra serialization step on the critical path.
+Before uploading to IPFS, each Parquet shard is compressed with Snappy and encrypted using the enclave's 256-bit sealing key.
+On the read path, the enclave fetches the ciphertext by CID, decrypts it, and deserializes the buffer back into an Arrow table for query execution.
+
+\textbf{In-enclave query execution.}
+We embed DuckDB as the in-enclave SQL engine for its in-process execution model, full SQL support, and vectorized processing.
+Decrypted Parquet shards are loaded as temporary tables and the user query is executed directly over them.
+For the merge operator in separable query plans (Section~\ref{sec:separable_plan}), the cached and pushdown-fetched portions are each materialized as Arrow tables and combined with any residual filtering or aggregation.
+
+\textbf{Parallel IPFS I/O.}
+The dominant bottleneck in \ours{} is not local computation but network latency to IPFS\@.
+To mitigate this, we parallelize all data-path IPFS operations.
+Shard fetches during query execution use a 64-thread pool that issues concurrent retrieval requests.
+DAG traversal uses a separate 8-thread pool: at each internal node, all child metadata is fetched in a single parallel batch, pruned locally against the query predicates, and only surviving subtrees are expanded recursively.
+We initially created a new thread pool at each DAG level but found that repeated executor instantiation added significant overhead; reusing a single pool across the entire traversal eliminated this cost.
+
+\textbf{Caching.}
+The semantic cache resides in the enclave's protected memory and stores query results as Arrow tables, indexed by their defining predicates and table name.
+On each incoming query, the cache manager invokes the Z3 solver (v4.12)~\cite{de2008z3} to check predicate containment against all cached entries; on a full or partial hit, the residual filter is applied in-enclave without any IPFS access (Section~\ref{sec:containment_reuse}).
+Cache contents are managed by the utility-aware eviction policy (Section~\ref{sec:utility_aware}), which balances re-fetch cost against semantic reuse potential.
+
+\textbf{Blockchain coordination.}
+The metadata registry and access-control layer are implemented as a Solidity smart contract deployed on Ethereum.
+The contract maintains three on-chain structures:
+(1)~a mapping from table--attribute keys to their Merkle DAG root CIDs,
+(2)~table schemas stored as serialized DDL strings, and
+(3)~per-table access policies expressed as SQL predicates bound to wallet addresses.
+Metadata reads are free view calls; writes are signed transactions.
+To minimize gas cost, we batch all CID updates for a table into a single transaction rather than issuing one per attribute.
+
+At query time, the engine retrieves the querier's access policies from the contract and rewrites the incoming SQL by injecting a conjunctive filter that restricts the base table to authorized rows.
+Each policy specifies a data owner and a predicate defining the accessible subset; applicable policies are combined disjunctively.
+This enforces multi-tenant isolation at the SQL level without modifying the underlying data or requiring per-tenant storage partitions.
+\ours{} currently supports a single computation node; we discuss scaling to multiple compute nodes in Section~\ref{sec:conclusion}.
 
 \section{Evaluation}
 
 \section{Conclusion}
+\label{sec:conclusion}
 \showkot{Write later.}
 
 

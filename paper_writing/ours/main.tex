@@ -95,7 +95,7 @@
 \date{}
 
 % make title bold and 14 pt font (Latex default is non-bold, 16 pt)
-\title{\Large \bf \ours : Pushdown and Caching for Decentralized Consortium of Databases}
+\title{\Large \bf \ours : Pushdown and Caching for Decentralized Databases}
 
 %for single author (just remove % characters)
 % \author{
@@ -887,86 +887,42 @@ conventional plan that fetches every shard before processing with a separable pl
 \end{lstlisting}
 \textbf{Listing 1: Example query joining relations $P$ and $T$.}
 
-We use the join query above to demonstrate how the hybrid query executor handles multi-table queries (Figure~\ref{fig:separable_join}). The database contains two relations, $P$ (Projects) and $T$ (Tasks), stored as Merkle DAGs in IPFS. The in-enclave semantic cache already holds partial results for both relations from prior queries that satisfy subsets of the current predicates. 
+We use the join query in Listing~1 to illustrate how the hybrid query engine handles multi-table queries (Figure~\ref{fig:separable_join}).
+The database contains two relations, $P$ (Projects) and $T$ (Tasks), each stored as a Merkle DAG on IPFS with 8~leaf shards.
+The in-enclave semantic cache holds partial results from prior queries: a cached result for $P$ satisfying \texttt{Budget}~$> x_c$ and a cached result for $T$ satisfying \texttt{Hours}~$> y_c$, where $x_c > x$ and $y_c > y$.
 
-% The hybrid engine constructs a separable plan by decomposing the data access for both relations. For relation $P$, the engine evaluates the cached shards locally and pushes the residual predicate (\texttt{P.Budget > 50000}) down to the IPFS Merkle DAG, pruning irrelevant subtrees before fetching. The same separation occurs for relation $T$ using the predicate \texttt{T.Status = 'Active'}. The fetched shards are decrypted, filtered in-enclave, and then merged with the cached subsets. Finally, the unified relations are joined using an in-memory Hash Join, followed by the Group-by aggregation. This plan maximizes cache reuse while exploiting predicate pushdown to minimize P2P network transfers for the join inputs.
+\textbf{Cache lookup.}
+The cache manager invokes the Z3 containment checker for each relation independently.
+For relation~$P$, the new predicate $P_n\!: \texttt{Budget} > x$ is tested against the cached predicate $P_c\!: \texttt{Budget} > x_c$.
+Because $x < x_c$, the cached result covers only a subset of the needed rows: full containment does not hold.
+The checker identifies partial overlap and computes the residual predicate $P_r\!: x < \texttt{Budget} \leq x_c$, which captures the uncovered portion.
+The same procedure applies to relation~$T$, yielding a residual $P_r\!: y < \texttt{Hours} \leq y_c$.
 
-% \noindent
-% \textbf{Setup.}  The \texttt{Employees} table has 16 leaf shards
-% organized in a Merkle DAG of height~3 (branching factor~4),
-% partitioned on \texttt{Age} and \texttt{Salary}.  The semantic cache
-% holds one entry: the result of
-% \texttt{SELECT * FROM Employees WHERE Age > 55}, covering 3~shards.
-% Because this entry retains all columns, the \texttt{Department} and
-% \texttt{Salary} values needed for aggregation are available without
-% additional fetches.
+\textbf{Cached-path execution.}
+For each relation, the engine applies the original query predicate over the cached result inside the enclave.
+The cached result for~$P$ (all rows with \texttt{Budget}~$> x_c$) is filtered to retain rows satisfying \texttt{Budget}~$> x$---which is trivially all cached rows, since $x_c > x$.
+Similarly, all cached rows for~$T$ survive the filter \texttt{Hours}~$> y$.
+These filtered subsets form the cached partial results $R_c$ for each relation.
+No IPFS traffic is generated during this step.
 
-% \paragraph{Cache lookup.}
-% The cache manager checks whether the new predicates
-% $P_n\!:\ \texttt{Age} > 40 \;\wedge\; \texttt{Salary} > 80\text{k}$
-% are subsumed by the cached predicates
-% $P_c\!:\ \texttt{Age} > 55$.
-% Z3 finds a satisfying assignment for $P_n \wedge \neg P_c$, so full
-% containment does not hold---the new query includes rows with
-% $40 < \texttt{Age} \le 55$ and adds a \texttt{Salary} constraint.
-% The engine identifies a partial overlap and computes the residual
-% predicate
-% $P_r\!:\ \texttt{Age} \in (40,\, 55] \;\wedge\; \texttt{Salary} >
-% 80\text{k}$
-% for the pushdown path.
+\textbf{Pushdown-path execution.}
+The residual predicates are pushed down through the respective Merkle DAGs.
+For relation~$P$, the engine begins at the DAG root $r_P$ and checks each child's aggregate range against $x < \texttt{Budget} \leq x_c$.
+One internal subtree is pruned entirely because its range falls outside the residual bounds; the surviving subtree expands to 4~matching leaf shards ($p_1$--$p_4$), while the pruned subtree's 4~leaves ($p_5$--$p_8$) are never fetched.
+For relation~$T$, the same traversal under $y < \texttt{Hours} \leq y_c$ prunes more aggressively: only 2~of 8~shards ($t_1$--$t_2$) survive, with the remaining 6~pruned at the internal or leaf level.
+The surviving shards are fetched concurrently, decrypted inside the enclave, and filtered under the residual predicate to produce the pushdown partial results $R_p$.
 
-% \paragraph{Cached-path execution.}
-% The engine filters the cached result with
-% $\texttt{Salary} > 80\text{k}$ and computes per-department partial
-% aggregates $\langle \texttt{Dept},\, \text{sum}_c,\, \text{cnt}_c
-% \rangle$, producing~$R_c$.  Because \texttt{AVG} is algebraic, the
-% engine records both sum and count, deferring the division to the
-% merge step.  This path executes entirely in-enclave with zero IPFS
-% traffic.
+\textbf{Merge, join, and aggregation.}
+For each relation, the merge operator concatenates the cached partial result $R_c$ and the pushdown partial result $R_p$ into a complete, deduplicated input relation.
+The two merged relations are then joined on \texttt{P.ProjID~=~T.ProjID} using an in-enclave hash join, followed by the \texttt{GROUP BY P.Dept} aggregation that computes \texttt{SUM(T.Cost)}.
+In our implementation, the merge and downstream operators are executed by DuckDB: the cached and fetched Arrow tables are registered as temporary tables and the original SQL query is re-executed over their union.
+The final result is returned to the client, and the pushdown partial results are inserted into the cache under their respective residual predicates for future reuse.
 
-% \paragraph{Pushdown-path execution.}
-% The engine traverses the DAG under~$P_r$.  At the root, two of four
-% children are pruned because their \texttt{Age} ranges lie entirely
-% outside $(40, 55]$.  Expanding the two surviving subtrees yields
-% 5~candidate leaves, of which 2~more are pruned because their
-% \texttt{Salary} upper bound falls below 80\,000.  The engine fetches
-% the remaining 3~shards, decrypts them in-enclave, applies~$P_r$, and
-% computes partial aggregates to obtain~$R_p$.
-
-% \paragraph{Merge.}
-% The merge operator groups $R_c \cup R_p$ by \texttt{Department} and
-% finalizes each average as
-% $(\text{sum}_c + \text{sum}_p) / (\text{cnt}_c + \text{cnt}_p)$.
-% The result is returned to the client, and $R_p$ is inserted into the
-% cache under~$P_r$ for future reuse.
-
-% \paragraph{Summary.}
-% Table~\ref{tab:hybrid_benefit} compares shard fetches across
-% strategies.  The hybrid engine fetches 3 of 16~shards (81\%
-% reduction); a pushdown-only system fetches~5, and a cache-only system
-% misses entirely.  The example also illustrates why \ours{} favors
-% caching \texttt{SELECT *} results: the cached entry's retention of
-% all columns enabled both the grouped aggregation and the residual
-% filter without re-fetching.
-
-% \begin{table}[t]
-% \centering
-% \small
-% \begin{tabular}{lcc}
-% \hline
-% \textbf{Strategy} & \textbf{Shards fetched} & \textbf{Reduction} \\
-% \hline
-% No optimization (full scan) & 16 & --- \\
-% Cache only                  & 16 (miss) & 0\% \\
-% Pushdown only               &  5 & 69\% \\
-% \ours{} (hybrid)            &  3 & 81\% \\
-% \hline
-% \end{tabular}
-% \caption{IPFS shard fetches for the example query under different
-% strategies.  The hybrid approach achieves the largest reduction by
-% combining cached-path and pushdown-path execution.}
-% \label{tab:hybrid_benefit}
-% \end{table}
+% \textbf{Summary.}
+Without any optimization, the engine would fetch all $8 + 8 = 16$ shards.
+Pushdown alone reduces this to $4 + 2 = 6$ shards by pruning subtrees whose ranges fall outside the query predicates.
+The hybrid plan fetches only the 6~shards needed for the residual predicates while serving the rest from the cache, and critically, future queries whose predicates overlap with either the original cached entries or the newly cached residuals will benefit from further cache hits.
+The example demonstrates that the separable plan exploits both mechanisms simultaneously: caching eliminates IPFS fetches for the covered portion, and pushdown minimizes fetches for the uncovered portion.
 
 \subsection{Access Control}
 \label{sec:access_control}

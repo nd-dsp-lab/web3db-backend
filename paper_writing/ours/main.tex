@@ -1182,7 +1182,7 @@ This allows the policy to adapt as the workload evolves, without manual tuning.
 \label{sec:implementation}
 
 We implement \ours{} in approximately 6{,}500 lines of code: the query engine, block reorganizer, and cache manager in Python (FastAPI); smart contracts in Solidity; and a management UI in JavaScript.
-All core modules run inside the SGX enclave via the Gramine library OS~\cite{kuvaiskii2022computation}, which allows unmodified Linux applications to execute in an enclave with minimal porting effort.
+All core modules run inside the SGX enclave via the Gramine library OS~\cite{tsai2017graphene,kuvaiskii2022computation}, which allows unmodified Linux applications to execute in an enclave with minimal porting effort.
 
 \textbf{Decentralized storage and data format.}
 \ours{} adopts IPFS Kubo as its decentralized storage layer.

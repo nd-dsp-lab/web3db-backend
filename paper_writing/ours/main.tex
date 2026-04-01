@@ -62,6 +62,11 @@
 \usepackage[ruled,linesnumbered]{algorithm2e}
 % inlined bib file
 \usepackage{filecontents}
+\usepackage{booktabs}
+\usepackage{pifont}
+
+\newcommand{\cmark}{\ding{51}}
+\newcommand{\xmark}{\ding{55}}
 
 %-------------------------------------------------------------------------------
 \begin{filecontents}{\jobname.bib}
@@ -396,59 +401,59 @@ Existing decentralized database systems support neither caching nor pushdown, le
 
 We address this gap with a hybrid design. The semantic cache layer reuses cached results across queries via SMT-based query containment checking, and the pushdown layer organizes table data into a metadata-rich IPLD Merkle DAG, enabling predicate-based filtering at the IPFS level. Together, the cache eliminates fetches for repeated or overlapping queries, while the pushdown DAG eliminates retrieval for irrelevant data partitions.
 
-\section{Literature Review}
+
+\section{Related Work}
 \label{sec:litreview}
-
-This section reviews the state of the art across five domains related to \ours{}. We begin with decentralized databases (\S\ref{sec:ipfs}) and then discuss the privacy and coordination models that motivate our use of a trusted execution environment (\S\ref{sec:tee}). We next examine data sharding techniques relevant to our block reorganizer (\S\ref{sec:sharding}), followed by predicate pushdown and query containment strategies that inform our hybrid query engine (\S\ref{sec:containment}). Finally, we discuss database caching approaches that shape our cache manager (\S\ref{sec:caching}).
-
+ 
+\ours{} reduces network I/O for secure analytical query processing over decentralized databases. The literature that informs this problem spans \emph{decentralized databases}, \emph{secure query execution}, \emph{pushdown and data skipping}, and \emph{cache management}. Table~\ref{tab:comparison} summarizes how \ours{} relates to representative systems across these areas. We review previous work below.
+ 
+\begin{table*}[t]
+\centering
+\small
+\setlength{\tabcolsep}{8pt}
+\renewcommand{\arraystretch}{1.08}
+\caption{Comparison of \ours{} with related work. \cmark\ indicates support; \xmark\ indicates no support.}
+\label{tab:comparison}
+\begin{tabular}{lccccc}
+\toprule
+\textbf{System} & \textbf{Decentralized} & \textbf{TEE} & \textbf{Pushdown} & \textbf{Cache} & \textbf{Hybrid Exec.} \\
+\midrule
+Minerva~\cite{yao2024minerva}              & \cmark & \xmark & \xmark & \xmark & \xmark \\
+MtDB~\cite{hossain2025mtdb}                & \cmark & \cmark & \xmark & \xmark & \xmark \\
+Web3DB~\cite{mukherjee2025web3db}          & \cmark & \xmark & \xmark & \xmark & \xmark \\
+EnclaveDB~\cite{priebe2018enclavedb}       & \xmark & \cmark & \xmark & \xmark & \xmark \\
+FlexPushdownDB~\cite{yang2021flexpushdowndb} & \xmark & \xmark & \cmark & \cmark & \cmark \\
+\midrule
+\textbf{\ours{}}                           & \textbf{\cmark} & \textbf{\cmark} & \textbf{\cmark} & \textbf{\cmark} & \textbf{\cmark} \\
+\bottomrule
+\end{tabular}
+\end{table*}
+ 
 %-------------------------------------------------------------------------------
-\subsection{IPFS and Decentralized Databases}
-\label{sec:ipfs}
+\textbf{Decentralized databases.}
+IPFS provides content-addressed storage built around content identifiers (CIDs), Merkle DAGs, and DHT-based provider discovery~\cite{benet2014ipfs,daniel2022ipfs,trautwein2022design}. These mechanisms decouple data naming from location and allow objects to be retrieved from multiple peers without a central server, making IPFS an attractive substrate for decentralized applications.
+ 
+A growing line of work builds database functionality on top of this substrate. Early systems such as BigchainDB~\cite{mcconaghy2016bigchaindb} tightly coupled database semantics with blockchain coordination. More recent systems separate metadata management from bulk storage. Minerva~\cite{yao2024minerva} executes collaborative queries over IPFS and improves decentralized query processing through DHT-aware lookup optimization and a fat Merkle tree structure. MtDB~\cite{hossain2025mtdb} stores encrypted data off-chain while using blockchain-managed metadata for schemas, indexes, and access control. Web3DB~\cite{mukherjee2025web3db} similarly combines decentralized storage with relational abstractions and SQL-like operations to support user-controlled data ownership. Collectively, these systems establish the architectural pattern that \ours{} inherits: blockchain-coordinated metadata combined with off-chain decentralized storage. \ours{} extends this pattern by adding local cache and pushdown layer to the query path.
+ 
 %-------------------------------------------------------------------------------
-
-The InterPlanetary File System (IPFS) provides content-addressed storage over a distributed hash table (DHT), allowing data to be stored and retrieved across peer nodes without a central server~\cite{benet2014ipfs,daniel2022ipfs,trautwein2022design}. Objects are identified by content identifiers (CIDs) and organized into Merkle directed acyclic graphs (DAGs)~\cite{benet2014ipfs}.
-
-Several lines of work have explored building databases on this substrate. Early systems such as BigchainDB~\cite{mcconaghy2016bigchaindb} layered relational semantics directly over blockchain consensus, but this coupling imposed severe throughput limitations. Subsequent systems improved scalability by either distributing query execution across storage peers~\cite{yao2024minerva} or by using smart contracts to coordinate metadata and access control while keeping bulk data off-chain~\cite{hossain2025mtdb,mukherjee2025web3db}.
-
-Despite these architectural advances, all existing designs treat IPFS as a generic object store: queries must retrieve entire remote partitions even when only a small fraction of the data is relevant. None of these systems support local caching or storage-level filtering, making network I/O the primary performance bottleneck. \ours{} addresses this gap by introducing both caching and predicate pushdown into the decentralized query path, thereby reducing unnecessary data transfer.
-
+\textbf{Secure query execution.}
+Protecting confidentiality during query execution has been studied through both cryptographic and hardware-assisted approaches. CryptDB~\cite{popa2011cryptdb} demonstrated that practical SQL processing can be supported over encrypted data by choosing encryption schemes according to operator requirements. A complementary direction uses trusted execution environments (TEEs), such as Intel SGX~\cite{costan2016intel}, to execute database operators inside protected memory regions. Opaque~\cite{zheng2017opaque} and EnclaveDB~\cite{priebe2018enclavedb} show that enclave-based execution can support expressive analytical workloads while reducing the trusted computing base compared with application-specific secure protocols.
+ 
+In decentralized settings, secure computation has also been combined with distributed ledgers. Enigma explores privacy-preserving decentralized computation~\cite{zyskind2018enigma}, while vChain~\cite{xu2019vchain} studies authenticated query processing over blockchain-backed data. This literature motivates the secure execution and metadata-coordination layers of \ours{}: the enclave protects query processing and cached data, while the blockchain maintains trusted coordination metadata.
+ 
 %-------------------------------------------------------------------------------
-\subsection{Trusted Execution and Blockchain Databases}
-\label{sec:tee}
+\textbf{Pushdown and data skipping.}
+Classical parallel databases rely on partitioning and data placement to minimize inter-node traffic during query execution~\cite{dewitt1992parallel}. Modern distributed SQL systems refine these ideas with dynamic splitting, rebalancing, and geographically distributed placement~\cite{bacon2017spanner,taft2020cockroachdb,luo2022dynahash}. Learned and adaptive indexing schemes have further shown that physical layout can itself serve as a query-processing aid~\cite{kraska2018case}. However, these techniques assume mutable storage, where a shard can be split in place and its metadata updated atomically. In content-addressed networks such as IPFS, any modification produces a new object with a different CID, which invalidates the in-place update model. Indexing strategies developed for decentralized settings have largely been confined to keyword lookups or data provenance tracking~\cite{arer2022efficient, rathee2019blockchain}.
+ 
+For analytical workloads over remote storage, predicate pushdown and data skipping have become standard mechanisms for reducing transferred bytes. Lakehouse systems exploit file- and block-level metadata to prune irrelevant data~\cite{armbrust2021lakehouse}, and FlexPushdownDB~\cite{yang2021flexpushdowndb} shows that pushdown can be combined with caching in a hybrid execution framework over disaggregated cloud storage. These systems rely on a storage layer that exposes a native query interface (e.g., S3~Select~\cite{hunt2018s3}), which content-addressed P2P networks do not provide. \ours{}'s block reorganizer encodes per-attribute range summaries directly in IPLD Merkle DAG~\cite{ipld2023spec} nodes to enable pushdown at the IPFS level.
+ 
 %-------------------------------------------------------------------------------
-
-Trusted execution environments (TEEs) provide hardware-isolated memory regions that guarantee data confidentiality during computation~\cite{costan2016intel}. Several secure database systems exploit TEEs to protect analytical workloads inside enclaves~\cite{priebe2018enclavedb, zheng2017opaque}, while alternative approaches achieve privacy through computation over ciphertexts~\cite{popa2011cryptdb}. In the blockchain space, systems such as Enigma~\cite{zyskind2018enigma} and vChain~\cite{xu2019vchain} combine TEEs or cryptographic proofs with distributed ledgers, but their primary objective is computational privacy or verifiable correctness rather than query acceleration.
-
-A common limitation of all these systems is that they assume fast local or cloud-attached storage, and consequently do not address the extreme latency penalties of peer-to-peer retrieval. \ours{} leverages the blockchain-coordinated metadata model of prior work~\cite{hossain2025mtdb} to manage access control, but fundamentally redesigns the off-chain storage and caching layers to minimize the retrieval latency that existing secure databases ignore.
-
-%-------------------------------------------------------------------------------
-\subsection{Data Sharding and Indexing}
-\label{sec:sharding}
-%-------------------------------------------------------------------------------
-
-Parallel and distributed databases rely extensively on range and hash partitioning to distribute workloads~\cite{dewitt1992parallel}. Modern cloud-native systems further refine this approach with dynamic shard splitting and online rebalancing~\cite{taft2020cockroachdb, bacon2017spanner, luo2022dynahash}. However, these techniques implicitly assume mutable storage: a shard can be split in place and its metadata updated atomically.
-
-Content-addressed networks such as IPFS enforce immutability. Any modification produces a new object with a different CID, which invalidates the in-place update model. As a result, indexing strategies developed for decentralized networks have largely been confined to simple keyword lookups or data provenance tracking~\cite{arer2022efficient, rathee2019blockchain}. Although adaptive and learned index structures have shown promise in conventional mutable databases~\cite{kraska2018case}, they do not translate to immutable storage architectures. \ours{} bridges this gap by reorganizing data into range-bounded shards via extended KD-tree partitioning and assembling them into a custom IPLD Merkle DAG whose internal nodes carry per-attribute range summaries, enabling predicate-aware traversal at the storage level.
-
-%-------------------------------------------------------------------------------
-\subsection{Predicate Pushdown}
-\label{sec:containment}
-%-------------------------------------------------------------------------------
-
-Predicate pushdown is a well-established optimization in which filters and aggregations are evaluated as close to the storage layer as possible, reducing the volume of data transferred to the query engine. Lakehouse architectures~\cite{armbrust2021lakehouse} and systems such as FlexPushdownDB~\cite{yang2021flexpushdowndb} routinely push predicates into the storage service or a near-storage compute layer. These approaches, however, rely on a storage layer that exposes a native query interface, a capability absent in content-addressed P2P networks.
-
-A related challenge arises in semantic caching, where determining whether one cached query result subsumes another requires solving the query containment problem, which is computationally hard in general~\cite{chandra1977optimal}. Prior work has applied symbolic constraint solvers to verify query equivalences in an offline or static setting~\cite{he2024verieql, chu2017cosette}. \ours{} adapts both ideas to the decentralized context. We embed range metadata directly into the IPLD storage graph to achieve predicate pushdown without a native query interface, and it employs an SMT solver (Z3~\cite{de2008z3}) online to identify valid cached subsets dynamically during query execution.
-
-%-------------------------------------------------------------------------------
-\subsection{Database Caching}
-\label{sec:caching}
-%-------------------------------------------------------------------------------
-
-Traditional database caches, including buffer pools, in-memory key-value stores, and distributed analytics caches, are designed for environments with fast local or cloud-attached storage~\cite{graefe2011modern, fitzpatrick2004distributed, redis2009, dageville2016snowflake, melnik2010dremel}. Multi-tier caching strategies further optimize performance in large-scale distributed settings~\cite{liu2019distcache, durner2021crystal, tang2024data, zhao2013hycache, wang2022metadata}. These designs, however, assume that cache misses incur modest latency penalties and therefore do not account for the extreme costs of peer-to-peer retrieval.
-
-A more fundamental limitation is that standard result caches index entries by query string, which prevents them from exploiting semantic overlap between queries. Semantic caching~\cite{dar1996semantic} addresses this by annotating cached results with their defining predicates and evaluating containment relationships. Subsequent work has extended this idea with predicate indexing and intermediate result reuse~\cite{keller1996predicate, roy2000don}, while recent systems employ heuristic overlap representations for data warehouse workloads~\cite{you2025soc}. Because heuristic approaches sacrifice precision, \ours{} instead relies on a constraint solver~\cite{de2008z3} for rigorous containment validation.
-
-Finally, cache eviction logic in the decentralized setting must be cost-aware. Classical eviction policies such as ARC~\cite{megiddo2003arc}, TinyLFU~\cite{einziger2017tinylfu}, LIRS~\cite{jiang2002lirs}, and SIEVE~\cite{zhang2024sieve} treat all cache entries as opaque blocks with uniform miss costs. When retrieval penalties vary by orders of magnitude, as they do in P2P networks, uniform-cost policies make suboptimal eviction decisions~\cite{podlipnig2003survey}. \ours{} introduces a utility-aware eviction policy that considers an entry's reuse potential and its retrieval cost, ensuring that high-value entries are retained when memory is constrained.
+\textbf{Cache management.}
+Caching provides a complementary route to reducing remote accesses. Traditional database caches, buffer managers, and in-memory key-value stores are effective when misses can be serviced from local disks or datacenter-attached storage~\cite{graefe2011modern, fitzpatrick2004distributed, redis2009, dageville2016snowflake, melnik2010dremel}. Multi-tier and distributed caching strategies further optimize performance in large-scale settings~\cite{liu2019distcache, durner2021crystal, tang2024data, zhao2013hycache, wang2022metadata}. FlexPushdownDB\cite{yang2021flexpushdowndb} caches index entries by query string, which prevents them from exploiting semantic overlap between queries. Semantic caching~\cite{dar1996semantic} addresses this by annotating cached results with their defining predicates and evaluating containment relationships. Subsequent work extended this idea with predicate indexing and intermediate result reuse~\cite{keller1996predicate, roy2000don}, and recent systems employ heuristic overlap representations for data warehouse workloads~\cite{you2025soc}. \ours{}'s cache manager builds on the semantic caching model~\cite{dar1996semantic} and uses a constraint solver~\cite{de2008z3} for containment validation rather than heuristic matching.
+ 
+% Reasoning about whether one query result can satisfy another is closely related to the query containment and equivalence problem, which is computationally difficult in general~\cite{chandra1977optimal}. Systems such as Cosette~\cite{chu2017cosette} and VeriEQL~\cite{he2024verieql} demonstrate that symbolic reasoning and SMT-based techniques can verify nontrivial SQL properties. This work informs the solver-based containment checking used in \ours{}.
+ 
+For cache eviction, classical policies such as ARC~\cite{megiddo2003arc}, LIRS~\cite{jiang2002lirs}, TinyLFU~\cite{einziger2017tinylfu}, and SIEVE~\cite{zhang2024sieve} treat all cache entries as opaque blocks with uniform miss costs. Surveys of web and database caching have long observed that replacement decisions become cost-sensitive when miss penalties vary across objects~\cite{podlipnig2003survey}. FlexPushdownDB~\cite{yang2021flexpushdowndb} is the closest prior system to \ours{} in that it also combines caching and pushdown, but it targets a cloud disaggregated setting where miss penalties are modest and storage exposes a native query interface. \ours{} extends the SIEVE cache eviction algorithm~\cite{zhang2024sieve} with a utility score that balances re-fetch cost against semantic reuse potential, adapting it to the high-penalty P2P retrieval environment.
 
 
 \section{\ours{} Overview}

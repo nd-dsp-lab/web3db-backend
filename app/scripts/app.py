@@ -12,7 +12,7 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 import duckdb
 from typing import List, Tuple, Optional
-from fastapi import FastAPI, UploadFile, File
+from fastapi import FastAPI, Request, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import concurrent.futures
@@ -26,6 +26,9 @@ from dotenv import load_dotenv
 from web3db_contract import Web3dbContract
 from web3db_controller import router as web3db_router
 from web3health_controller import router as web3health_router
+from audit_logger import AuditLogger
+from audit_middleware import AuditMiddleware
+from audit_controller import router as audit_router
 
 # Load environment variables
 # Use absolute path to ensure .env is loaded regardless of current working directory
@@ -71,6 +74,20 @@ except Exception as e:
     logger.error(f"Failed to initialize smart contract connection: {e}")
     raise Exception("Smart contract connection is required but failed to initialize")
 
+# Initialize audit logger (depends on contract being ready)
+_audit_db = os.path.join(script_dir, '..', 'sqlite', 'audit_logs.db')
+try:
+    app.state.audit_logger = AuditLogger(
+        db_path=_audit_db,
+        contract=app.state.index_storage,
+        server_address=app.state.index_storage.address,
+    )
+    app.add_middleware(AuditMiddleware, audit_logger=app.state.audit_logger)
+    logger.info("Audit logger initialized")
+except Exception as e:
+    logger.error(f"Failed to initialize audit logger: {e}")
+    raise Exception("Audit logger is required but failed to initialize")
+
 # Global index tracking - Multi-table support using composite keys: "table.attribute"
 # Default table configuration for backward compatibility
 app.state.default_table = 'patient_data'
@@ -95,6 +112,7 @@ app.state.deletion_stats = {
 # Register sub-routers
 app.include_router(web3db_router)
 app.include_router(web3health_router)
+app.include_router(audit_router)
 
 # Load encryption key from environment
 app.state.encryption_key = base64.b64decode(os.getenv("ENCRYPTION_KEY", "AlmbEPmAR2M4o+ohmFb2oyUV1/JqdNnlG1mG9/JbUBs="))
@@ -126,12 +144,15 @@ def decrypt_to_file(encrypted_data: bytes, cid: str, key: bytes) -> Optional[str
         return None
 
 @app.post("/upload/{table_name}")
-async def upload_data(table_name: str, file: UploadFile = File(...)):
+async def upload_data(table_name: str, file: UploadFile = File(...), req: Request = None):
     """
     Upload data to any table with auto-indexing and encryption.
-    
+
     Supports CSV/SQL formats. Auto-detects indexes or uses first column as default.
     """
+    if req:
+        req.state.audit["action"] = "UPLOAD"
+        req.state.audit["target_table"] = [table_name]
     logger.info(f"POST /upload/{table_name} - Processing data upload for table: {table_name}")
     try:
         content = await file.read()
@@ -150,13 +171,13 @@ async def upload_data(table_name: str, file: UploadFile = File(...)):
         
         # Get indexed attributes for this table
         indexed_attributes = get_table_indexed_attributes(table_name)
-        indexed_values = {k: set(df[k].values) for k in indexed_attributes if k in df.columns}
+        indexed_values = {k: set(df[k].tolist()) for k in indexed_attributes if k in df.columns}
         
         # If no indexed attributes found in config, auto-detect from data
         if not indexed_values and len(df.columns) > 0:
             # Use first column as default index
             first_col = df.columns[0]
-            indexed_values = {first_col: set(df[first_col].values)}
+            indexed_values = {first_col: set(df[first_col].tolist())}
             register_table_config(table_name, [first_col])
             logger.info(f"Auto-registered index for {table_name}: {first_col}")
         
@@ -431,8 +452,13 @@ def rewrite_query_with_access_policies(original_query: str, policies: List[dict]
     return final_query
 
 @app.post("/query")
-async def query(request: QueryRequest):
+async def query(request: QueryRequest, req: Request = None):
     logger.info(f"POST /query - Processing query for table '{request.table_name}' with access control")
+    if req:
+        req.state.audit["action"] = "QUERY"
+        req.state.audit["wallet_address"] = request.wallet_address
+        req.state.audit["target_table"] = [request.table_name]
+        req.state.audit["query"] = request.query
 
     # Step 1: Fetch access policies for the wallet address
     try:
@@ -1404,13 +1430,17 @@ async def update_indexes_after_deletion(old_cid: str, new_cid: str, all_records:
     return True
 
 @app.post("/delete")
-async def delete_records(request: DeleteRequest):
+async def delete_records(request: DeleteRequest, req: Request = None):
     """
     DELETE FROM table_name WHERE condition
     Process deletion by creating new versions of affected CIDs without deleted records.
     Supports multi-table operations.
     """
     logger.info(f"POST /delete - Processing DELETE query for wallet: {request.wallet_address}")
+    if req:
+        req.state.audit["action"] = "DELETE"
+        req.state.audit["wallet_address"] = request.wallet_address
+        req.state.audit["query"] = request.delete_query
     
     operation_start_time = time.time()
     
@@ -1702,13 +1732,17 @@ async def update_indexes_after_update(old_cid: str, new_cid: str, all_records: L
 
 
 @app.post("/update")
-async def update_records(request: UpdateRequest):
+async def update_records(request: UpdateRequest, req: Request = None):
     """
     UPDATE table_name SET column = value WHERE condition
     Process update by modifying records in place and creating new CID versions.
     Supports multi-table operations.
     """
     logger.info(f"POST /update - Processing UPDATE query for wallet: {request.wallet_address}")
+    if req:
+        req.state.audit["action"] = "UPDATE"
+        req.state.audit["wallet_address"] = request.wallet_address
+        req.state.audit["query"] = request.update_query
     
     operation_start_time = time.time()
     

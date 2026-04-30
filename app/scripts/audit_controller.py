@@ -1,100 +1,112 @@
-import json
+"""Audit log read endpoints.
+
+All reads go through `eth_getLogs` filtered by the indexed wallet topic
+on the AuditEntry event. No local storage.
+"""
 import logging
-import sqlite3
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request
 
-from audit_logger import DB_PATH, LogEntry, PaginatedLogs
+from audit_logger import LogEntry, PaginatedLogs
 
 logger = logging.getLogger(__name__)
-
-_DB_PATH = DB_PATH
 
 router = APIRouter(prefix="/audit", tags=["Audit Logs"])
 
 
-def _get_conn() -> sqlite3.Connection:
-    conn = sqlite3.connect(_DB_PATH, timeout=10)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode=WAL")
-    return conn
+def _get_contract(request: Request):
+    contract = getattr(request.app.state, "index_storage", None)
+    if contract is None:
+        raise HTTPException(status_code=503, detail="Contract not available")
+    return contract
 
 
-def _row_to_entry(row: sqlite3.Row) -> LogEntry:
-    return LogEntry(
-        log_id=row["log_id"],
-        timestamp=row["timestamp"],
-        wallet_address=row["wallet_address"],
-        action=row["action"],
-        api_endpoint=row["api_endpoint"],
-        target_table=json.loads(row["target_table"]) if row["target_table"] else None,
-        query=row["query"],
-        status=row["status"],
-        details=json.loads(row["details"]) if row["details"] else None,
-        ip_address=row["ip_address"],
-        blockchain_log_id=row["blockchain_log_id"],
-        sk2=row["sk2"],
-    )
+def _parse_ts(value: str, field: str) -> int:
+    """Accept either a unix-seconds int or an ISO-8601 timestamp.
+    Returns unix seconds."""
+    from datetime import datetime
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        pass
+    try:
+        # fromisoformat accepts "2026-04-30", "2026-04-30T12:34:56",
+        # "2026-04-30T12:34:56+00:00", and (since 3.11) trailing "Z".
+        v = value.replace("Z", "+00:00") if value.endswith("Z") else value
+        dt = datetime.fromisoformat(v)
+        return int(dt.timestamp())
+    except (TypeError, ValueError):
+        raise HTTPException(
+            status_code=400,
+            detail=f"{field} must be unix seconds or ISO-8601 (e.g. 2026-04-30T12:00:00Z)",
+        )
 
 
 @router.get("/logs", response_model=PaginatedLogs)
 def get_logs(
+    request: Request,
     wallet_address: str,
     action: Optional[str] = None,
-    status: Optional[str] = None,
-    date_from: Optional[str] = None,
-    date_to: Optional[str] = None,
-    page: int = 1,
-    page_size: int = Query(default=50, le=200),
+    from_block: int = 0,
+    from_timestamp: Optional[str] = Query(
+        default=None,
+        description="Lower bound (inclusive). Unix seconds or ISO-8601 (e.g. 2026-04-30T12:00:00Z).",
+    ),
+    to_timestamp: Optional[str] = Query(
+        default=None,
+        description="Upper bound (inclusive). Unix seconds or ISO-8601.",
+    ),
+    limit: int = Query(default=100, le=500),
 ):
-    filters = ["wallet_address = ?"]
-    params: list = [wallet_address]
+    ts_lo = _parse_ts(from_timestamp, "from_timestamp") if from_timestamp else None
+    ts_hi = _parse_ts(to_timestamp, "to_timestamp") if to_timestamp else None
+    if ts_lo is not None and ts_hi is not None and ts_lo > ts_hi:
+        raise HTTPException(status_code=400, detail="from_timestamp must be <= to_timestamp")
+
+    contract = _get_contract(request)
+    try:
+        entries = contract.get_audit_logs(wallet_address, from_block=from_block)
+    except Exception as e:
+        logger.error(f"get_audit_logs failed: {e}")
+        raise HTTPException(status_code=503, detail="Failed to read on-chain logs")
 
     if action:
-        filters.append("action = ?")
-        params.append(action)
-    if status:
-        filters.append("status = ?")
-        params.append(status)
-    if date_from:
-        filters.append("timestamp >= ?")
-        params.append(date_from)
-    if date_to:
-        filters.append("timestamp <= ?")
-        params.append(date_to + "T23:59:59")
+        entries = [e for e in entries if e["action"] == action]
+    if ts_lo is not None:
+        entries = [e for e in entries if e["timestamp"] >= ts_lo]
+    if ts_hi is not None:
+        entries = [e for e in entries if e["timestamp"] <= ts_hi]
 
-    where = " AND ".join(filters)
-    offset = (page - 1) * page_size
+    entries = entries[:limit]
+    logs = [LogEntry(**e) for e in entries]
+    return PaginatedLogs(total=len(logs), logs=logs)
 
-    conn = _get_conn()
+
+@router.get("/logs/{entry_id}", response_model=LogEntry)
+def get_log(entry_id: str, wallet_address: str, request: Request):
+    if "-" not in entry_id:
+        raise HTTPException(
+            status_code=400,
+            detail="entry_id must be {tx_hash}-{log_index}",
+        )
+    tx_hash, _, idx_str = entry_id.rpartition("-")
     try:
-        total = conn.execute(f"SELECT COUNT(*) FROM audit_logs WHERE {where}", params).fetchone()[0]
-        rows = conn.execute(
-            f"SELECT * FROM audit_logs WHERE {where} ORDER BY timestamp DESC LIMIT ? OFFSET ?",
-            params + [page_size, offset],
-        ).fetchall()
-    finally:
-        conn.close()
+        log_index = int(idx_str)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid log_index in entry_id")
 
-    return PaginatedLogs(
-        total=total,
-        page=page,
-        page_size=page_size,
-        logs=[_row_to_entry(r) for r in rows],
-    )
-
-
-@router.get("/logs/{log_id}", response_model=LogEntry)
-def get_log(log_id: str, wallet_address: str):
-    conn = _get_conn()
+    contract = _get_contract(request)
     try:
-        row = conn.execute(
-            "SELECT * FROM audit_logs WHERE log_id = ? AND wallet_address = ?",
-            (log_id, wallet_address),
-        ).fetchone()
-    finally:
-        conn.close()
-    if row is None:
-        raise HTTPException(status_code=404, detail="Log entry not found")
-    return _row_to_entry(row)
+        entries = contract.get_audit_logs(wallet_address)
+    except Exception as e:
+        logger.error(f"get_audit_logs failed: {e}")
+        raise HTTPException(status_code=503, detail="Failed to read on-chain logs")
+
+    tx_norm = tx_hash.lower().removeprefix("0x")
+    for e in entries:
+        e_tx = e["tx_hash"].lower().removeprefix("0x")
+        if e_tx == tx_norm and e["log_index"] == log_index:
+            return LogEntry(**e)
+
+    raise HTTPException(status_code=404, detail="Log entry not found")

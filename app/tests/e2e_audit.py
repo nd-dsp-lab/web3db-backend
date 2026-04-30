@@ -31,11 +31,16 @@ FAIL = "\033[91mFAIL\033[0m"
 SKIP = "\033[93mSKIP\033[0m"
 
 
+_check_state = {"failed": 0}
+
+
 def check(label, condition, detail=""):
     status = PASS if condition else FAIL
     print(f"  [{status}] {label}")
-    if not condition and detail:
-        print(f"         {detail}")
+    if not condition:
+        _check_state["failed"] += 1
+        if detail:
+            print(f"         {detail}")
     return condition
 
 
@@ -47,7 +52,8 @@ def section(title):
 
 def run(host):
     failures = 0
-    log_id = None
+    entry_id = None
+    latest = None
 
     # ── Step 1: Health check ─────────────────────────────
     section("1 / 6  Health check")
@@ -123,8 +129,10 @@ def run(host):
 
     # ── Step 5: Audit log list ───────────────────────────
     section("5 / 6  Audit log")
-    print("  (waiting 3s for blockchain write to settle...)")
-    time.sleep(3)
+    # Audit emits run on a background thread; Sepolia confirmations take ~15s.
+    # Wait long enough for the QUERY tx from step 4 to land in a block.
+    print("  (waiting 30s for blockchain write to settle...)")
+    time.sleep(30)
 
     r = requests.get(
         f"{host}/audit/logs",
@@ -135,45 +143,63 @@ def run(host):
     if audit_ok:
         body = r.json()
         logs = body.get("logs", [])
-        check("At least 1 log entry", len(logs) >= 1, f"total={body.get('total')}")
+        # Pick the newest entry whose action matches what this run should
+        # have produced — skips unrelated entries (e.g. leftover TEST writes
+        # from earlier verification, or HEALTH_CHECK / SCHEMA_READ entries).
+        relevant = [l for l in logs if l.get("action") in ("QUERY", "UPLOAD")]
+        check("At least 1 QUERY/UPLOAD log entry", len(relevant) >= 1,
+              f"total_returned={len(logs)}, relevant={len(relevant)}")
 
-        if logs:
-            latest = logs[0]
-            log_id = latest.get("log_id")
-            check("log_id present", bool(log_id), str(latest))
-            check("wallet matches", latest.get("wallet_address") == WALLET, latest.get("wallet_address"))
+        if relevant:
+            latest = relevant[0]
+            tx_hash = latest.get("tx_hash")
+            log_index = latest.get("log_index")
+            if tx_hash is not None and log_index is not None:
+                entry_id = f"{tx_hash}-{log_index}"
+
+            check("tx_hash present", bool(tx_hash), str(latest))
+            check("log_index present (int)", isinstance(log_index, int), str(log_index))
+            check("block_number present", isinstance(latest.get("block_number"), int), str(latest.get("block_number")))
+            check("wallet matches", latest.get("wallet") == WALLET, latest.get("wallet"))
             check("action is QUERY or UPLOAD", latest.get("action") in ("QUERY", "UPLOAD"), latest.get("action"))
-            check("blockchain_log_id present", bool(latest.get("blockchain_log_id")), str(latest.get("blockchain_log_id")))
-            check("sk2 present", bool(latest.get("sk2")), str(latest.get("sk2")))
+            check("content present", bool(latest.get("content")), str(latest.get("content")))
+            check("timestamp present (int)", isinstance(latest.get("timestamp"), int), str(latest.get("timestamp")))
 
-            if latest.get("blockchain_log_id"):
-                print(f"\n  On-chain log ID (Sepolia Etherscan):")
-                print(f"  {latest['blockchain_log_id']}")
+            if tx_hash:
+                tx_clean = tx_hash if tx_hash.startswith("0x") else f"0x{tx_hash}"
+                print(f"\n  On-chain tx (Sepolia Etherscan):")
+                print(f"  https://sepolia.etherscan.io/tx/{tx_clean}")
     else:
         failures += 1
 
     # ── Step 6: Single entry + wallet isolation ──────────
     section("6 / 6  Single entry & wallet isolation")
-    if log_id:
+    if entry_id:
         try:
             r = requests.get(
-                f"{host}/audit/logs/{log_id}",
+                f"{host}/audit/logs/{entry_id}",
                 params={"wallet_address": WALLET},
                 timeout=30,
             )
-            single_ok = check("GET /audit/logs/{id} returns 200", r.status_code == 200, f"HTTP {r.status_code}: {r.text[:200]}")
+            single_ok = check("GET /audit/logs/{entry_id} returns 200", r.status_code == 200, f"HTTP {r.status_code}: {r.text[:200]}")
             if single_ok:
                 body = r.json()
-                check("Returned correct log_id", body.get("log_id") == log_id, body.get("log_id"))
+                check(
+                    "Returned correct entry",
+                    body.get("tx_hash") == latest.get("tx_hash") and body.get("log_index") == latest.get("log_index"),
+                    str(body),
+                )
             else:
                 failures += 1
         except requests.exceptions.ReadTimeout:
-            check("GET /audit/logs/{id} returns 200", False, "Request timed out after 30s")
+            check("GET /audit/logs/{entry_id} returns 200", False, "Request timed out after 30s")
             failures += 1
 
+        # Small spacing — back-to-back eth_getLogs calls can trip Infura rate limits.
+        time.sleep(1)
         try:
             r = requests.get(
-                f"{host}/audit/logs/{log_id}",
+                f"{host}/audit/logs/{entry_id}",
                 params={"wallet_address": OTHER_WALLET},
                 timeout=30,
             )
@@ -182,17 +208,18 @@ def run(host):
             check("Different wallet gets 404", False, "Request timed out after 30s")
             failures += 1
     else:
-        print(f"  [{SKIP}] No log_id captured — skipping single-entry checks")
+        print(f"  [{SKIP}] No entry_id captured — skipping single-entry checks")
 
     # ── Summary ──────────────────────────────────────────
+    total_failed = failures + _check_state["failed"]
     print(f"\n{'═' * 50}")
-    if failures == 0:
+    if total_failed == 0:
         print(f"  All checks passed.")
     else:
-        print(f"  {failures} step(s) failed — see above.")
+        print(f"  {total_failed} check(s) failed — see above.")
     print(f"{'═' * 50}\n")
 
-    sys.exit(0 if failures == 0 else 1)
+    sys.exit(0 if total_failed == 0 else 1)
 
 
 if __name__ == "__main__":

@@ -1,4 +1,5 @@
 import os
+import threading
 from web3 import Web3
 from dotenv import load_dotenv
 
@@ -7,6 +8,9 @@ class Web3dbContract:
         self.infura_api_key = infura_api_key
         self.private_key = private_key
         self.contract_address = contract_address
+        # Serializes nonce-grabbing across threads — prevents collisions
+        # when audit emits run concurrently with foreground writes.
+        self._tx_lock = threading.Lock()
         print(f"INFURA_API_KEY: {'Present' if self.infura_api_key else 'Missing'}")
         print(f"PRIVATE_KEY: {'Present' if self.private_key else 'Missing'}")
         print(f"CONTRACT_ADDRESS: {'Present' if self.contract_address else 'Missing'}")
@@ -664,7 +668,30 @@ class Web3dbContract:
                 ],
                 "stateMutability": "view",
                 "type": "function"
-            }
+            },
+            # === AuditEntry event + logAuditEntry function ===
+            {
+                "anonymous": False,
+                "inputs": [
+                    {"indexed": True,  "internalType": "address", "name": "wallet",    "type": "address"},
+                    {"indexed": False, "internalType": "string",  "name": "action",    "type": "string"},
+                    {"indexed": False, "internalType": "string",  "name": "content",   "type": "string"},
+                    {"indexed": False, "internalType": "uint256", "name": "timestamp", "type": "uint256"},
+                ],
+                "name": "AuditEntry",
+                "type": "event",
+            },
+            {
+                "inputs": [
+                    {"internalType": "address", "name": "wallet",  "type": "address"},
+                    {"internalType": "string",  "name": "action",  "type": "string"},
+                    {"internalType": "string",  "name": "content", "type": "string"},
+                ],
+                "name": "logAuditEntry",
+                "outputs": [],
+                "stateMutability": "nonpayable",
+                "type": "function",
+            },
         ]
         
         # Create contract instance
@@ -1638,3 +1665,98 @@ class Web3dbContract:
         except Exception as e:
             print(f"Failed to get log {log_id}: {e}")
             return False, {}
+
+    # ==================== Audit Log (event-based) ====================
+
+    def log_audit_entry(self, wallet: str, action: str, content: str):
+        """Emit AuditEntry event on-chain.
+
+        Args:
+            wallet:  Ethereum address scoping this log entry (indexed for filter reads).
+            action:  Action label (e.g. "QUERY", "UPLOAD").
+            content: Application-defined JSON string.
+
+        Returns:
+            tuple (success: bool, tx_hash_hex: str | None)
+        """
+        try:
+            from web3 import Web3
+            wallet_cs = Web3.to_checksum_address(wallet)
+            with self._tx_lock:
+                # 'pending' includes in-flight foreground writes, so the audit
+                # thread won't reuse a nonce that's already in the mempool.
+                nonce = self.w3.eth.get_transaction_count(self.address, 'pending')
+                tx = self.contract.functions.logAuditEntry(
+                    wallet_cs, action, content
+                ).build_transaction({
+                    'from': self.address,
+                    'gas': 2000000,
+                    'gasPrice': self._get_gas_price(),
+                    'nonce': nonce,
+                })
+                signed_tx = self.w3.eth.account.sign_transaction(tx, self.private_key)
+                tx_hash = self.w3.eth.send_raw_transaction(signed_tx.raw_transaction)
+            tx_receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash)
+            success = tx_receipt.get('status') == 1
+            if success:
+                tx_hash_hex = tx_hash.hex()
+                if not tx_hash_hex.startswith("0x"):
+                    tx_hash_hex = "0x" + tx_hash_hex
+                return True, tx_hash_hex
+            return False, None
+        except Exception as e:
+            print(f"log_audit_entry failed: {e}")
+            return False, None
+
+    def get_audit_logs(self, wallet: str, from_block: int = 0, to_block="latest") -> list:
+        """Read AuditEntry events filtered by indexed wallet.
+
+        Args:
+            wallet:     Ethereum address to scope the query to (indexed event arg).
+            from_block: Starting block (default 0 = full history).
+            to_block:   Ending block (default "latest").
+
+        Returns:
+            List of dicts (newest first) with keys:
+                tx_hash, log_index, block_number, wallet, action, content, timestamp
+        """
+        import time as _time
+        from web3 import Web3
+        wallet_cs = Web3.to_checksum_address(wallet)
+        # Use get_logs (eth_getLogs) directly — create_filter uses eth_newFilter
+        # which Infura does not reliably support.
+        # Retry on 429 (Infura rate limit) with exponential backoff.
+        last_err = None
+        for attempt in range(4):
+            try:
+                entries = self.contract.events.AuditEntry().get_logs(
+                    argument_filters={"wallet": wallet_cs},
+                    from_block=from_block,
+                    to_block=to_block,
+                )
+                break
+            except Exception as e:
+                last_err = e
+                msg = str(e)
+                if "429" in msg or "Too Many Requests" in msg:
+                    _time.sleep(0.5 * (2 ** attempt))  # 0.5, 1, 2, 4 s
+                    continue
+                raise
+        else:
+            raise last_err
+        results = []
+        for e in entries:
+            tx_hash_hex = e["transactionHash"].hex()
+            if not tx_hash_hex.startswith("0x"):
+                tx_hash_hex = "0x" + tx_hash_hex
+            results.append({
+                "tx_hash": tx_hash_hex,
+                "log_index": e["logIndex"],
+                "block_number": e["blockNumber"],
+                "wallet": e["args"]["wallet"],
+                "action": e["args"]["action"],
+                "content": e["args"]["content"],
+                "timestamp": e["args"]["timestamp"],
+            })
+        results.sort(key=lambda r: (r["block_number"], r["log_index"]), reverse=True)
+        return results

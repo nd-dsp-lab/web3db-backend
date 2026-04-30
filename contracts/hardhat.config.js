@@ -9,9 +9,19 @@ console.log('ETHERSCAN_API_KEY:', process.env.ETHERSCAN_API_KEY ? 'Present' : 'M
 
 /** @type import('hardhat/config').HardhatUserConfig */
 module.exports = {
-  solidity: "0.8.28",
+  solidity: {
+    version: "0.8.28",
+    settings: {
+      optimizer: {
+        enabled: true,
+        runs: 200
+      }
+    }
+  },
   networks: {
-    hardhat: {},  // This is important for running local tests
+    hardhat: {
+      allowUnlimitedContractSize: true  // contract exceeds EIP-170 limit; optimizer reduces it for mainnet
+    },
     sepolia: {
       url: `https://sepolia.infura.io/v3/${process.env.INFURA_API_KEY}`,
       accounts: [`0x${process.env.PRIVATE_KEY}`]  // Note the '0x' prefix

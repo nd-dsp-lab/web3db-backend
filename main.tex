@@ -1,0 +1,280 @@
+
+\documentclass{svproc}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{amssymb}
+\usepackage{lineno}
+\usepackage{amssymb,amsfonts}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{mathabx}
+\usepackage{xspace}
+\usepackage[square,sort,comma,numbers]{natbib}\usepackage{xcolor}
+\usepackage{mathrsfs}
+\usepackage[numbers]{natbib}
+\usepackage[hyphens]{url}
+\usepackage[bookmarks=false]{hyperref}
+\usepackage{mdframed}
+\usepackage{todonotes}
+\usepackage{paralist}
+\usepackage{subfigure}
+\usepackage[subfigure]{tocloft}
+\usepackage{cleveref}
+\usepackage{blindtext}%
+
+\usepackage{url}
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage{array}
+\newcommand{\PreserveBackslash}[1]{\let\temp=\\#1\let\\=\temp}
+\usepackage{multirow}
+\newcolumntype{C}[1]{>{\PreserveBackslash\centering}p{#1}}
+\newcolumntype{R}[1]{>{\PreserveBackslash\raggedleft}p{#1}}
+\newcolumntype{L}[1]{>{\PreserveBackslash\raggedright}p{#1}}
+\usepackage{pifont}% http://ctan.org/pkg/pifont
+
+\newcommand{\cmark}{\ding{51}}%
+\newcommand{\xmark}{\ding{55}}%
+\def\github{\xspace{https://anonymous.4open.science/r/CIDBatchLog-6828}\xspace}
+\def\ours{\xspace{CIDBatchLog}\xspace}
+\def\ft{\xspace{Fair$^2$Trade}\xspace}
+\def\clog{\xspace{CIDLog}\xspace}
+
+\usepackage{hyperref}
+\def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
+    T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
+
+
+    
+\begin{document}
+
+
+\title{Cost-Effective Logging for \\ Decentralized Massive Data Sharing \\% {\footnotesize \textsuperscript{*}Note: Sub-titles are not captured for https://ieeexplore.ieee.org  and
+% should not be used}
+% \thanks{Identify applicable funding agency here. If none, delete this.}
+}
+
+% \author{\IEEEauthorblockN{1\textsuperscript{st} Given Name Surname}
+% \IEEEauthorblockA{\textit{dept. name of organization (of Aff.)} \\
+% \textit{name of organization (of Aff.)}\\
+% City, Country \\
+% email address or ORCID}
+% \and
+% \IEEEauthorblockN{2\textsuperscript{nd} Given Name Surname}
+% \IEEEauthorblockA{\textit{dept. name of organization (of Aff.)} \\
+% \textit{name of organization (of Aff.)}\\
+% City, Country \\
+% email address or ORCID}
+% \and
+% \IEEEauthorblockN{3\textsuperscript{rd} Given Name Surname}
+% \IEEEauthorblockA{\textit{dept. name of organization (of Aff.)} \\
+% \textit{name of organization (of Aff.)}\\
+% City, Country \\
+% email address or ORCID}
+% \and
+% \IEEEauthorblockN{4\textsuperscript{th} Given Name Surname}
+% \IEEEauthorblockA{\textit{dept. name of organization (of Aff.)} \\
+% \textit{name of organization (of Aff.)}\\
+% City, Country \\
+% email address or ORCID}
+% \and
+% \IEEEauthorblockN{5\textsuperscript{th} Given Name Surname}
+% \IEEEauthorblockA{\textit{dept. name of organization (of Aff.)} \\
+% \textit{name of organization (of Aff.)}\\
+% City, Country \\
+% email address or ORCID}
+% \and
+% \IEEEauthorblockN{6\textsuperscript{th} Given Name Surname}
+% \IEEEauthorblockA{\textit{dept. name of organization (of Aff.)} \\
+% \textit{name of organization (of Aff.)}\\
+% City, Country \\
+% email address or ORCID}
+% }
+
+\maketitle
+
+\begin{abstract}
+With the increasing volume of generated data across various domains, data sharing has become more and more prevalent and the need for guaranteeing the accountability and traceability of the shared data has drawn attention from the academia. Although existing decentralized sharing platforms return control and ownership to data owners, provenance tracking and secure logging under the decentralized environment is yet to be trivial. Recently, a lot of blockchain-based logging schemes have been proposed to address such concerns of secure logging, but there is still a research gap on the performance of these protocols when the volume of the shared data becomes large. \ours is a logging contract for decentralized data sharing. Rather than logging each upload event separately, it commits a batch of IPFS content identifiers (CIDs) to a single on-chain hash, amortizing transaction overhead across the whole batch. At 100 CIDs, this cuts per-item gas cost by 43$\times$ compared to a standard logging-only HTLC; the gap widens as batch size grows. Source code is available at~\footnote{\github}.
+\end{abstract}
+
+\keywords{Blockchain, Decentralized Data Sharing, Atomic Swap, Efficient Logging.
+}
+\section{Introduction}
+The volume of data generated, uploaded, and shared in modern distributed systems continues to grow rapidly across domains such as healthcare, scientific collaboration, Internet-of-Things (IoT), and large scale data marketplaces. In these settings, data sharing is no longer an occasional event but a continuous process involving large collections of records, files, or content. Ensuring accountability and transparency for such large volumes of data exchange is important, particularly when data owners and users do not fully trust the infrastructure facilitating the exchange.
+
+Decentralized data sharing frameworks aim to return control and ownership to data generators by removing reliance on centralized authorities. While these systems improve data sovereignty, they introduce new challenges for provenance tracking and secure logging. In particular, when data retrieval or upload events occur at scale (either a single large dataset that needs to be split and stored separately or multiple datasets uploaded and stored as items in the storage service), enforcing correct and complete logging without trusted intermediaries becomes difficult. Logging mechanisms must not only be tamper resistant, but also efficient enough to support high volume workloads with prohibitive cost.
+
+Blockchain-based logging is a natural candidate for providing immutability and verifiability in decentralized environments. However, logging each event or data object individually on-chain results in high and impractical gas costs, especially when hundreds or thousands of items are exchanged. This limitation becomes critical in large volume data uploading and sharing scenarios, where the cost per logged item must decrease as throughput increases. Existing atomic swap and HTLC based designs provide strong guarantees of logging with fairness and atomicity, but they are geared more towards one-time logging per upload and do not scale efficiently when applied to large batches of data upload in a single time.
+
+Motivated by these challenges, we focus on a logging design that explicitly targets high volume data uploads (namely, a large amount of datasets uploaded in a single time, equivalent to the scenario where one large dataset needs to be divided into smaller chunks and stored separately). Rather than treating each data object independently, our approach aggregates multiple content identifiers (CIDs) into a single verifiable commitment, allowing logging cost to be amortized across many times. By combining existing atomic swap guarantees with batch-oriented logging, the system preserves user-verifiable inclusion while significantly reducing per-item gas consumption as batch size increases.
+
+In this work, we evaluate and compare traditional HTLC based logging approaches against a batched logging contract designed for large scale data sharing. Our results demonstrate that while single-item logging exhibits fixed per event costs, batched logging achieves substantial efficiency gains as the number of CIDs increases, making it the optimal choice for high throughput decentralized data sharing.
+
+\Cref{sec:related} surveys related work. \Cref{sec:system-design} describes the design and threat model. \Cref{sec:evaluation} presents gas measurements and commitment scheme comparisons. \Cref{sec:conclusion} concludes.
+
+
+
+
+
+\section{Related Works and Preliminaries}
+\label{sec:related}
+
+\subsection{Blockchain-based Logging}
+Blockchain logging uses on-chain immutability to make records tamper-evident without a central authority. The existing approaches, however, cover different parts of the problem and each one leaves something out.
+
+Gao et al.~\cite{gao2025enterprise} use homomorphic encryption to protect logs on-chain, gaining privacy at the cost of independent verification. Cha et al.~\cite{cha2023blockchain} rely on trusted infrastructure, while Zhao et al.~\cite{zhao2019machine} and Lopez-Pimentel et al.~\cite{lopez2021rootlogchain} store Merkle roots or event hashes on-chain to detect tampering with off-chain logs. Both detect alterations after the fact, but they assume the logging event was captured honestly in the first place. \ours addresses an earlier question: whether an upload was recorded at all, in a setting where doing so per-item is prohibitively expensive.
+
+Hasan et al.~\cite{hasan2009preventing} and Cha et al.~\cite{cha2023blockchain} require trustworthy hardware; Hsu et al.~\cite{hsu2020autonomous} embed access control into the chain itself. Each approach reduces one attack surface. None prevent omission: an event that is never submitted simply never appears in any of these logs.
+
+LogChain~\cite{pourmajidi2018logchain}, BlockAuditor~\cite{xu2021k}, and AuditChain~\cite{vishnia2020auditchain} spread trust across multiple nodes, which helps with post-hoc integrity, but the omission problem applies equally. If the cooperative infrastructure decides not to log an event, no distributed ledger will contain it.
+
+Few of these systems give users any way to confirm their events are in the log. The design space motivating \ours is exactly that gap: guaranteeing inclusion without relying on any party to report honestly.
+
+\subsection{Atomic Swap Protocols}
+\label{sec:AtomicSwap}
+Atomic swap protocols guarantee that an exchange either completes for all parties or reverts entirely, without a trusted intermediary. FairSwap~\cite{dziembowski2018fairswap}, OptiSwap~\cite{eckey2020optiswap}, and Universal Atomic Swaps~\cite{thyagarajan2022universal} provide strong fairness properties but are designed for one-time exchanges; they produce no persistent record of the event once it settles. Recent extensions add private key exchange and zero-knowledge proofs~\cite{zhu2024atomic,tas2024atomic}, but the structure is the same: one exchange, one outcome, nothing queryable afterward.
+
+
+\subsection{Decentralized Data Sharing via API Frameworks}
+\label{sec:DecentralizedAPI}
+BigChainDB~\cite{bigchaindb2018bigchaindb}, Web3DB~\cite{mukherjee2025web3db}, and Ocean Protocol~\cite{oceanprotocol2018} all expose standard APIs over decentralized backends. The API handles coordination; the data stays distributed. Web3DB~\cite{mukherjee2025web3db}, for instance, runs SQL queries over IPFS-stored data~\cite{fluencenetwork2024}, but creates no on-chain record of which operations were submitted or completed.
+
+This is a recurring pattern in API-mediated decentralized systems: the data is decentralized, but the API layer has no accountability mechanism. Users cannot verify independently that their uploads happened or that they are stored at the addresses they were told.
+
+\section{System Design}\label{sec:system-design}
+\subsection{Models and Assumptions}
+
+\begin{figure}
+    \centering
+    \includegraphics[width=0.75\linewidth]{workflow.pdf}
+    \caption{Workflow of \ours}
+    \label{fig:workflow}
+\end{figure}
+
+As shown in \Cref{fig:workflow}, \ours involves three entities: data owner, API, and blockchain. The API is a \emph{centralized} service --- a single endpoint that receives data from the owner, encrypts and stores it on IPFS, and returns a verifiable confirmation of what was uploaded. It is not a peer-to-peer network or a DApp; this is consistent with API-mediated decentralized systems such as Web3DB~\cite{mukherjee2025web3db}, where a central coordinator manages access to a decentralized backend.
+
+\textbf{Threat model.} We target disputes between honest-but-fallible parties, not Byzantine adversaries. Both parties want the upload to complete: the owner to store their data, the API to maintain its record of correct delivery. The dispute we address is narrower --- both act in good faith, but later disagree about whether a specific batch was uploaded and to which CIDs. The blockchain resolves this without requiring either party to trust the other's word. FairSwap~\cite{dziembowski2018fairswap} and FairTrade~\cite{chenli2021fairtrade} make the same structural assumption: parties are incentivized to complete the exchange, and the cryptography enforces correctness if either deviates.
+
+The protocol enforces two properties neither party can override. First, the owner deploys the commitment before the API submits any CIDs (steps 3--4 in \Cref{fig:details}). An API that submits the wrong CID list fails the hash check; an owner who deployed the wrong commitment is detected at step~5b and the API simply does not call the contract. No successful log entry can be produced for CIDs that were not actually uploaded --- sha256 preimage resistance prevents forgery. Second, all on-chain data is public. Any third party can verify the commitment and check whether a submitted CID list matches it, without relying on either party's testimony.
+
+One limitation \ours inherits from HTLCs generally: it cannot compel the API to participate. If the API does not call the contract, the timelock expires and no log is recorded. Enforcing liveness against a non-participating API would require a stronger incentive mechanism, which is outside the scope of this work. Blockchain-level misbehavior (transaction censorship, fork attacks) is similarly out of scope and handled by the consensus layer.
+%For the discussion on that part, we can refer to the SecLog\cite{hughes2025seclog}.
+
+\subsection{Our Design of \ours}
+\begin{figure}
+    \centering
+    \includegraphics[width=0.9\linewidth]{protocol-details.pdf}
+    \caption{Detailed protocol design of \ours}
+    \label{fig:details}
+\end{figure}
+
+Although there are many possible implementation choices for the data storage services and their corresponding variables for the commitment calculation (e.g., cloud and link to the stored data on cloud), we specifically use IPFS and CIDs for showcasing purposes. Also, we use the multiple datasets scenario and skip the description of its equivalent case, where a large dataset is sent that requires to be further divided and stored separately. The detailed protocol design of \ours are as follows: 
+
+\begin{itemize}
+    \item The owner will send a batch of datasets, $\{D={D_{i,i=1,2,...,n}}\}$ to the API (step 1).
+    \item The API, upon receiving the datasets, will process them before upload them to the storage services. For instance, they can encrypt the datasets, upload them to IPFS nodes and retrieve $CID_i$ for each datasets $D_i$. After that, they will calculate the commitment by hashing a concatenation of all the $CID$s, \textit{s.t.} $cmt = H(\texttt{uint256}(n) \| CID_1 \| CID_2 \| \cdots \| CID_n)$ (step 2). We include the batch size $n$ as a length prefix to prevent length-extension ambiguity. We justify this design over alternative commitment schemes such as hash chains and Merkle trees in \Cref{sec:commitment-comparison}.
+    \item After the calculation of the $cmt$, the API will send it to the owner to deploy a smart contract with it (step 3).
+    \item The owner will deploy a Hash Time-Locked Contract (HTLC) based on the $cmt$. Specifically, an event will be logged if the hash value of concatenating all the input values equals to the commitment shared in the previous step, where $H(input_1 || input_2 || ... || input_n) = cmt$. Otherwise, the smart contract will be discarded if its waiting time expires (step 4). 
+    \item Later, when API sees the deployed smart contract, it will first verify if the value of $cmt$ is correct or not. If the owner correctly deployed the HTLC with the valid $cmt$ value, the API will call the contract with a list of valid $CID$s (step 5.a). Or if the smart contract is not correctly deployed, the API will simply terminate the process without doing anything (step 5.b).
+\end{itemize}
+
+\section{Simulations and Evaluations}
+\label{sec:evaluation}
+
+\subsection{Experimental Setup}
+
+We implemented three smart contracts in Solidity~0.5.16 and measured gas consumption using Truffle~v5.11.5 with Ganache~v7.9.1 as the local blockchain backend. Gas figures were read directly from transaction receipts. All experiments ran on a Framework laptop (Linux Mint~22.1, kernel~6.8.0-90-generic) with no hardware acceleration.
+
+\subsection{Evaluated Smart Contracts}
+
+We compared \ours against two HTLC-based contracts:
+
+\begin{itemize}
+    \item \texttt{Original\_HTLC} \cite{chatch}: a standard Hashed Timelock Contract that performs cryptographic verification and transfers ETH on withdrawal.
+    \item \texttt{Logging-only\_HTLC}: a stripped-down variant that drops the ETH transfer and emits a verification event instead.
+    \item \texttt{\ours}: commits a batch of CIDs to a single hash and logs the result on-chain.
+\end{itemize}
+
+For the two HTLC contracts, we ran 100 separate create-then-withdraw (or create-then-verify) interactions each. For \ours, we measured the cost of committing 100 CIDs in one transaction, matching the scenario where a large dataset is split into 100 chunks and stored separately on IPFS.
+
+\subsection{Gas Cost Measurements}
+
+Both HTLC contracts have roughly constant per-CID costs: \texttt{Original\_HTLC} averaged 229,567 gas per CID and \texttt{Logging-only\_HTLC} averaged 194,319. The gap between them is expected---the logging-only version drops the ETH transfer, which is the expensive part.
+
+\ours logged 100 CIDs for 447,463 gas total, or about 4,475 per CID. Because transaction overhead and the hash computation are paid once per batch rather than once per CID, the per-CID cost falls as batch size grows. At 100 CIDs it is already 43$\times$ cheaper per item than \texttt{Logging-only\_HTLC}.
+
+\begin{figure}[ht]
+    \centering
+    \includegraphics[width=.96\linewidth]{CIDBatchLog.pdf}
+    \caption{Gas per CID as a function of batch size.}
+    \label{fig:gas_graph}
+\end{figure}
+
+Figure~\ref{fig:gas_graph} shows this directly. The two HTLC contracts are flat lines; \ours curves steeply downward. The crossover happens early: even at small batch sizes the batched design is cheaper per item, and the advantage widens as the number of CIDs grows.
+
+\subsection{Commitment Scheme Comparison}
+\label{sec:commitment-comparison}
+
+A separate question is which commitment function to use inside the batch. We tested three candidates---CIDBatchLog, HashChain, and MerkleRoot---implemented as pure Solidity functions on a Hardhat node (Solidity~0.8.28) across batch sizes $n \in \{1, 2, 4, 8, 16, 32, 64\}$.
+
+\subsubsection{Schemes}
+\begin{itemize}
+    \item \textbf{CIDBatchLog} (used in \ours): computes $cmt = \texttt{sha256}(\texttt{uint256}(n) \| CID_1 \| \cdots \| CID_n)$ via a single call. The length prefix prevents length-extension ambiguity.
+    \item \textbf{HashChain}: computes $h_0 = \texttt{sha256}(CID_1)$, then $h_i = \texttt{sha256}(h_{i-1} \| CID_i)$ for $i > 0$. Supports incremental extension but requires $n$ sequential hash calls.
+    \item \textbf{MerkleRoot}: constructs a binary Merkle tree over hashed leaves with sorted pair merging. Supports O($\log n$) single-leaf inclusion proofs but requires O($n$) tree construction.
+\end{itemize}
+
+\subsubsection{Gas Results}
+
+\begin{table}[ht]
+\centering
+\caption{Commitment and single-leaf verification gas cost by scheme and batch size $n$.}
+\label{tab:commitment-gas}
+\begin{tabular}{lrrrrrrr}
+\hline
+\textbf{Scheme} & $n=1$ & $n=2$ & $n=4$ & $n=8$ & $n=16$ & $n=32$ & $n=64$ \\
+\hline
+CIDBatchLog (commit)        & 23{,}574 & 24{,}420 & 26{,}980 & 32{,}070 & 42{,}310 & 62{,}730 & 103{,}630 \\
+HashChain  (commit)        & 23{,}461 & 24{,}886 & 27{,}731 & 33{,}410 & 44{,}796 & 67{,}563 & 113{,}197 \\
+MerkleRoot (commit)        & 23{,}719 & 26{,}795 & 32{,}558 & 43{,}690 & 65{,}614 & 109{,}131 & 196{,}104 \\
+\hline
+MerkleRoot (verify 1 leaf) & 25{,}060 & 26{,}750 & 28{,}380 & 30{,}010 & 31{,}781 & 33{,}590 & 35{,}399 \\
+\hline
+\end{tabular}
+\end{table}
+
+\Cref{tab:commitment-gas} shows that CIDBatchLog has the lowest commit cost at every batch size. At $n=64$, CIDBatchLog uses 103{,}630 gas compared to 113{,}197 for HashChain ($+$9.2\%) and 196{,}104 for MerkleRoot ($+$89.3\%). The difference grows with $n$: CIDBatchLog scales near-linearly because \texttt{abi.encodePacked} constructs the input in a single memory operation before one \texttt{sha256} call, whereas HashChain issues $n$ sequential hash calls and MerkleRoot allocates and processes a full tree layer-by-layer.
+
+MerkleRoot's single-leaf verification cost is O($\log n$): at $n=64$, only 35{,}399 gas is required to prove one CID belongs to the batch, compared to 103{,}630 for CIDBatchLog or HashChain which must recompute the full commitment. However, in \ours the verifier always supplies the complete CID list (see \Cref{fig:details}, step~5a), making partial proof capability irrelevant in the current design. Full-list verification costs for all three schemes are equal to their respective commit costs, since verification requires recomputing the commitment from scratch.
+
+\subsubsection{Why CIDBatchLog}
+In \ours, the API always submits the full CID list when verifying a batch (step~5a in \Cref{fig:details}). Partial proofs are never needed, so MerkleRoot's O($\log n$) leaf verification is wasted; its 89\% higher commit cost at $n=64$ is a straight loss. HashChain is also more expensive than CIDBatchLog at every batch size, with no compensating benefit here. CIDBatchLog wins because it pays for exactly what \ours needs---one hash over $n$ packed values---and nothing more. If future work requires selective disclosure (proving one CID belongs to a batch without revealing the rest), MerkleRoot becomes the right call; see \Cref{sec:conclusion}.
+
+\subsection{Discussion}
+
+Both HTLC designs work fine for low-volume logging---the per-event cost is predictable and the atomicity guarantees are strong. The problem is that cost does not shrink as volume grows. At 100 CIDs, each logged item costs roughly 43$\times$ more under \texttt{Logging-only\_HTLC} than under \ours. That gap only widens.
+
+The commitment scheme results reinforce the same point from a different angle: the choice of hash function matters, but the dominant factor is always the batch structure itself. CIDBatchLog is cheaper than the alternatives, but even an inefficient commitment scheme would outperform per-item HTLC logging at large enough $n$. The design space worth exploring next is not which hash function to use, but what happens when the verifier cannot or should not see the full list---which is where MerkleRoot becomes relevant.
+
+
+
+\section{Conclusion and Future Work}\label{sec:conclusion}
+\ours commits a batch of CIDs to a single on-chain hash, cutting per-item logging cost by 43$\times$ compared to \texttt{Logging-only\_HTLC} at 100 CIDs. A secondary benchmark across three commitment schemes confirms CIDBatchLog is the right function for this use case: it is 9.2\% cheaper than HashChain and 89.3\% cheaper than MerkleRoot at $n=64$, and those alternatives offer no advantage when the full CID list is always verified together.
+
+Two directions follow naturally from this work. First, each logged batch currently carries only the aggregate hash; richer per-event metadata---timestamps, requester identity, provenance---could increase accountability without changing the cost structure. Second, the selective disclosure case: if a data owner needs to prove one specific dataset was uploaded without revealing the rest of the batch, MerkleRoot becomes the better commitment. The cost tradeoff is concrete---89\% higher commit cost in exchange for 66\% lower per-item verification at $n=64$---and the right crossover depends on how often partial proofs are actually needed in practice.
+
+%Future work could be guaranteeing both efficiency and usefulness of the logging. (E.g., event-wise, we can log more information to the data uploaders). Or we can take the requester into consideration, where the shared content should be private. How can we improve batch-wise sharing if we are trying to improve FairTrade.
+
+
+
+%\section*{Acknowledgment}
+
+
+
+\bibliographystyle{IEEEtran}
+\bibliography{main}
+
+\end{document}
+
+

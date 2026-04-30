@@ -1,6 +1,6 @@
 services:
   ipfs:
-    image: ipfs/go-ipfs:latest
+    image: ipfs/kubo:latest
     container_name: ipfs-public
     restart: unless-stopped
     volumes:

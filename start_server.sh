@@ -9,6 +9,10 @@ SESSION_NAME="web3db-${BRANCH}"
 # Kill existing session for THIS branch only
 tmux kill-session -t "$SESSION_NAME" 2>/dev/null
 
+# Determine the port (mirrors app.py logic) and free it if occupied
+PORT="${PORT:-8000}"
+fuser -k "${PORT}/tcp" 2>/dev/null && sleep 1
+
 # Start detached
 tmux new-session -d -s "$SESSION_NAME" "cd $SCRIPT_DIR && python3 app.py"
 

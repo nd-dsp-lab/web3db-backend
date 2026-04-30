@@ -469,6 +469,201 @@ class Web3dbContract:
                 "outputs": [],
                 "stateMutability": "nonpayable",
                 "type": "function"
+            },
+
+            # ── CIDBatchLog events ────────────────────────────────────────────
+            {
+                "anonymous": False,
+                "inputs": [
+                    {"indexed": True,  "internalType": "bytes32",  "name": "batchId",       "type": "bytes32"},
+                    {"indexed": True,  "internalType": "address",  "name": "sender",         "type": "address"},
+                    {"indexed": True,  "internalType": "address",  "name": "receiver",       "type": "address"},
+                    {"indexed": False, "internalType": "uint256",  "name": "cidCount",       "type": "uint256"},
+                    {"indexed": False, "internalType": "bytes32",  "name": "aggregateHash",  "type": "bytes32"},
+                    {"indexed": False, "internalType": "bytes32",  "name": "messageHash",    "type": "bytes32"},
+                    {"indexed": False, "internalType": "uint256",  "name": "timelock",       "type": "uint256"}
+                ],
+                "name": "BatchCreated",
+                "type": "event"
+            },
+            {
+                "anonymous": False,
+                "inputs": [
+                    {"indexed": True,  "internalType": "bytes32",   "name": "batchId", "type": "bytes32"},
+                    {"indexed": False, "internalType": "bytes32[]", "name": "cids",    "type": "bytes32[]"}
+                ],
+                "name": "CIDsLogged",
+                "type": "event"
+            },
+            {
+                "anonymous": False,
+                "inputs": [
+                    {"indexed": True,  "internalType": "bytes32", "name": "batchId",       "type": "bytes32"},
+                    {"indexed": False, "internalType": "bytes32", "name": "aggregateHash", "type": "bytes32"}
+                ],
+                "name": "AggregateReleased",
+                "type": "event"
+            },
+            {
+                "anonymous": False,
+                "inputs": [
+                    {"indexed": True, "internalType": "bytes32", "name": "batchId",  "type": "bytes32"},
+                    {"indexed": True, "internalType": "address", "name": "verifier", "type": "address"}
+                ],
+                "name": "BatchVerified",
+                "type": "event"
+            },
+
+            # ── SecLog events ─────────────────────────────────────────────────
+            {
+                "anonymous": False,
+                "inputs": [
+                    {"indexed": True,  "internalType": "bytes32", "name": "logId",       "type": "bytes32"},
+                    {"indexed": True,  "internalType": "address", "name": "sender",       "type": "address"},
+                    {"indexed": True,  "internalType": "address", "name": "receiver",     "type": "address"},
+                    {"indexed": False, "internalType": "uint256", "name": "sk1x",         "type": "uint256"},
+                    {"indexed": False, "internalType": "uint256", "name": "sk1y",         "type": "uint256"},
+                    {"indexed": False, "internalType": "bytes32", "name": "messageHash",  "type": "bytes32"},
+                    {"indexed": False, "internalType": "uint256", "name": "timelock",     "type": "uint256"}
+                ],
+                "name": "LogEntryNew",
+                "type": "event"
+            },
+            {
+                "anonymous": False,
+                "inputs": [
+                    {"indexed": True, "internalType": "bytes32", "name": "logId", "type": "bytes32"}
+                ],
+                "name": "LogVerified",
+                "type": "event"
+            },
+
+            # ── CIDBatchLog functions ─────────────────────────────────────────
+            {
+                "inputs": [
+                    {"internalType": "bytes32[]", "name": "_cids", "type": "bytes32[]"}
+                ],
+                "name": "computeAggregate",
+                "outputs": [
+                    {"internalType": "bytes32", "name": "", "type": "bytes32"}
+                ],
+                "stateMutability": "pure",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {"internalType": "address",   "name": "_receiver",    "type": "address"},
+                    {"internalType": "bytes32[]", "name": "_cids",        "type": "bytes32[]"},
+                    {"internalType": "bytes32",   "name": "_messageHash", "type": "bytes32"},
+                    {"internalType": "uint256",   "name": "_timelock",    "type": "uint256"}
+                ],
+                "name": "createBatch",
+                "outputs": [
+                    {"internalType": "bytes32", "name": "batchId",       "type": "bytes32"},
+                    {"internalType": "bytes32", "name": "aggregateHash", "type": "bytes32"}
+                ],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {"internalType": "bytes32", "name": "_batchId", "type": "bytes32"}
+                ],
+                "name": "releaseAggregate",
+                "outputs": [
+                    {"internalType": "bytes32", "name": "aggregateHash", "type": "bytes32"}
+                ],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {"internalType": "bytes32",   "name": "_batchId", "type": "bytes32"},
+                    {"internalType": "bytes32[]", "name": "_cids",    "type": "bytes32[]"}
+                ],
+                "name": "verifyCIDs",
+                "outputs": [
+                    {"internalType": "bool", "name": "", "type": "bool"}
+                ],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {"internalType": "bytes32", "name": "_batchId", "type": "bytes32"},
+                    {"internalType": "bytes",   "name": "_message", "type": "bytes"}
+                ],
+                "name": "verifyBatchMessage",
+                "outputs": [
+                    {"internalType": "bool", "name": "", "type": "bool"}
+                ],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {"internalType": "bytes32", "name": "_batchId", "type": "bytes32"}
+                ],
+                "name": "getBatch",
+                "outputs": [
+                    {"internalType": "address", "name": "sender",        "type": "address"},
+                    {"internalType": "address", "name": "receiver",      "type": "address"},
+                    {"internalType": "uint256", "name": "cidCount",      "type": "uint256"},
+                    {"internalType": "bytes32", "name": "aggregateHash", "type": "bytes32"},
+                    {"internalType": "bytes32", "name": "messageHash",   "type": "bytes32"},
+                    {"internalType": "uint256", "name": "timelock",      "type": "uint256"},
+                    {"internalType": "bool",    "name": "released",      "type": "bool"},
+                    {"internalType": "bool",    "name": "verified",      "type": "bool"}
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+
+            # ── SecLog functions ──────────────────────────────────────────────
+            {
+                "inputs": [
+                    {"internalType": "address", "name": "_receiver",    "type": "address"},
+                    {"internalType": "uint256", "name": "_sk1x",        "type": "uint256"},
+                    {"internalType": "uint256", "name": "_sk1y",        "type": "uint256"},
+                    {"internalType": "bytes32", "name": "_messageHash", "type": "bytes32"},
+                    {"internalType": "uint256", "name": "_timelock",    "type": "uint256"}
+                ],
+                "name": "newLog",
+                "outputs": [
+                    {"internalType": "bytes32", "name": "logId", "type": "bytes32"}
+                ],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {"internalType": "bytes32", "name": "_logId",   "type": "bytes32"},
+                    {"internalType": "uint256", "name": "_sk2",     "type": "uint256"},
+                    {"internalType": "bytes",   "name": "_message", "type": "bytes"}
+                ],
+                "name": "verifyLog",
+                "outputs": [
+                    {"internalType": "bool", "name": "", "type": "bool"}
+                ],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {"internalType": "bytes32", "name": "_logId", "type": "bytes32"}
+                ],
+                "name": "getLog",
+                "outputs": [
+                    {"internalType": "address", "name": "sender",      "type": "address"},
+                    {"internalType": "address", "name": "receiver",    "type": "address"},
+                    {"internalType": "uint256", "name": "sk1x",        "type": "uint256"},
+                    {"internalType": "uint256", "name": "sk1y",        "type": "uint256"},
+                    {"internalType": "uint256", "name": "timelock",    "type": "uint256"},
+                    {"internalType": "bytes32", "name": "messageHash", "type": "bytes32"},
+                    {"internalType": "bool",    "name": "verified",    "type": "bool"}
+                ],
+                "stateMutability": "view",
+                "type": "function"
             }
         ]
         
@@ -1079,117 +1274,367 @@ class Web3dbContract:
             print(f"Failed to remove all access policies: {e}")
             return False
 
+    # =========================================================================
+    # CIDBatchLog Methods
+    # =========================================================================
 
-if __name__ == "__main__":
-    try:
-        # Initialize the Web3dbContract instance
-        index_storage = Web3dbContract(
-            contract_address="0x2528003c5f47dE324B6caDa12507643D46295bec",
-            infura_api_key="eb1d43f1429e49fba50e18fbf5ebd4ab",
-            private_key="34cf59aaa5ef0a24e65b4e4dbe6fb23c2bd23a4d9a6b584d7995a141de719d53"
-        )
-        
-        # Test single operations first
-        # print("\n--- Testing Single Operations ---")
-        # attribute = "PatientID"
-        # success, current_cid = index_storage.get_index(attribute)
-        # print(f"Current {attribute} CID: {current_cid if success else 'Error retrieving'}")
-        
-        # Update a single index
-        # single_new_cid = "QmSingleTestCID123456789abcdefghijklmnopqrstuvwxyz"
-        # print(f"\nUpdating {attribute} index to: {single_new_cid}")
-        # success = index_storage.update_index(attribute, single_new_cid)
-        
-        # if success:
-        #     # Verify the update
-        #     success, updated_cid = index_storage.get_index(attribute)
-        #     print(f"Updated {attribute} Index CID: {updated_cid if success else 'Error retrieving'}")
-        
-        # Test batch operations
-        print("\n--- Testing Batch Operations ---")
-        attributes = ["PatientID", "HospitalID", "Age"]
+    def compute_aggregate(self, cids):
+        """
+        Compute the sha256 aggregate hash for a list of CIDs (pure, no gas).
 
-        # Test batch update
-        new_cids = [
-            "QmBatchTest1CIDPatientID123456789abcdefghijklmnopqrst",
-            "QmBatchTest2CIDHospitalID123456789abcdefghijklmnopqrs",
-            "QmBatchTest3CIDAge123456789abcdefghijklmnopqrstuvwxyz"
-        ]
-        
-        print("\nTesting batch update_indices...")
-        print(f"Updating {len(attributes)} indices in a single transaction")
-        for i, (attr, cid) in enumerate(zip(attributes, new_cids)):
-            print(f"  {attr} -> {cid}")
-        
-        success = index_storage.batch_update_indices(attributes, new_cids)
-        
-        if success:
-            # Verify the batch update
-            print("\nVerifying batch update...")
-            success, updated_cids = index_storage.batch_get_indices(attributes)
-            if success:
-                print("Updated CIDs:")
-                for attr, cid in updated_cids.items():
-                    print(f"  {attr}: {cid}")
-            else:
-                print("Failed to retrieve updated batch indices")
-        
-        # Test access policy management
-        print("\n--- Testing Access Policy Management ---")
-        test_wallet = "0x68ef100cC9dAdE0bb67a0aE99A02CDd1eaE54A2f"
-        test_table = "patient_data"
-        test_policy = "SELECT * FROM patient_data WHERE PatientID = '38'"
-        
-        # Add an access policy
-        print(f"Adding access policy for wallet: {test_wallet}")
-        print(f"Table: {test_table}")
-        print(f"Policy: {test_policy}")
-        
-        success = index_storage.add_access_policy(test_wallet, test_table, test_policy)
-        if success:
-            print("Access policy added successfully!")
-            
-            # Get policy count
-            success, count = index_storage.get_policy_count(test_wallet)
-            if success:
-                print(f"Policy count for wallet: {count}")
-            
-            # Get all policies
-            success, policies = index_storage.get_access_policies(test_wallet)
-            if success:
-                print("Retrieved access policies:")
-                for i, policy in enumerate(policies):
-                    print(f"  Policy {i}:")
-                    print(f"    Subject: {policy['subject']}")
-                    print(f"    Table: {policy['tableName']}")
-                    print(f"    SQL: {policy['policySql']}")
-                    print(f"    Object: {policy['object']}")
-            else:
-                print("Failed to retrieve access policies")
-                
-        else:
-            print("Failed to add access policy")
-        
-        # Optional: test remove index
-        # print("\n--- Testing Remove Index ---")
-        # test_attr = "TestAttribute"
-        # print(f"Adding and then removing test attribute: {test_attr}")
-        # 
-        # # First add it
-        # test_cid = "QmTestCIDForRemovalTest123456789abcdefghijklmnopqr"
-        # success = index_storage.update_index(test_attr, test_cid)
-        # if success:
-        #     # Verify it was added
-        #     success, added_cid = index_storage.get_index(test_attr)
-        #     print(f"Added test attribute CID: {added_cid if success else 'Error retrieving'}")
-        #     
-        #     # Now remove it
-        #     success = index_storage.remove_index(test_attr)
-        #     print(f"Removed test attribute: {'Success' if success else 'Failed'}")
-        #     
-        #     # Verify it was removed
-        #     success, removed_cid = index_storage.get_index(test_attr)
-        #     print(f"After removal CID (should be empty): '{removed_cid if success else 'Error retrieving'}'")
-        
-    except Exception as e:
-        print(f"Error in test: {e}")
+        Args:
+            cids (list[bytes]): List of CID digests, each exactly 32 bytes.
+
+        Returns:
+            tuple: (success, aggregate_hash_bytes) where aggregate_hash_bytes is bytes32.
+        """
+        try:
+            cids_bytes32 = [c if isinstance(c, bytes) else bytes.fromhex(c.replace('0x', '')) for c in cids]
+            result = self.contract.functions.computeAggregate(cids_bytes32).call()
+            return True, result
+        except Exception as e:
+            print(f"Failed to compute aggregate: {e}")
+            return False, None
+
+    def create_batch(self, receiver_address, cids, message_hash=None, timelock=None):
+        """
+        Commit to an ordered list of CIDs via their aggregate hash.
+        The full CID list is emitted in the CIDsLogged event (not stored on-chain).
+
+        Args:
+            receiver_address (str): Ethereum address authorised to verify the batch.
+            cids (list[bytes]):     Ordered CID list, each element exactly 32 bytes.
+            message_hash (bytes):   Optional 32-byte application message hash.
+                                    Pass None or bytes(32) to omit.
+            timelock (int):         Unix timestamp (must be in the future).
+
+        Returns:
+            tuple: (success, batch_id, aggregate_hash)
+                   batch_id and aggregate_hash are bytes32 values (bytes).
+        """
+        try:
+            receiver_address = Web3.to_checksum_address(receiver_address)
+            cids_bytes32 = [c if isinstance(c, bytes) else bytes.fromhex(c.replace('0x', '')) for c in cids]
+            msg_hash = message_hash if message_hash is not None else bytes(32)
+
+            nonce = self.w3.eth.get_transaction_count(self.address)
+            tx = self.contract.functions.createBatch(
+                receiver_address,
+                cids_bytes32,
+                msg_hash,
+                timelock
+            ).build_transaction({
+                'from': self.address,
+                'gas': 2000000,
+                'gasPrice': self._get_gas_price(),
+                'nonce': nonce,
+            })
+
+            signed_tx = self.w3.eth.account.sign_transaction(tx, self.private_key)
+            tx_hash = self.w3.eth.send_raw_transaction(signed_tx.raw_transaction)
+            print(f"createBatch transaction sent: {tx_hash.hex()}")
+            tx_receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash)
+            print(f"createBatch confirmed in block {tx_receipt['blockNumber']}")
+
+            if tx_receipt.get('status') != 1:
+                print(f"createBatch transaction failed (status: {tx_receipt.get('status')})")
+                return False, None, None
+
+            logs = self.contract.events.BatchCreated().process_receipt(tx_receipt)
+            if logs:
+                batch_id = logs[0]['args']['batchId']
+                agg_hash = logs[0]['args']['aggregateHash']
+                print(f"Batch created: batchId={batch_id.hex()}, aggregateHash={agg_hash.hex()}")
+                return True, batch_id, agg_hash
+
+            print("BatchCreated event not found in receipt")
+            return False, None, None
+
+        except Exception as e:
+            print(f"Failed to create batch: {e}")
+            return False, None, None
+
+    def release_aggregate(self, batch_id):
+        """
+        Sender explicitly releases the aggregate hash on-chain as a delivery signal.
+
+        Args:
+            batch_id (bytes): The 32-byte batch ID returned by create_batch.
+
+        Returns:
+            tuple: (success, aggregate_hash_bytes)
+        """
+        try:
+            nonce = self.w3.eth.get_transaction_count(self.address)
+            tx = self.contract.functions.releaseAggregate(batch_id).build_transaction({
+                'from': self.address,
+                'gas': 2000000,
+                'gasPrice': self._get_gas_price(),
+                'nonce': nonce,
+            })
+
+            signed_tx = self.w3.eth.account.sign_transaction(tx, self.private_key)
+            tx_hash = self.w3.eth.send_raw_transaction(signed_tx.raw_transaction)
+            print(f"releaseAggregate transaction sent: {tx_hash.hex()}")
+            tx_receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash)
+            print(f"releaseAggregate confirmed in block {tx_receipt['blockNumber']}")
+
+            if tx_receipt.get('status') != 1:
+                return False, None
+
+            logs = self.contract.events.AggregateReleased().process_receipt(tx_receipt)
+            if logs:
+                agg_hash = logs[0]['args']['aggregateHash']
+                print(f"Aggregate released: {agg_hash.hex()}")
+                return True, agg_hash
+
+            return False, None
+
+        except Exception as e:
+            print(f"Failed to release aggregate: {e}")
+            return False, None
+
+    def verify_cids(self, batch_id, cids):
+        """
+        Verify that a CID list matches the aggregate commitment stored in the batch.
+
+        Args:
+            batch_id (bytes):   The 32-byte batch ID to verify against.
+            cids (list[bytes]): The ordered CID list to verify (each 32 bytes).
+
+        Returns:
+            bool: True if verification succeeded, False otherwise.
+        """
+        try:
+            cids_bytes32 = [c if isinstance(c, bytes) else bytes.fromhex(c.replace('0x', '')) for c in cids]
+
+            nonce = self.w3.eth.get_transaction_count(self.address)
+            tx = self.contract.functions.verifyCIDs(
+                batch_id,
+                cids_bytes32
+            ).build_transaction({
+                'from': self.address,
+                'gas': 2000000,
+                'gasPrice': self._get_gas_price(),
+                'nonce': nonce,
+            })
+
+            signed_tx = self.w3.eth.account.sign_transaction(tx, self.private_key)
+            tx_hash = self.w3.eth.send_raw_transaction(signed_tx.raw_transaction)
+            print(f"verifyCIDs transaction sent: {tx_hash.hex()}")
+            tx_receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash)
+            print(f"verifyCIDs confirmed in block {tx_receipt['blockNumber']}")
+
+            if tx_receipt.get('status') == 1:
+                print(f"CIDs verified for batchId={batch_id.hex()}")
+                return True
+
+            print(f"verifyCIDs transaction failed (status: {tx_receipt.get('status')})")
+            return False
+
+        except Exception as e:
+            print(f"Failed to verify CIDs: {e}")
+            return False
+
+    def verify_batch_message(self, batch_id, message):
+        """
+        Verify that a raw message matches the messageHash stored in a batch.
+
+        Args:
+            batch_id (bytes): The 32-byte batch ID.
+            message (bytes):  The raw message bytes to verify.
+
+        Returns:
+            bool: True if the message hash matches, False otherwise.
+        """
+        try:
+            nonce = self.w3.eth.get_transaction_count(self.address)
+            tx = self.contract.functions.verifyBatchMessage(
+                batch_id,
+                message
+            ).build_transaction({
+                'from': self.address,
+                'gas': 2000000,
+                'gasPrice': self._get_gas_price(),
+                'nonce': nonce,
+            })
+
+            signed_tx = self.w3.eth.account.sign_transaction(tx, self.private_key)
+            tx_hash = self.w3.eth.send_raw_transaction(signed_tx.raw_transaction)
+            tx_receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash)
+
+            return tx_receipt.get('status') == 1
+
+        except Exception as e:
+            print(f"Failed to verify batch message: {e}")
+            return False
+
+    def get_batch(self, batch_id):
+        """
+        Retrieve full batch metadata by ID.
+
+        Args:
+            batch_id (bytes): The 32-byte batch ID.
+
+        Returns:
+            tuple: (success, dict) where dict has keys:
+                   sender, receiver, cid_count, aggregate_hash,
+                   message_hash, timelock, released, verified.
+        """
+        try:
+            result = self.contract.functions.getBatch(batch_id).call()
+            return True, {
+                'sender':         result[0],
+                'receiver':       result[1],
+                'cid_count':      result[2],
+                'aggregate_hash': result[3],
+                'message_hash':   result[4],
+                'timelock':       result[5],
+                'released':       result[6],
+                'verified':       result[7],
+            }
+        except Exception as e:
+            print(f"Failed to get batch {batch_id}: {e}")
+            return False, {}
+
+    # =========================================================================
+    # SecLog Methods
+    # =========================================================================
+
+    def new_log(self, receiver_address, sk1x, sk1y, message_hash, timelock):
+        """
+        Create a new log entry committing to an EC public key point (sk1x, sk1y).
+        The point must equal sk2 * G where sk2 is the sender's private scalar.
+        The receiver proves knowledge of sk2 later via verify_log().
+
+        Args:
+            receiver_address (str): Ethereum address of the log receiver.
+            sk1x (int):             x-coordinate of the committed EC point.
+            sk1y (int):             y-coordinate of the committed EC point.
+            message_hash (bytes):   keccak256 hash of the message to log (32 bytes).
+            timelock (int):         Unix timestamp — must be in the future.
+
+        Returns:
+            tuple: (success, log_id) where log_id is a bytes32 value (bytes).
+        """
+        try:
+            receiver_address = Web3.to_checksum_address(receiver_address)
+
+            nonce = self.w3.eth.get_transaction_count(self.address)
+            tx = self.contract.functions.newLog(
+                receiver_address,
+                sk1x,
+                sk1y,
+                message_hash,
+                timelock
+            ).build_transaction({
+                'from': self.address,
+                'gas': 2000000,
+                'gasPrice': self._get_gas_price(),
+                'nonce': nonce,
+            })
+
+            signed_tx = self.w3.eth.account.sign_transaction(tx, self.private_key)
+            tx_hash = self.w3.eth.send_raw_transaction(signed_tx.raw_transaction)
+            print(f"newLog transaction sent: {tx_hash.hex()}")
+            tx_receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash)
+            print(f"newLog confirmed in block {tx_receipt['blockNumber']}")
+
+            if tx_receipt.get('status') != 1:
+                print(f"newLog transaction failed (status: {tx_receipt.get('status')})")
+                return False, None
+
+            logs = self.contract.events.LogEntryNew().process_receipt(tx_receipt)
+            if logs:
+                log_id = logs[0]['args']['logId']
+                print(f"Log created: logId={log_id.hex()}")
+                return True, log_id
+
+            print("LogEntryNew event not found in receipt")
+            return False, None
+
+        except Exception as e:
+            print(f"Failed to create log: {e}")
+            return False, None
+
+    def verify_log(self, log_id, sk2, message):
+        """
+        Receiver verifies the log by supplying the private scalar sk2 and original message.
+        Two proofs are checked on-chain:
+          1. EC proof:      sk2 * G == (sk1x, sk1y)
+          2. Message proof: keccak256(message) == messageHash
+
+        NOTE: EllipticCurve.ecMul() is compute-intensive on secp256k1 in pure Solidity.
+              Uses gas=3000000 to account for the EC multiplication cost.
+
+        Args:
+            log_id  (bytes): The 32-byte log ID returned by new_log.
+            sk2     (int):   The private scalar whose public key matches (sk1x, sk1y).
+            message (bytes): The original plaintext message (not its hash).
+
+        Returns:
+            bool: True if both proofs pass and the log is marked verified, False otherwise.
+        """
+        try:
+            nonce = self.w3.eth.get_transaction_count(self.address)
+            tx = self.contract.functions.verifyLog(
+                log_id,
+                sk2,
+                message
+            ).build_transaction({
+                'from': self.address,
+                'gas': 3000000,  # Increased: EllipticCurve.ecMul is compute-intensive
+                'gasPrice': self._get_gas_price(),
+                'nonce': nonce,
+            })
+
+            signed_tx = self.w3.eth.account.sign_transaction(tx, self.private_key)
+            tx_hash = self.w3.eth.send_raw_transaction(signed_tx.raw_transaction)
+            print(f"verifyLog transaction sent: {tx_hash.hex()}")
+            tx_receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash)
+            print(f"verifyLog confirmed in block {tx_receipt['blockNumber']}")
+
+            if tx_receipt.get('status') != 1:
+                print(f"verifyLog transaction failed (status: {tx_receipt.get('status')})")
+                return False
+
+            try:
+                event_logs = self.contract.events.LogVerified().process_receipt(tx_receipt)
+                if event_logs:
+                    print(f"Log verified: logId={event_logs[0]['args']['logId'].hex()}")
+                else:
+                    print("LogVerified event not found in receipt")
+            except Exception as event_error:
+                print(f"Warning: Could not process LogVerified event: {event_error}")
+
+            return True
+
+        except Exception as e:
+            print(f"Failed to verify log: {e}")
+            return False
+
+    def get_log(self, log_id):
+        """
+        Retrieve full log metadata by ID.
+
+        Args:
+            log_id (bytes): The 32-byte log ID.
+
+        Returns:
+            tuple: (success, dict) where dict has keys:
+                   sender, receiver, sk1x, sk1y, timelock, message_hash, verified.
+        """
+        try:
+            result = self.contract.functions.getLog(log_id).call()
+            return True, {
+                'sender':       result[0],
+                'receiver':     result[1],
+                'sk1x':         result[2],
+                'sk1y':         result[3],
+                'timelock':     result[4],
+                'message_hash': result[5],
+                'verified':     result[6],
+            }
+        except Exception as e:
+            print(f"Failed to get log {log_id}: {e}")
+            return False, {}

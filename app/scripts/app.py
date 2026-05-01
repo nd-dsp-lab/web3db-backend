@@ -170,17 +170,33 @@ async def upload_data(table_name: str, file: UploadFile = File(...), req: Reques
         else:
             return {"error": f"Unsupported file type: {file_extension}. Only CSV and SQL files are supported."}
         
-        # Get indexed attributes for this table
-        indexed_attributes = get_table_indexed_attributes(table_name)
-        indexed_values = {k: set(df[k].tolist()) for k in indexed_attributes if k in df.columns}
-        
-        # If no indexed attributes found in config, auto-detect from data
-        if not indexed_values and len(df.columns) > 0:
-            # Use first column as default index
+        # Determine if this is the first upload (no schema on chain yet).
+        try:
+            has_schema, existing_schema = app.state.index_storage.get_table_schema(table_name)
+            schema_exists = bool(has_schema and existing_schema)
+        except Exception as e:
+            logger.warning(f"Schema check failed for {table_name}: {e}")
+            schema_exists = True  # Be safe: don't auto-overwrite on errors
+
+        # On first upload, force first column as the sole PK + index.
+        # On subsequent uploads, honor existing config.
+        if not schema_exists and len(df.columns) > 0:
             first_col = df.columns[0]
             indexed_values = {first_col: set(df[first_col].tolist())}
             register_table_config(table_name, [first_col])
             logger.info(f"Auto-registered index for {table_name}: {first_col}")
+            try:
+                auto_detect_and_store_schema(df, table_name, primary_key=[first_col])
+            except Exception as e:
+                logger.warning(f"Schema register failed for {table_name}: {e}")
+        else:
+            indexed_attributes = get_table_indexed_attributes(table_name)
+            indexed_values = {k: set(df[k].tolist()) for k in indexed_attributes if k in df.columns}
+            if not indexed_values and len(df.columns) > 0:
+                first_col = df.columns[0]
+                indexed_values = {first_col: set(df[first_col].tolist())}
+                register_table_config(table_name, [first_col])
+                logger.info(f"Auto-registered index for {table_name}: {first_col}")
         
         # Convert to Parquet
         buffer = io.BytesIO()
@@ -395,6 +411,23 @@ async def get_segment_metrics_from_ipfs(cid: str):
         return {"error": str(e)}
 
 
+def build_access_condition(policies: List[dict]) -> str:
+    """Build the combined OwnerID-scoped WHERE condition for the given policies. Returns "" if none valid."""
+    policy_conditions = []
+    for policy in policies:
+        policy_sql = policy.get('policySql', '').strip()
+        subject = policy.get('subject', '').strip()
+        if not (policy_sql and subject):
+            continue
+        psl = policy_sql.lower()
+        if 'where' in psl:
+            condition = policy_sql[psl.find('where') + 5:].strip()
+            policy_conditions.append(f"(OwnerID = '{subject}' AND {condition})")
+        else:
+            policy_conditions.append(f"(OwnerID = '{subject}')")
+    return " OR ".join(policy_conditions)
+
+
 def rewrite_query_with_access_policies(original_query: str, policies: List[dict], table_name: str) -> str:
     """
     Rewrite the original query to incorporate access control policies with subject validation.
@@ -412,33 +445,10 @@ def rewrite_query_with_access_policies(original_query: str, policies: List[dict]
     """
     if not policies:
         return ""  # Return empty query if no policies
-    
-    # Extract valid policy SQLs and analyze them
-    policy_conditions = []
-    
-    for policy in policies:
-        policy_sql = policy.get('policySql', '').strip()
-        subject = policy.get('subject', '').strip()
-        
-        if policy_sql and subject:
-            # Extract the WHERE clause from each policy SQL
-            policy_sql_lower = policy_sql.lower()
-            
-            if 'where' in policy_sql_lower:
-                # Find the WHERE clause
-                where_index = policy_sql_lower.find('where')
-                condition = policy_sql[where_index + 5:].strip()  # +5 for "where"
-                # Combine subject validation with policy condition
-                policy_conditions.append(f"(OwnerID = '{subject}' AND {condition})")
-            else:
-                # If no WHERE clause, this policy allows all data for this subject
-                policy_conditions.append(f"(OwnerID = '{subject}')")
-    
-    if not policy_conditions:
+
+    combined_condition = build_access_condition(policies)
+    if not combined_condition:
         return ""  # Return empty query if no valid policies
-    
-    # Combine all conditions with OR
-    combined_condition = " OR ".join(policy_conditions)
     
     # Create the accessible_part CTE with all columns from original table
     # and the combined WHERE condition with subject validation
@@ -454,6 +464,13 @@ def rewrite_query_with_access_policies(original_query: str, policies: List[dict]
 
 @app.post("/query")
 async def query(request: QueryRequest, req: Request = None):
+    # Parse actual table name from the SQL FROM clause; authoritative over the request field.
+    m = re.search(r"\bFROM\s+([A-Za-z_][A-Za-z0-9_]*)", request.query, re.IGNORECASE)
+    if m:
+        parsed_table = m.group(1)
+        if parsed_table != request.table_name:
+            logger.info(f"Overriding request.table_name '{request.table_name}' with parsed '{parsed_table}'")
+            request.table_name = parsed_table
     logger.info(f"POST /query - Processing query for table '{request.table_name}' with access control")
     if req:
         req.state.audit["action"] = "QUERY"
@@ -553,6 +570,21 @@ async def query(request: QueryRequest, req: Request = None):
         columns = [desc[0] for desc in result.description]
         rows = result.fetchall()
         results = [dict(zip(columns, row)) for row in rows]
+
+        # Compute accessible count (rows wallet's policies allow, ignoring user query LIMIT/WHERE)
+        accessible_count = 0
+        try:
+            access_condition = build_access_condition(table_policies)
+            if access_condition:
+                if len(paths) == 1:
+                    src = f"'{paths[0]}'"
+                else:
+                    glob_pattern = os.path.join(SHARED_TMP_DIR, "*.parquet")
+                    src = f"read_parquet('{glob_pattern}')"
+                count_sql = f"SELECT COUNT(*) FROM {src} WHERE {access_condition}"
+                accessible_count = duckdb_conn.execute(count_sql).fetchone()[0]
+        except Exception as e:
+            logger.warning(f"Failed to compute accessible_count: {e}")
     except Exception as e:
         logger.error(f"Query error with rewritten query: {e}")
         logger.error(f"Rewritten query was: {rewritten_query}")
@@ -581,6 +613,7 @@ async def query(request: QueryRequest, req: Request = None):
         "rewritten_query": rewritten_query,
         "cids": len(cids),
         "records": len(results),
+        "accessible_count": accessible_count,
         "results": results
     }
 
@@ -711,25 +744,27 @@ def process_sql_file(content: bytes, table_name: str = "patient_data") -> pd.Dat
         logger.error(f"Error processing SQL file for table {table_name}: {e}")
         raise ValueError(f"Failed to process SQL file: {str(e)}")
 
-def auto_detect_and_store_schema(df, table_name):
+def auto_detect_and_store_schema(df, table_name, primary_key=None):
     """
     Auto-detect schema from a pandas DataFrame and store it as SQL CREATE TABLE statement in the smart contract.
-    
+
     Args:
         df (pd.DataFrame): The DataFrame to analyze
         table_name (str): The name of the table
-        
+        primary_key (list[str] | None): Columns to mark PRIMARY KEY. Defaults to first column.
+
     Returns:
         str: The generated SQL CREATE TABLE statement
     """
     try:
-        # Build SQL CREATE TABLE statement
+        if not primary_key:
+            primary_key = [df.columns[0]] if len(df.columns) > 0 else []
+        pk_set = set(primary_key)
+
         columns_sql = []
-        
         for col_name in df.columns:
             col_dtype = str(df[col_name].dtype)
-            
-            # Map pandas dtypes to SQL types
+
             if col_dtype == "object":
                 sql_type = "VARCHAR"
             elif "int" in col_dtype:
@@ -741,11 +776,20 @@ def auto_detect_and_store_schema(df, table_name):
             elif "datetime" in col_dtype:
                 sql_type = "TIMESTAMP"
             else:
-                sql_type = "VARCHAR"  # Default fallback
-            
-            columns_sql.append(f"    {col_name} {sql_type}")
-        
-        # Generate CREATE TABLE statement
+                sql_type = "VARCHAR"
+
+            constraints = ""
+            if col_name in pk_set:
+                constraints = " NOT NULL"
+                if len(pk_set) == 1:
+                    constraints += " PRIMARY KEY"
+
+            columns_sql.append(f"    {col_name} {sql_type}{constraints}")
+
+        if len(pk_set) > 1:
+            pk_cols = ", ".join(c for c in df.columns if c in pk_set)
+            columns_sql.append(f"    PRIMARY KEY ({pk_cols})")
+
         create_table_sql = f"CREATE TABLE {table_name} (\n" + ",\n".join(columns_sql) + "\n)"
         
         # Store schema in smart contract

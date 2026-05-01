@@ -314,24 +314,10 @@ class Web3dbContract:
             {
                 "anonymous": False,
                 "inputs": [
-                    {
-                        "indexed": True,
-                        "internalType": "address",
-                        "name": "walletAddress",
-                        "type": "address"
-                    },
-                    {
-                        "indexed": False,
-                        "internalType": "string",
-                        "name": "tableName",
-                        "type": "string"
-                    },
-                    {
-                        "indexed": False,
-                        "internalType": "string",
-                        "name": "policySql",
-                        "type": "string"
-                    }
+                    {"indexed": True, "internalType": "address", "name": "object", "type": "address"},
+                    {"indexed": True, "internalType": "address", "name": "subject", "type": "address"},
+                    {"indexed": False, "internalType": "string", "name": "tableName", "type": "string"},
+                    {"indexed": False, "internalType": "string", "name": "policySql", "type": "string"}
                 ],
                 "name": "AccessPolicyAdded",
                 "type": "event"
@@ -339,18 +325,10 @@ class Web3dbContract:
             {
                 "anonymous": False,
                 "inputs": [
-                    {
-                        "indexed": True,
-                        "internalType": "address",
-                        "name": "walletAddress",
-                        "type": "address"
-                    },
-                    {
-                        "indexed": False,
-                        "internalType": "string",
-                        "name": "tableName",
-                        "type": "string"
-                    }
+                    {"indexed": True, "internalType": "address", "name": "object", "type": "address"},
+                    {"indexed": True, "internalType": "address", "name": "subject", "type": "address"},
+                    {"indexed": False, "internalType": "string", "name": "tableName", "type": "string"},
+                    {"indexed": False, "internalType": "string", "name": "policySql", "type": "string"}
                 ],
                 "name": "AccessPolicyRemoved",
                 "type": "event"
@@ -1142,6 +1120,66 @@ class Web3dbContract:
             print(f"Failed to get access policies for {wallet_address}: {e}")
             return False, []
     
+    def get_policies_granted_by(self, subject_address, from_block=0):
+        """
+        Return policies where subject_address is the grantor (subject).
+
+        Uses indexed event logs. Computes (added - removed) by matching on
+        (object, tableName, policySql). Removed events are also filtered by
+        subject so the comparison set stays small.
+        """
+        try:
+            subject_address = Web3.to_checksum_address(subject_address)
+            added = self.contract.events.AccessPolicyAdded.get_logs(
+                from_block=from_block, to_block='latest',
+                argument_filters={'subject': subject_address},
+            )
+            removed = self.contract.events.AccessPolicyRemoved.get_logs(
+                from_block=from_block, to_block='latest',
+                argument_filters={'subject': subject_address},
+            )
+
+            def key(log):
+                a = log['args']
+                return (
+                    Web3.to_checksum_address(a['object']),
+                    a['tableName'],
+                    a['policySql'],
+                )
+
+            removed_counts = {}
+            for log in removed:
+                k = key(log)
+                removed_counts[k] = removed_counts.get(k, 0) + 1
+
+            granted = []
+            object_policy_cache = {}
+            for log in added:
+                k = key(log)
+                if removed_counts.get(k, 0) > 0:
+                    removed_counts[k] -= 1
+                    continue
+                obj = k[0]
+                if obj not in object_policy_cache:
+                    object_policy_cache[obj] = self.contract.functions.getAccessPolicies(obj).call()
+                idx = next(
+                    (i for i, p in enumerate(object_policy_cache[obj])
+                     if Web3.to_checksum_address(p[0]) == subject_address
+                     and p[1] == k[1] and p[2] == k[2]),
+                    None,
+                )
+                granted.append({
+                    'subject': subject_address,
+                    'object': obj,
+                    'tableName': k[1],
+                    'policySql': k[2],
+                    'object_policy_index': idx,
+                })
+            return True, granted
+        except Exception as e:
+            print(f"Failed to get policies granted by {subject_address}: {e}")
+            return False, []
+
     def get_policy_count(self, wallet_address):
         """
         Get the count of policies for a wallet address

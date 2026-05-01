@@ -2645,6 +2645,29 @@ async def get_policy_count(object_address: str):
         logger.error(f"Error getting policy count for {object_address}: {e}")
         return {"status": "error", "message": str(e)}
 
+@app.get("/access-policies/granted-by/{subject_address}")
+async def get_policies_granted_by(subject_address: str):
+    """
+    Return policies where the given address is the grantor (subject).
+
+    Reconstructed from indexed AccessPolicyAdded/AccessPolicyRemoved logs.
+    """
+    logger.info(f"GET /access-policies/granted-by/{subject_address} - Retrieving granted policies")
+    try:
+        success, granted = app.state.index_storage.get_policies_granted_by(subject_address)
+        if success:
+            return {
+                "status": "success",
+                "subject_address": subject_address,
+                "policy_count": len(granted),
+                "policies": granted,
+            }
+        return {"status": "error", "message": "Failed to retrieve granted policies"}
+    except Exception as e:
+        logger.error(f"Error getting granted policies for {subject_address}: {e}")
+        return {"status": "error", "message": str(e)}
+
+
 @app.delete("/access-policies")
 async def remove_access_policy(request: RemoveAccessPolicyRequest):
     """

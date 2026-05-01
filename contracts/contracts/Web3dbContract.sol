@@ -76,8 +76,8 @@ contract Web3dbContract {
     event IndexUpdated(string attribute, string oldCID, string newCID);
     event BatchIndexUpdated(string[] attributes, string[] newCIDs);
     event SchemaUpdated(string tableName, string oldSchema, string newSchema);
-    event AccessPolicyAdded(address indexed walletAddress, string tableName, string policySql);
-    event AccessPolicyRemoved(address indexed walletAddress, string tableName);
+    event AccessPolicyAdded(address indexed object, address indexed subject, string tableName, string policySql);
+    event AccessPolicyRemoved(address indexed object, address indexed subject, string tableName, string policySql);
 
     // --- CIDBatchLog events ---
     event BatchCreated(
@@ -290,7 +290,7 @@ contract Web3dbContract {
             policySql: policySql,
             object: object
         }));
-        emit AccessPolicyAdded(object, tableName, policySql);
+        emit AccessPolicyAdded(object, subject, tableName, policySql);
     }
 
     function getAccessPolicies(
@@ -311,12 +311,15 @@ contract Web3dbContract {
         accessPolicies[objectAddress][policyIndex] = accessPolicies[objectAddress][accessPolicies[objectAddress].length - 1];
         accessPolicies[objectAddress].pop();
 
-        emit AccessPolicyRemoved(objectAddress, removedPolicy.tableName);
+        emit AccessPolicyRemoved(objectAddress, removedPolicy.subject, removedPolicy.tableName, removedPolicy.policySql);
     }
 
     function removeAllAccessPolicies(address objectAddress) public {
+        AccessPolicy[] memory removed = accessPolicies[objectAddress];
         delete accessPolicies[objectAddress];
-        emit AccessPolicyRemoved(objectAddress, "ALL");
+        for (uint i = 0; i < removed.length; i++) {
+            emit AccessPolicyRemoved(objectAddress, removed[i].subject, removed[i].tableName, removed[i].policySql);
+        }
     }
 
     // SECTION 9: CIDBatchLog — CID Batch Commitment & Verification

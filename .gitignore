@@ -27,6 +27,7 @@ htmlcov/
 venv/
 env/
 ENV/
+.venv/
 # .env
 
 #SGX

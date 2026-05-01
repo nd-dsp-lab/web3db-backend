@@ -43,6 +43,9 @@ class AuditLogger:
         self.db_path = db_path
         self.contract = contract
         self.server_address = server_address
+        self.blockchain_audit = os.getenv("BLOCKCHAIN_AUDIT", "true").lower() == "true"
+        if not self.blockchain_audit:
+            logger.info("Blockchain audit logging disabled (BLOCKCHAIN_AUDIT=false)")
         self._init_db()
 
     def _get_conn(self) -> sqlite3.Connection:
@@ -133,6 +136,8 @@ class AuditLogger:
 
     def _commit_to_chain(self, log_json: str):
         """Returns (blockchain_log_id_hex, sk2_hex) or (None, None) on failure."""
+        if not self.blockchain_audit:
+            return None, None
         if not self.contract or not self.server_address:
             return None, None
         try:

@@ -16,11 +16,13 @@ module.exports = {
     },
   },
   networks: {
-    hardhat: {},  // This is important for running local tests
-    sepolia: {
-      url: `https://sepolia.infura.io/v3/${process.env.INFURA_API_KEY}`,
-      accounts: [`0x${process.env.PRIVATE_KEY}`]  // Note the '0x' prefix
-    }
+    hardhat: {},
+    ...(process.env.INFURA_API_KEY && process.env.PRIVATE_KEY ? {
+      sepolia: {
+        url: `https://sepolia.infura.io/v3/${process.env.INFURA_API_KEY}`,
+        accounts: [`0x${process.env.PRIVATE_KEY}`]
+      }
+    } : {})
   },
   etherscan: {
     apiKey: process.env.ETHERSCAN_API_KEY

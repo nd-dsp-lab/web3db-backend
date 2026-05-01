@@ -3,20 +3,24 @@ from web3 import Web3
 from dotenv import load_dotenv
 
 class Web3dbContract:
-    def __init__(self, contract_address=None, infura_api_key=None, private_key=None):
+    def __init__(self, contract_address=None, infura_api_key=None, private_key=None, rpc_url=None):
         self.infura_api_key = infura_api_key
         self.private_key = private_key
         self.contract_address = contract_address
-        print(f"INFURA_API_KEY: {'Present' if self.infura_api_key else 'Missing'}")
+        self.rpc_url = rpc_url or (
+            f"https://sepolia.infura.io/v3/{infura_api_key}" if infura_api_key else None
+        )
+        print(f"RPC_URL: {self.rpc_url or 'Missing'}")
         print(f"PRIVATE_KEY: {'Present' if self.private_key else 'Missing'}")
         print(f"CONTRACT_ADDRESS: {'Present' if self.contract_address else 'Missing'}")
 
-        # Connect to Sepolia network
+        if not self.rpc_url:
+            raise Exception("Set RPC_URL or INFURA_API_KEY")
         try:
-            self.w3 = Web3(Web3.HTTPProvider(f"https://sepolia.infura.io/v3/{self.infura_api_key}"))
+            self.w3 = Web3(Web3.HTTPProvider(self.rpc_url))
         except Exception as e:
-            raise Exception(f"Failed to connect to Sepolia network: {e}")
-        print(f"Connected to Sepolia network: {self.w3.is_connected()}")
+            raise Exception(f"Failed to connect to RPC {self.rpc_url}: {e}")
+        print(f"Connected to network: {self.w3.is_connected()}")
         
         # Set up account
         self.account = self.w3.eth.account.from_key(self.private_key)

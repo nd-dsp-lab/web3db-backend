@@ -67,7 +67,8 @@ try:
     app.state.index_storage = Web3dbContract(
         contract_address=os.getenv("CONTRACT_ADDRESS"),
         infura_api_key=os.getenv("INFURA_API_KEY"),
-        private_key=os.getenv("PRIVATE_KEY")
+        private_key=os.getenv("PRIVATE_KEY"),
+        rpc_url=os.getenv("RPC_URL"),
     )
     logger.info("Smart contract connection initialized successfully")
 except Exception as e:

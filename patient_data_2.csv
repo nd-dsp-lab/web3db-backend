@@ -1,0 +1,501 @@
+PatientID,Name,Age,Gender,BloodType,Condition,VisitDate,Doctor,HospitalID,Prescription,DiagnosisReport
+1,John Doe,45,Male,O+,Hypertension,2025-05-01,Dr. Smith,HOSP-002,Lisinopril 10mg,Blood pressure elevated.
+2,Jane Smith,34,Female,A-,Asthma,2025-05-02,Dr. Adams,HOSP-002,Albuterol Inhaler,Wheezing noted.
+3,Alice Johnson,29,Female,B+,,2025-05-03,Dr. Brown,HOSP-002,Multivitamins,Healthy checkup.
+4,Susan Rodriguez,83,Female,AB+,Heart Disease,2025-04-26,Dr. Adams,HOSP-002,Amoxicillin,Wheezing noted.
+5,Stephen Torres,14,Other,A+,Infection,2025-06-19,Dr. Davis,HOSP-002,Atorvastatin,X-ray indicates fracture
+6,Jeffrey Walker,88,Male,O+,Hypertension,2025-04-14,Dr. Brown,HOSP-002,Lisinopril 10mg,Blood pressure elevated.
+7,Brandon Adams,1,Female,A+,Asthma,2025-01-29,Dr. Adams,HOSP-002,Atorvastatin,X-ray indicates fracture
+8,Joshua White,46,Male,AB-,Heart Disease,2025-10-31,Dr. Brown,HOSP-002,Albuterol Inhaler,MRI shows no issues
+9,Andrew Perez,38,Female,AB-,Cancer,2024-09-28,Dr. Brown,HOSP-002,No prescription,X-ray indicates fracture
+10,Alexander Carter,93,Other,O-,Cancer,2024-11-09,Dr. Davis,HOSP-002,Amoxicillin,Wheezing noted.
+11,Maria Garcia,91,Male,A-,Asthma,2023-02-09,Dr. Wilson,HOSP-002,Lisinopril 10mg,MRI shows no issues
+12,Jacob Scott,59,Male,B+,Infection,2023-07-29,Dr. Jones,HOSP-002,Atorvastatin,Blood pressure elevated.
+13,Andrew Perez,25,Other,O+,Hypertension,2024-12-02,Dr. Wilson,HOSP-002,Ibuprofen,Wheezing noted.
+14,Jeffrey Walker,75,Female,AB+,Cancer,2025-01-29,Dr. Adams,HOSP-002,Amoxicillin,Wheezing noted.
+15,Andrew Perez,67,Female,AB-,Infection,2024-03-13,Dr. Wilson,HOSP-002,No prescription,Wheezing noted.
+16,Jason Robinson,2,Other,B+,Asthma,2023-07-29,Dr. Adams,HOSP-002,Atorvastatin,Wheezing noted.
+17,Mark Moore,40,Female,B-,Arthritis,2023-04-20,Dr. Miller,HOSP-002,Ibuprofen,Wheezing noted.
+18,Jacob Scott,30,Male,B-,Arthritis,2025-01-19,Dr. Smith,HOSP-002,Lisinopril 10mg,Blood pressure elevated.
+19,Anthony Taylor,17,Female,AB+,Flu,2023-03-24,Dr. Williams,HOSP-002,Ibuprofen,Normal check-up.
+20,Jason Robinson,21,Female,O-,Arthritis,2024-08-10,Dr. Williams,HOSP-002,Atorvastatin,High blood sugar detected.
+21,Larry Hill,58,Male,A-,None,2025-09-04,Dr. Miller,HOSP-002,Lisinopril 10mg,Blood test normal
+22,Brian Sanchez,94,Male,O-,Flu,2025-06-23,Dr. Brown,HOSP-002,Ibuprofen,Wheezing noted.
+23,Steven Martin,47,Male,AB-,Infection,2023-01-31,Dr. Adams,HOSP-002,Albuterol Inhaler,Normal check-up.
+24,Jeffrey Walker,53,Female,AB+,Asthma,2025-10-03,Dr. Adams,HOSP-002,No prescription,X-ray indicates fracture
+25,Michael Johnson,45,Other,A-,Flu,2024-08-22,Dr. Wilson,HOSP-002,Lisinopril 10mg,Blood pressure elevated.
+26,Jason Robinson,94,Other,AB+,Infection,2025-05-11,Dr. Brown,HOSP-002,Albuterol Inhaler,X-ray indicates fracture
+27,Matthew Thomas,64,Female,B-,Heart Disease,2023-01-21,Dr. Jones,HOSP-002,Albuterol Inhaler,Blood test normal
+28,Brandon Adams,59,Male,O-,Heart Disease,2024-01-09,Dr. Williams,HOSP-002,Ibuprofen,MRI shows no issues
+29,Timothy Lewis,6,Female,B+,Diabetes,2024-08-26,Dr. Jones,HOSP-002,No prescription,Blood pressure elevated.
+30,Kenneth Thompson,92,Other,B-,Diabetes,2023-03-17,Dr. Davis,HOSP-002,Ibuprofen,Healthy checkup.
+31,Jack Roberts,44,Female,O-,None,2023-04-25,Dr. Smith,HOSP-002,Atorvastatin,X-ray indicates fracture
+32,Thomas Hernandez,44,Female,AB-,Arthritis,2024-09-08,Dr. Williams,HOSP-002,Ibuprofen,High blood sugar detected.
+33,Matthew Thomas,57,Male,O-,None,2023-05-15,Dr. Brown,HOSP-002,Atorvastatin,Healthy checkup.
+34,Daniel Anderson,84,Other,O-,Flu,2024-12-31,Dr. Wilson,HOSP-002,Lisinopril 10mg,Normal check-up.
+35,Timothy Lewis,44,Male,B+,None,2024-01-26,Dr. Wilson,HOSP-002,Metformin 500mg,High blood sugar detected.
+36,Kevin Harris,72,Other,AB-,Flu,2024-01-30,Dr. Davis,HOSP-002,Amoxicillin,MRI shows no issues
+37,Thomas Hernandez,30,Male,AB-,Infection,2024-11-11,Dr. Wilson,HOSP-002,Metformin 500mg,High blood sugar detected.
+38,Michael Johnson,35,Female,A-,Heart Disease,2023-06-12,Dr. Miller,HOSP-002,No prescription,X-ray indicates fracture
+39,Daniel Anderson,62,Other,AB+,Hypertension,2024-12-28,Dr. Davis,HOSP-002,Ibuprofen,Wheezing noted.
+40,Donald Jackson,16,Female,O+,Flu,2025-04-30,Dr. Jones,HOSP-002,Amoxicillin,Blood test normal
+41,Brian Sanchez,84,Female,O+,Hypertension,2025-08-12,Dr. Miller,HOSP-002,Atorvastatin,Healthy checkup.
+42,Thomas Hernandez,74,Male,A+,Arthritis,2025-10-31,Dr. Brown,HOSP-002,No prescription,Normal check-up.
+43,Kenneth Thompson,41,Female,B-,Diabetes,2023-11-03,Dr. Davis,HOSP-002,No prescription,Blood pressure elevated.
+44,Frank Nelson,85,Other,B+,Cancer,2023-01-29,Dr. Williams,HOSP-002,No prescription,Blood test normal
+45,Jack Roberts,78,Female,AB-,Asthma,2025-11-06,Dr. Brown,HOSP-002,Atorvastatin,Blood test normal
+46,Frank Nelson,81,Female,AB+,Diabetes,2024-12-16,Dr. Brown,HOSP-002,Atorvastatin,Healthy checkup.
+47,Nicholas King,7,Female,AB-,Cancer,2024-09-17,Dr. Williams,HOSP-002,No prescription,MRI shows no issues
+48,Scott Green,82,Other,A-,Cancer,2024-01-19,Dr. Miller,HOSP-002,Ibuprofen,MRI shows no issues
+49,Joseph Martinez,84,Male,AB-,Flu,2025-08-11,Dr. Smith,HOSP-002,No prescription,High blood sugar detected.
+50,Kevin Harris,39,Female,A-,Infection,2023-04-07,Dr. Adams,HOSP-002,No prescription,MRI shows no issues
+51,Timothy Lewis,76,Other,B-,Infection,2024-05-12,Dr. Jones,HOSP-002,No prescription,High blood sugar detected.
+52,Christopher Wilson,69,Female,O-,Hypertension,2025-07-01,Dr. Davis,HOSP-002,No prescription,Blood test normal
+53,Jacob Scott,61,Female,B+,Arthritis,2025-03-23,Dr. Davis,HOSP-002,Albuterol Inhaler,High blood sugar detected.
+54,Susan Rodriguez,51,Other,AB-,Hypertension,2025-01-08,Dr. Jones,HOSP-002,Albuterol Inhaler,Wheezing noted.
+55,Matthew Thomas,56,Other,A-,Cancer,2025-08-19,Dr. Jones,HOSP-002,Lisinopril 10mg,Blood pressure elevated.
+56,Alexander Carter,6,Other,AB-,Cancer,2024-01-29,Dr. Miller,HOSP-002,Albuterol Inhaler,Blood test normal
+57,Maria Garcia,89,Female,AB+,Arthritis,2025-07-22,Dr. Brown,HOSP-002,Albuterol Inhaler,Healthy checkup.
+58,Thomas Hernandez,41,Male,AB+,Arthritis,2025-11-23,Dr. Jones,HOSP-002,Amoxicillin,MRI shows no issues
+59,Kevin Harris,2,Other,B+,Infection,2024-04-04,Dr. Brown,HOSP-002,No prescription,Blood pressure elevated.
+60,Jonathan Nguyen,65,Male,B+,Infection,2024-01-15,Dr. Brown,HOSP-002,Metformin 500mg,Normal check-up.
+61,Kenneth Thompson,87,Female,AB-,None,2025-05-10,Dr. Adams,HOSP-002,No prescription,Healthy checkup.
+62,Nicholas King,40,Other,B-,Flu,2024-11-12,Dr. Adams,HOSP-002,No prescription,X-ray indicates fracture
+63,Raymond Campbell,49,Female,O-,Infection,2024-12-07,Dr. Jones,HOSP-002,Atorvastatin,High blood sugar detected.
+64,Michael Johnson,49,Female,A-,Asthma,2023-01-23,Dr. Adams,HOSP-002,Atorvastatin,Blood pressure elevated.
+65,Mark Moore,4,Other,B-,Flu,2025-09-27,Dr. Smith,HOSP-002,Albuterol Inhaler,Wheezing noted.
+66,Kenneth Thompson,62,Female,AB+,Hypertension,2024-08-02,Dr. Williams,HOSP-002,No prescription,Wheezing noted.
+67,Raymond Campbell,87,Female,AB+,Flu,2024-11-25,Dr. Wilson,HOSP-002,Ibuprofen,MRI shows no issues
+68,Paul Lee,11,Other,B+,Infection,2024-09-17,Dr. Wilson,HOSP-002,No prescription,Healthy checkup.
+69,Ronald Ramirez,14,Other,B+,Flu,2023-09-14,Dr. Miller,HOSP-002,Albuterol Inhaler,High blood sugar detected.
+70,Linda Davis,3,Female,O+,Diabetes,2025-11-13,Dr. Smith,HOSP-002,Ibuprofen,Blood test normal
+71,Matthew Thomas,64,Female,AB+,Arthritis,2023-04-04,Dr. Jones,HOSP-002,Albuterol Inhaler,X-ray indicates fracture
+72,Alexander Carter,92,Female,AB+,Hypertension,2023-12-08,Dr. Smith,HOSP-002,No prescription,Blood test normal
+73,Raymond Campbell,44,Male,AB-,Hypertension,2025-08-28,Dr. Jones,HOSP-002,Amoxicillin,Wheezing noted.
+74,Brian Sanchez,22,Female,O-,Flu,2023-06-27,Dr. Smith,HOSP-002,Metformin 500mg,MRI shows no issues
+75,Daniel Anderson,71,Other,A+,Cancer,2025-03-05,Dr. Wilson,HOSP-002,Ibuprofen,Blood pressure elevated.
+76,Gary Allen,83,Female,AB+,None,2025-05-22,Dr. Jones,HOSP-002,No prescription,Normal check-up.
+77,Eric Wright,81,Female,A-,Heart Disease,2023-04-22,Dr. Davis,HOSP-002,Atorvastatin,X-ray indicates fracture
+78,David Miller,21,Male,O+,Hypertension,2024-03-16,Dr. Davis,HOSP-002,Metformin 500mg,Normal check-up.
+79,Linda Davis,74,Male,AB-,Hypertension,2025-04-18,Dr. Wilson,HOSP-002,Ibuprofen,Blood test normal
+80,Scott Green,77,Male,A-,None,2023-02-02,Dr. Miller,HOSP-002,No prescription,Wheezing noted.
+81,Timothy Lewis,69,Male,B+,Diabetes,2023-08-22,Dr. Miller,HOSP-002,Lisinopril 10mg,Healthy checkup.
+82,Kevin Harris,67,Female,A-,Hypertension,2024-12-28,Dr. Jones,HOSP-002,No prescription,Blood test normal
+83,Sarah Lopez,84,Male,O+,Heart Disease,2025-04-25,Dr. Brown,HOSP-002,Atorvastatin,Normal check-up.
+84,Jerry Phillips,2,Female,B+,Heart Disease,2024-08-29,Dr. Williams,HOSP-002,Amoxicillin,Blood test normal
+85,Scott Green,23,Other,O+,Diabetes,2023-12-02,Dr. Davis,HOSP-002,No prescription,Wheezing noted.
+86,Jerry Phillips,28,Male,AB-,Flu,2024-02-23,Dr. Brown,HOSP-002,Atorvastatin,Wheezing noted.
+87,Larry Hill,64,Female,B+,Hypertension,2024-04-13,Dr. Adams,HOSP-002,Atorvastatin,High blood sugar detected.
+88,Frank Nelson,23,Female,O-,Arthritis,2023-07-30,Dr. Wilson,HOSP-002,Amoxicillin,Healthy checkup.
+89,Patrick Mitchell,50,Female,AB-,None,2023-04-09,Dr. Davis,HOSP-002,Ibuprofen,Wheezing noted.
+90,Sarah Lopez,45,Female,B+,Flu,2023-02-19,Dr. Brown,HOSP-002,Lisinopril 10mg,High blood sugar detected.
+91,Jason Robinson,62,Other,B+,Cancer,2025-06-09,Dr. Smith,HOSP-002,Amoxicillin,Wheezing noted.
+92,Brandon Adams,95,Other,B-,Infection,2025-10-21,Dr. Davis,HOSP-002,No prescription,Wheezing noted.
+93,Alexander Carter,5,Other,O+,Heart Disease,2024-09-03,Dr. Adams,HOSP-002,Metformin 500mg,Blood pressure elevated.
+94,Christopher Wilson,25,Male,O+,Cancer,2025-12-05,Dr. Smith,HOSP-002,No prescription,Blood test normal
+95,Brandon Adams,85,Male,AB-,Cancer,2024-02-25,Dr. Jones,HOSP-002,Atorvastatin,Blood test normal
+96,Eric Wright,87,Female,A+,Infection,2025-03-21,Dr. Miller,HOSP-002,Atorvastatin,Wheezing noted.
+97,Ryan Young,2,Male,B+,Cancer,2024-06-11,Dr. Miller,HOSP-002,Albuterol Inhaler,Blood pressure elevated.
+98,Donald Jackson,94,Female,B+,Infection,2023-07-19,Dr. Davis,HOSP-002,Lisinopril 10mg,High blood sugar detected.
+99,Ronald Ramirez,80,Female,O+,Diabetes,2024-10-23,Dr. Brown,HOSP-002,No prescription,High blood sugar detected.
+100,Charles Gonzalez,79,Other,AB+,Asthma,2024-03-28,Dr. Williams,HOSP-002,Albuterol Inhaler,MRI shows no issues
+101,Steven Martin,24,Male,B-,Flu,2024-03-28,Dr. Miller,HOSP-002,Lisinopril 10mg,MRI shows no issues
+102,Eric Wright,65,Female,O+,Arthritis,2025-05-28,Dr. Williams,HOSP-002,Lisinopril 10mg,MRI shows no issues
+103,Jonathan Nguyen,65,Male,A-,Hypertension,2024-05-21,Dr. Brown,HOSP-002,Metformin 500mg,X-ray indicates fracture
+104,Stephen Torres,58,Male,O-,Diabetes,2023-07-02,Dr. Davis,HOSP-002,No prescription,Blood pressure elevated.
+105,Jacob Scott,30,Other,B+,Asthma,2025-02-01,Dr. Jones,HOSP-002,Atorvastatin,Normal check-up.
+106,Scott Green,52,Male,AB-,Hypertension,2023-06-26,Dr. Jones,HOSP-002,Atorvastatin,Normal check-up.
+107,Raymond Campbell,58,Female,O-,Hypertension,2023-02-18,Dr. Adams,HOSP-002,Amoxicillin,MRI shows no issues
+108,Thomas Hernandez,80,Male,AB+,Heart Disease,2024-10-23,Dr. Adams,HOSP-002,No prescription,High blood sugar detected.
+109,James Smith,29,Female,B+,Cancer,2023-01-23,Dr. Brown,HOSP-002,Ibuprofen,High blood sugar detected.
+110,Timothy Lewis,7,Female,A+,Arthritis,2025-03-13,Dr. Brown,HOSP-002,Atorvastatin,Blood test normal
+111,Timothy Lewis,92,Female,AB+,Diabetes,2023-05-24,Dr. Williams,HOSP-002,No prescription,Wheezing noted.
+112,Maria Garcia,43,Male,A+,Flu,2024-01-15,Dr. Wilson,HOSP-002,Atorvastatin,Healthy checkup.
+113,Paul Lee,86,Female,A-,Infection,2025-07-25,Dr. Wilson,HOSP-002,Albuterol Inhaler,MRI shows no issues
+114,Jack Roberts,77,Other,O-,Hypertension,2025-07-09,Dr. Davis,HOSP-002,Albuterol Inhaler,X-ray indicates fracture
+115,Jacob Scott,25,Other,B+,Diabetes,2024-05-12,Dr. Williams,HOSP-002,Ibuprofen,Normal check-up.
+116,Nicholas King,32,Other,B+,Cancer,2023-10-30,Dr. Miller,HOSP-002,Metformin 500mg,Blood pressure elevated.
+117,Christopher Wilson,62,Female,B+,Hypertension,2025-05-19,Dr. Brown,HOSP-002,Atorvastatin,Wheezing noted.
+118,Ronald Ramirez,30,Other,A+,Heart Disease,2023-01-19,Dr. Davis,HOSP-002,Lisinopril 10mg,Wheezing noted.
+119,Brandon Adams,53,Other,A+,Asthma,2023-03-14,Dr. Brown,HOSP-002,Ibuprofen,MRI shows no issues
+120,Frank Nelson,14,Other,A-,None,2023-01-23,Dr. Brown,HOSP-002,Ibuprofen,High blood sugar detected.
+121,Joseph Martinez,13,Male,A+,Hypertension,2025-09-19,Dr. Miller,HOSP-002,Amoxicillin,MRI shows no issues
+122,Justin Flores,89,Female,A+,Cancer,2023-10-09,Dr. Jones,HOSP-002,Metformin 500mg,Wheezing noted.
+123,Ryan Young,74,Other,A-,Diabetes,2025-01-14,Dr. Davis,HOSP-002,Atorvastatin,Blood test normal
+124,Gary Allen,59,Other,A-,Arthritis,2025-04-08,Dr. Wilson,HOSP-002,No prescription,Normal check-up.
+125,Paul Lee,43,Male,O-,None,2024-11-07,Dr. Smith,HOSP-002,No prescription,X-ray indicates fracture
+126,Donald Jackson,94,Other,AB+,Heart Disease,2023-10-31,Dr. Adams,HOSP-002,Atorvastatin,Normal check-up.
+127,Ryan Young,83,Other,A+,Heart Disease,2023-01-28,Dr. Smith,HOSP-002,Ibuprofen,High blood sugar detected.
+128,Eric Wright,40,Male,AB-,Heart Disease,2024-09-18,Dr. Smith,HOSP-002,Albuterol Inhaler,High blood sugar detected.
+129,Alexander Carter,69,Male,AB+,Asthma,2025-05-07,Dr. Smith,HOSP-002,Lisinopril 10mg,Normal check-up.
+130,Michael Johnson,10,Female,O+,Cancer,2023-02-14,Dr. Williams,HOSP-002,Metformin 500mg,Blood pressure elevated.
+131,Gregory Hall,5,Male,B-,Arthritis,2024-07-27,Dr. Jones,HOSP-002,Lisinopril 10mg,Wheezing noted.
+132,Charles Gonzalez,80,Other,A-,Diabetes,2023-03-18,Dr. Davis,HOSP-002,Amoxicillin,Normal check-up.
+133,Steven Martin,77,Female,AB+,Cancer,2024-04-18,Dr. Davis,HOSP-002,Amoxicillin,Normal check-up.
+134,Samuel Rivera,6,Other,O-,Heart Disease,2025-12-07,Dr. Adams,HOSP-002,Amoxicillin,Wheezing noted.
+135,Brian Sanchez,15,Other,B-,Flu,2025-02-13,Dr. Smith,HOSP-002,Amoxicillin,MRI shows no issues
+136,Christopher Wilson,74,Other,B-,Asthma,2023-04-23,Dr. Adams,HOSP-002,Ibuprofen,Healthy checkup.
+137,Timothy Lewis,54,Other,AB+,None,2024-03-13,Dr. Smith,HOSP-002,Albuterol Inhaler,Blood pressure elevated.
+138,Samuel Rivera,90,Female,A+,Heart Disease,2024-02-19,Dr. Davis,HOSP-002,Metformin 500mg,MRI shows no issues
+139,Alexander Carter,49,Female,A+,Diabetes,2024-10-09,Dr. Brown,HOSP-002,Lisinopril 10mg,Blood pressure elevated.
+140,Sarah Lopez,67,Female,B-,Infection,2024-08-20,Dr. Smith,HOSP-002,No prescription,Blood pressure elevated.
+141,Ronald Ramirez,20,Female,AB-,Cancer,2025-11-25,Dr. Jones,HOSP-002,Ibuprofen,Healthy checkup.
+142,Thomas Hernandez,36,Female,A-,None,2024-04-11,Dr. Adams,HOSP-002,Atorvastatin,Blood test normal
+143,Frank Nelson,75,Female,B-,Heart Disease,2023-04-05,Dr. Wilson,HOSP-002,Atorvastatin,MRI shows no issues
+144,Jacob Scott,7,Other,O+,Infection,2023-12-20,Dr. Adams,HOSP-002,Atorvastatin,Blood test normal
+145,Steven Martin,38,Other,O+,Asthma,2023-08-27,Dr. Brown,HOSP-002,No prescription,Healthy checkup.
+146,Samuel Rivera,26,Male,B+,Diabetes,2023-08-02,Dr. Wilson,HOSP-002,Ibuprofen,MRI shows no issues
+147,Joshua White,39,Male,A-,Flu,2024-10-29,Dr. Miller,HOSP-002,Atorvastatin,Normal check-up.
+148,Donald Jackson,84,Other,O-,Asthma,2025-11-16,Dr. Smith,HOSP-002,Lisinopril 10mg,High blood sugar detected.
+149,Alexander Carter,53,Male,A+,Infection,2024-11-08,Dr. Miller,HOSP-002,No prescription,MRI shows no issues
+150,Eric Wright,27,Other,O+,None,2024-08-16,Dr. Jones,HOSP-002,Ibuprofen,Wheezing noted.
+151,Jack Roberts,88,Male,B+,Infection,2025-04-18,Dr. Wilson,HOSP-002,Atorvastatin,X-ray indicates fracture
+152,James Smith,53,Female,AB-,Flu,2023-09-08,Dr. Miller,HOSP-002,Metformin 500mg,Blood pressure elevated.
+153,Jack Roberts,77,Male,A+,Hypertension,2024-07-21,Dr. Davis,HOSP-002,Lisinopril 10mg,Wheezing noted.
+154,Susan Rodriguez,74,Female,B-,Asthma,2024-07-31,Dr. Jones,HOSP-002,Metformin 500mg,Wheezing noted.
+155,Larry Hill,55,Female,A-,Hypertension,2025-08-17,Dr. Smith,HOSP-002,Atorvastatin,MRI shows no issues
+156,Scott Green,19,Female,O-,Arthritis,2024-09-15,Dr. Miller,HOSP-002,No prescription,High blood sugar detected.
+157,Brian Sanchez,86,Female,AB-,Infection,2025-02-12,Dr. Adams,HOSP-002,No prescription,Normal check-up.
+158,Scott Green,62,Female,AB+,Cancer,2025-09-11,Dr. Wilson,HOSP-002,Lisinopril 10mg,Blood pressure elevated.
+159,Dennis Gomez,86,Other,O+,Infection,2025-05-03,Dr. Williams,HOSP-002,Atorvastatin,Healthy checkup.
+160,Jonathan Nguyen,53,Other,O+,Heart Disease,2023-10-07,Dr. Williams,HOSP-002,Albuterol Inhaler,Healthy checkup.
+161,Jonathan Nguyen,9,Male,A-,Cancer,2023-03-29,Dr. Jones,HOSP-002,Albuterol Inhaler,MRI shows no issues
+162,Joseph Martinez,31,Other,A-,Heart Disease,2025-09-19,Dr. Brown,HOSP-002,Albuterol Inhaler,Blood test normal
+163,Daniel Anderson,6,Female,AB-,None,2023-05-13,Dr. Jones,HOSP-002,No prescription,Blood pressure elevated.
+164,Brian Sanchez,26,Female,A-,Diabetes,2025-01-29,Dr. Williams,HOSP-002,Albuterol Inhaler,X-ray indicates fracture
+165,Robert Williams,86,Male,O+,Arthritis,2025-02-09,Dr. Wilson,HOSP-002,No prescription,Healthy checkup.
+166,Raymond Campbell,77,Male,O-,Heart Disease,2025-11-08,Dr. Wilson,HOSP-002,Atorvastatin,X-ray indicates fracture
+167,Robert Williams,79,Female,AB+,Heart Disease,2025-07-24,Dr. Adams,HOSP-002,Amoxicillin,MRI shows no issues
+168,Eric Wright,29,Male,B-,Arthritis,2025-12-24,Dr. Miller,HOSP-002,Amoxicillin,Blood pressure elevated.
+169,Paul Lee,56,Male,O-,None,2025-06-18,Dr. Williams,HOSP-002,Atorvastatin,MRI shows no issues
+170,Raymond Campbell,2,Male,O+,Cancer,2023-05-02,Dr. Adams,HOSP-002,Ibuprofen,Wheezing noted.
+171,Alexander Carter,74,Male,AB-,Cancer,2023-02-09,Dr. Brown,HOSP-002,Albuterol Inhaler,Blood test normal
+172,Thomas Hernandez,26,Female,B+,Asthma,2023-09-12,Dr. Williams,HOSP-002,Amoxicillin,Normal check-up.
+173,Donald Jackson,87,Female,B-,Flu,2025-02-05,Dr. Jones,HOSP-002,No prescription,X-ray indicates fracture
+174,Jacob Scott,21,Male,O+,Infection,2025-06-14,Dr. Smith,HOSP-002,Albuterol Inhaler,Wheezing noted.
+175,Stephen Torres,3,Other,B+,Heart Disease,2023-02-16,Dr. Smith,HOSP-002,Atorvastatin,Wheezing noted.
+176,Jerry Phillips,75,Male,AB-,None,2023-07-29,Dr. Davis,HOSP-002,Atorvastatin,Blood pressure elevated.
+177,Donald Jackson,16,Male,O-,Hypertension,2023-03-12,Dr. Williams,HOSP-002,Ibuprofen,Normal check-up.
+178,Ryan Young,74,Female,A+,Flu,2025-06-12,Dr. Davis,HOSP-002,Amoxicillin,Normal check-up.
+179,Benjamin Baker,15,Male,AB-,Cancer,2023-08-28,Dr. Williams,HOSP-002,Metformin 500mg,Normal check-up.
+180,Christopher Wilson,8,Other,B-,Asthma,2024-12-21,Dr. Williams,HOSP-002,Ibuprofen,Blood pressure elevated.
+181,Raymond Campbell,18,Female,O+,Heart Disease,2025-04-02,Dr. Jones,HOSP-002,Albuterol Inhaler,Normal check-up.
+182,Timothy Lewis,42,Other,A+,Infection,2023-10-06,Dr. Smith,HOSP-002,Amoxicillin,Blood test normal
+183,Christopher Wilson,37,Female,A+,Hypertension,2023-06-12,Dr. Miller,HOSP-002,Metformin 500mg,Blood test normal
+184,Mark Moore,84,Male,A+,Arthritis,2023-04-27,Dr. Brown,HOSP-002,Ibuprofen,Normal check-up.
+185,Christopher Wilson,94,Male,AB+,None,2025-04-11,Dr. Jones,HOSP-002,Amoxicillin,X-ray indicates fracture
+186,Jonathan Nguyen,53,Male,B+,Asthma,2025-07-13,Dr. Jones,HOSP-002,No prescription,Healthy checkup.
+187,Jeffrey Walker,5,Female,A-,Arthritis,2024-04-23,Dr. Smith,HOSP-002,No prescription,Normal check-up.
+188,Gary Allen,79,Other,AB-,Diabetes,2025-03-01,Dr. Davis,HOSP-002,No prescription,Healthy checkup.
+189,James Smith,12,Female,O-,Flu,2025-10-01,Dr. Williams,HOSP-002,Amoxicillin,Blood pressure elevated.
+190,Ronald Ramirez,55,Male,A-,Hypertension,2025-11-06,Dr. Brown,HOSP-002,Lisinopril 10mg,Healthy checkup.
+191,Jason Robinson,20,Female,A+,Diabetes,2024-10-01,Dr. Brown,HOSP-002,No prescription,High blood sugar detected.
+192,Patrick Mitchell,15,Other,AB+,Heart Disease,2025-03-27,Dr. Brown,HOSP-002,Ibuprofen,Blood pressure elevated.
+193,Stephen Torres,68,Male,A+,None,2023-06-01,Dr. Adams,HOSP-002,Amoxicillin,High blood sugar detected.
+194,James Smith,63,Female,A+,Arthritis,2024-06-17,Dr. Adams,HOSP-002,Metformin 500mg,MRI shows no issues
+195,Dennis Gomez,7,Other,AB+,Heart Disease,2025-06-07,Dr. Williams,HOSP-002,Albuterol Inhaler,MRI shows no issues
+196,Justin Flores,49,Other,A-,Asthma,2023-12-03,Dr. Adams,HOSP-002,Ibuprofen,Healthy checkup.
+197,Nicholas King,8,Other,O+,Cancer,2025-10-29,Dr. Davis,HOSP-002,No prescription,Blood pressure elevated.
+198,Michael Johnson,70,Female,B+,Asthma,2025-12-20,Dr. Jones,HOSP-002,Atorvastatin,MRI shows no issues
+199,Eric Wright,35,Male,A-,Flu,2025-06-15,Dr. Williams,HOSP-002,No prescription,Normal check-up.
+200,Anthony Taylor,62,Male,AB+,Infection,2023-08-04,Dr. Williams,HOSP-002,Ibuprofen,MRI shows no issues
+201,Dennis Gomez,48,Female,A+,Cancer,2024-03-20,Dr. Williams,HOSP-002,Metformin 500mg,X-ray indicates fracture
+202,Michael Johnson,24,Female,B-,Hypertension,2025-12-18,Dr. Williams,HOSP-002,Metformin 500mg,MRI shows no issues
+203,Alexander Carter,43,Female,AB+,Infection,2024-02-22,Dr. Jones,HOSP-002,Atorvastatin,Healthy checkup.
+204,Ryan Young,14,Male,A+,Hypertension,2025-02-06,Dr. Smith,HOSP-002,Metformin 500mg,High blood sugar detected.
+205,Kevin Harris,27,Female,AB-,Heart Disease,2024-12-20,Dr. Brown,HOSP-002,Ibuprofen,Blood test normal
+206,Kevin Harris,16,Female,A+,Hypertension,2025-07-10,Dr. Brown,HOSP-002,Atorvastatin,Normal check-up.
+207,Alexander Carter,62,Female,O+,Arthritis,2024-11-13,Dr. Davis,HOSP-002,Amoxicillin,High blood sugar detected.
+208,Justin Flores,80,Male,O+,None,2024-02-25,Dr. Brown,HOSP-002,Atorvastatin,Normal check-up.
+209,Samuel Rivera,12,Male,B+,Hypertension,2025-01-08,Dr. Davis,HOSP-002,Atorvastatin,Healthy checkup.
+210,Thomas Hernandez,74,Other,O+,Asthma,2025-06-13,Dr. Davis,HOSP-002,Metformin 500mg,X-ray indicates fracture
+211,Joshua White,57,Other,A-,Diabetes,2024-06-07,Dr. Jones,HOSP-002,Albuterol Inhaler,Healthy checkup.
+212,Kenneth Thompson,13,Female,B+,Asthma,2025-09-28,Dr. Brown,HOSP-002,Ibuprofen,Wheezing noted.
+213,Justin Flores,70,Male,B+,Arthritis,2024-10-14,Dr. Williams,HOSP-002,Atorvastatin,Blood pressure elevated.
+214,Daniel Anderson,75,Female,A-,None,2024-06-01,Dr. Jones,HOSP-002,No prescription,MRI shows no issues
+215,Joseph Martinez,21,Male,B+,Infection,2024-08-24,Dr. Miller,HOSP-002,Amoxicillin,Blood test normal
+216,Eric Wright,26,Male,O-,Flu,2023-08-26,Dr. Williams,HOSP-002,Lisinopril 10mg,X-ray indicates fracture
+217,Anthony Taylor,86,Female,O+,Arthritis,2023-10-04,Dr. Davis,HOSP-002,Amoxicillin,High blood sugar detected.
+218,Timothy Lewis,21,Male,A+,None,2025-07-17,Dr. Davis,HOSP-002,Amoxicillin,X-ray indicates fracture
+219,Joseph Martinez,92,Male,A+,Flu,2024-06-05,Dr. Miller,HOSP-002,Lisinopril 10mg,MRI shows no issues
+220,Nicholas King,5,Female,A-,Flu,2025-03-08,Dr. Smith,HOSP-002,Atorvastatin,Normal check-up.
+221,Ryan Young,67,Male,O+,Heart Disease,2024-07-02,Dr. Brown,HOSP-002,Ibuprofen,MRI shows no issues
+222,Daniel Anderson,86,Other,B+,Asthma,2024-04-07,Dr. Jones,HOSP-002,No prescription,MRI shows no issues
+223,Kenneth Thompson,89,Female,O+,None,2023-05-18,Dr. Smith,HOSP-002,Ibuprofen,X-ray indicates fracture
+224,Joshua White,33,Other,AB+,Diabetes,2025-09-07,Dr. Smith,HOSP-002,No prescription,High blood sugar detected.
+225,Linda Davis,25,Female,B+,Arthritis,2025-01-25,Dr. Wilson,HOSP-002,Ibuprofen,MRI shows no issues
+226,Jack Roberts,32,Male,B-,Infection,2025-06-05,Dr. Brown,HOSP-002,Ibuprofen,Blood pressure elevated.
+227,Anthony Taylor,50,Other,B+,Infection,2025-07-05,Dr. Miller,HOSP-002,Amoxicillin,Blood pressure elevated.
+228,Benjamin Baker,89,Other,B+,Diabetes,2025-04-21,Dr. Miller,HOSP-002,Albuterol Inhaler,Healthy checkup.
+229,Brandon Adams,33,Male,A+,Cancer,2024-08-16,Dr. Jones,HOSP-002,Amoxicillin,High blood sugar detected.
+230,Samuel Rivera,28,Other,O-,Asthma,2023-06-21,Dr. Wilson,HOSP-002,Ibuprofen,Wheezing noted.
+231,Raymond Campbell,8,Male,A+,Arthritis,2025-10-09,Dr. Miller,HOSP-002,Metformin 500mg,High blood sugar detected.
+232,Stephen Torres,82,Male,A+,Cancer,2023-03-06,Dr. Smith,HOSP-002,Metformin 500mg,High blood sugar detected.
+233,Steven Martin,36,Female,B+,Hypertension,2023-10-19,Dr. Miller,HOSP-002,No prescription,High blood sugar detected.
+234,Gregory Hall,45,Other,AB-,Flu,2024-03-26,Dr. Smith,HOSP-002,Albuterol Inhaler,Blood pressure elevated.
+235,Gregory Hall,1,Male,A-,Arthritis,2023-06-06,Dr. Williams,HOSP-002,No prescription,Healthy checkup.
+236,Justin Flores,2,Female,A-,Asthma,2025-11-11,Dr. Brown,HOSP-002,Ibuprofen,High blood sugar detected.
+237,Donald Jackson,43,Male,B-,Cancer,2023-11-27,Dr. Davis,HOSP-002,Atorvastatin,Blood pressure elevated.
+238,Sarah Lopez,7,Male,B-,Cancer,2024-04-01,Dr. Williams,HOSP-002,No prescription,X-ray indicates fracture
+239,Steven Martin,33,Male,B-,Infection,2023-12-26,Dr. Jones,HOSP-002,Lisinopril 10mg,Blood test normal
+240,Mark Moore,17,Female,B-,Arthritis,2023-08-03,Dr. Miller,HOSP-002,Ibuprofen,Blood test normal
+241,Jack Roberts,68,Male,B-,None,2025-05-20,Dr. Davis,HOSP-002,Atorvastatin,Wheezing noted.
+242,Thomas Hernandez,73,Male,AB-,Asthma,2025-05-02,Dr. Wilson,HOSP-002,Amoxicillin,MRI shows no issues
+243,Charles Gonzalez,41,Other,AB+,Cancer,2023-10-27,Dr. Brown,HOSP-002,Amoxicillin,Blood test normal
+244,Edward Clark,25,Other,O-,Hypertension,2023-10-27,Dr. Williams,HOSP-002,Albuterol Inhaler,Blood pressure elevated.
+245,Joseph Martinez,7,Female,A+,Flu,2023-11-29,Dr. Brown,HOSP-002,Lisinopril 10mg,MRI shows no issues
+246,Edward Clark,50,Other,A-,Infection,2023-11-07,Dr. Smith,HOSP-002,No prescription,Blood pressure elevated.
+247,Justin Flores,8,Other,O+,None,2024-07-09,Dr. Brown,HOSP-002,No prescription,Wheezing noted.
+248,Michael Johnson,50,Female,O+,Flu,2025-10-11,Dr. Jones,HOSP-002,Ibuprofen,Normal check-up.
+249,Donald Jackson,73,Other,A+,Infection,2023-12-26,Dr. Smith,HOSP-002,Atorvastatin,Normal check-up.
+250,Andrew Perez,1,Male,O-,Arthritis,2025-06-25,Dr. Brown,HOSP-002,Amoxicillin,Healthy checkup.
+251,Timothy Lewis,6,Female,A-,None,2025-06-05,Dr. Miller,HOSP-002,Atorvastatin,Blood pressure elevated.
+252,Maria Garcia,23,Female,B+,Heart Disease,2025-07-24,Dr. Miller,HOSP-002,Albuterol Inhaler,Normal check-up.
+253,Christopher Wilson,52,Other,A-,None,2024-02-11,Dr. Wilson,HOSP-002,Ibuprofen,X-ray indicates fracture
+254,Kenneth Thompson,54,Male,A-,Hypertension,2024-01-10,Dr. Wilson,HOSP-002,Atorvastatin,High blood sugar detected.
+255,Patrick Mitchell,65,Male,AB-,Diabetes,2025-02-08,Dr. Davis,HOSP-002,Amoxicillin,Wheezing noted.
+256,Steven Martin,49,Other,O-,Cancer,2025-01-04,Dr. Brown,HOSP-002,Lisinopril 10mg,Blood pressure elevated.
+257,Anthony Taylor,18,Male,B-,Infection,2023-04-22,Dr. Wilson,HOSP-002,Metformin 500mg,X-ray indicates fracture
+258,Benjamin Baker,12,Female,A+,Heart Disease,2023-03-15,Dr. Adams,HOSP-002,Metformin 500mg,MRI shows no issues
+259,Robert Williams,29,Female,AB-,Cancer,2024-11-05,Dr. Wilson,HOSP-002,Amoxicillin,Wheezing noted.
+260,Anthony Taylor,47,Female,B-,Infection,2023-04-23,Dr. Williams,HOSP-002,Lisinopril 10mg,Blood pressure elevated.
+261,Robert Williams,94,Female,B-,Diabetes,2024-06-25,Dr. Davis,HOSP-002,Amoxicillin,Blood test normal
+262,Joseph Martinez,18,Male,B-,Hypertension,2024-06-17,Dr. Davis,HOSP-002,Metformin 500mg,Normal check-up.
+263,Brian Sanchez,68,Male,A+,Cancer,2024-09-17,Dr. Davis,HOSP-002,Ibuprofen,Normal check-up.
+264,Gary Allen,22,Female,B-,Cancer,2023-09-21,Dr. Miller,HOSP-002,Albuterol Inhaler,High blood sugar detected.
+265,Jack Roberts,40,Other,O+,Arthritis,2024-10-21,Dr. Brown,HOSP-002,Lisinopril 10mg,Blood pressure elevated.
+266,Jeffrey Walker,17,Male,O+,Infection,2024-07-20,Dr. Williams,HOSP-002,Albuterol Inhaler,Blood test normal
+267,Paul Lee,45,Male,A-,None,2023-04-19,Dr. Wilson,HOSP-002,No prescription,High blood sugar detected.
+268,Daniel Anderson,14,Other,O-,Asthma,2024-10-05,Dr. Jones,HOSP-002,No prescription,Wheezing noted.
+269,Timothy Lewis,13,Female,O+,Flu,2023-02-23,Dr. Miller,HOSP-002,Metformin 500mg,X-ray indicates fracture
+270,Nicholas King,67,Male,A+,Arthritis,2025-01-13,Dr. Smith,HOSP-002,Metformin 500mg,Blood test normal
+271,Susan Rodriguez,15,Other,A+,Arthritis,2024-10-09,Dr. Adams,HOSP-002,Amoxicillin,High blood sugar detected.
+272,Mark Moore,90,Other,AB+,Heart Disease,2023-04-02,Dr. Davis,HOSP-002,Albuterol Inhaler,Blood test normal
+273,Steven Martin,23,Other,B+,Arthritis,2025-05-09,Dr. Miller,HOSP-002,Lisinopril 10mg,MRI shows no issues
+274,Steven Martin,93,Female,A+,Infection,2023-04-20,Dr. Miller,HOSP-002,Atorvastatin,Healthy checkup.
+275,Sarah Lopez,38,Female,A-,Diabetes,2024-07-19,Dr. Adams,HOSP-002,Albuterol Inhaler,Blood test normal
+276,Jonathan Nguyen,9,Male,B+,Cancer,2024-10-29,Dr. Wilson,HOSP-002,Atorvastatin,Blood test normal
+277,Jacob Scott,30,Male,AB+,Infection,2023-09-23,Dr. Jones,HOSP-002,Metformin 500mg,Wheezing noted.
+278,Gary Allen,62,Female,O-,Cancer,2023-10-14,Dr. Davis,HOSP-002,Atorvastatin,Blood pressure elevated.
+279,Ryan Young,92,Female,AB+,Heart Disease,2024-10-12,Dr. Williams,HOSP-002,Ibuprofen,MRI shows no issues
+280,Paul Lee,39,Female,B+,Heart Disease,2025-08-25,Dr. Williams,HOSP-002,Albuterol Inhaler,Blood pressure elevated.
+281,Susan Rodriguez,14,Male,A-,Diabetes,2023-05-23,Dr. Davis,HOSP-002,Lisinopril 10mg,Blood pressure elevated.
+282,Patrick Mitchell,63,Female,O-,Flu,2025-03-04,Dr. Davis,HOSP-002,Metformin 500mg,Healthy checkup.
+283,Steven Martin,71,Female,A-,Flu,2025-06-15,Dr. Williams,HOSP-002,Ibuprofen,X-ray indicates fracture
+284,Eric Wright,89,Male,B+,Flu,2024-06-23,Dr. Miller,HOSP-002,No prescription,MRI shows no issues
+285,Sarah Lopez,18,Male,A+,Flu,2025-01-17,Dr. Williams,HOSP-002,Atorvastatin,MRI shows no issues
+286,Michael Johnson,24,Other,A-,None,2023-06-29,Dr. Adams,HOSP-002,Albuterol Inhaler,MRI shows no issues
+287,James Smith,86,Female,B+,Infection,2023-12-04,Dr. Davis,HOSP-002,Ibuprofen,Blood pressure elevated.
+288,Robert Williams,51,Other,B-,Infection,2024-08-29,Dr. Miller,HOSP-002,No prescription,Blood pressure elevated.
+289,Eric Wright,30,Other,B+,None,2024-10-25,Dr. Adams,HOSP-002,Ibuprofen,Blood test normal
+290,Ryan Young,92,Other,B-,Cancer,2025-11-26,Dr. Smith,HOSP-002,Albuterol Inhaler,Blood pressure elevated.
+291,Gary Allen,78,Other,B+,Infection,2023-10-28,Dr. Brown,HOSP-002,Atorvastatin,Blood pressure elevated.
+292,James Smith,26,Other,O+,Heart Disease,2025-05-11,Dr. Adams,HOSP-002,Amoxicillin,MRI shows no issues
+293,Charles Gonzalez,12,Male,A+,Diabetes,2025-10-03,Dr. Wilson,HOSP-002,No prescription,High blood sugar detected.
+294,James Smith,4,Female,O+,Heart Disease,2024-07-16,Dr. Miller,HOSP-002,Albuterol Inhaler,Blood test normal
+295,Ryan Young,47,Female,A-,Flu,2025-03-16,Dr. Wilson,HOSP-002,Lisinopril 10mg,Blood test normal
+296,Gregory Hall,93,Other,A+,Flu,2024-03-11,Dr. Miller,HOSP-002,Albuterol Inhaler,X-ray indicates fracture
+297,Andrew Perez,35,Other,B-,Diabetes,2025-01-06,Dr. Jones,HOSP-002,Metformin 500mg,Blood test normal
+298,Jacob Scott,89,Male,A-,Diabetes,2024-06-09,Dr. Williams,HOSP-002,Lisinopril 10mg,Healthy checkup.
+299,Mark Moore,36,Male,A-,Infection,2024-04-11,Dr. Wilson,HOSP-002,Atorvastatin,Healthy checkup.
+300,Alexander Carter,73,Other,B+,Asthma,2024-08-17,Dr. Miller,HOSP-002,Amoxicillin,Healthy checkup.
+301,Timothy Lewis,86,Other,A-,Asthma,2024-03-09,Dr. Adams,HOSP-002,Lisinopril 10mg,MRI shows no issues
+302,Samuel Rivera,46,Other,B-,Diabetes,2025-08-20,Dr. Brown,HOSP-002,No prescription,Healthy checkup.
+303,Samuel Rivera,8,Male,A+,Diabetes,2024-02-20,Dr. Davis,HOSP-002,No prescription,Wheezing noted.
+304,Jerry Phillips,1,Male,O+,Flu,2023-08-08,Dr. Davis,HOSP-002,Amoxicillin,High blood sugar detected.
+305,Jason Robinson,50,Male,AB+,Hypertension,2024-05-28,Dr. Smith,HOSP-002,Amoxicillin,Blood test normal
+306,Kevin Harris,57,Female,A+,None,2023-10-26,Dr. Jones,HOSP-002,Metformin 500mg,Normal check-up.
+307,Joshua White,70,Female,O-,Heart Disease,2025-02-13,Dr. Adams,HOSP-002,Amoxicillin,Normal check-up.
+308,Alexander Carter,43,Other,O+,Asthma,2024-06-16,Dr. Smith,HOSP-002,Amoxicillin,High blood sugar detected.
+309,Steven Martin,22,Female,O+,None,2023-05-29,Dr. Davis,HOSP-002,Metformin 500mg,High blood sugar detected.
+310,Edward Clark,32,Female,A-,Cancer,2025-01-17,Dr. Davis,HOSP-002,No prescription,Healthy checkup.
+311,Christopher Wilson,81,Other,B-,Flu,2024-12-11,Dr. Williams,HOSP-002,Metformin 500mg,Wheezing noted.
+312,Stephen Torres,71,Female,B-,Cancer,2024-06-29,Dr. Brown,HOSP-002,Amoxicillin,X-ray indicates fracture
+313,James Smith,12,Male,O-,Diabetes,2024-04-21,Dr. Smith,HOSP-002,No prescription,Wheezing noted.
+314,Brian Sanchez,65,Other,B+,Arthritis,2023-11-11,Dr. Davis,HOSP-002,Ibuprofen,Blood pressure elevated.
+315,Paul Lee,64,Male,O-,Infection,2023-04-04,Dr. Miller,HOSP-002,Atorvastatin,Blood test normal
+316,Jerry Phillips,65,Male,AB-,Infection,2025-07-31,Dr. Brown,HOSP-002,Ibuprofen,High blood sugar detected.
+317,Matthew Thomas,30,Female,A-,Arthritis,2024-01-19,Dr. Wilson,HOSP-002,Metformin 500mg,Blood pressure elevated.
+318,Jonathan Nguyen,86,Male,AB+,Hypertension,2025-02-26,Dr. Brown,HOSP-002,Amoxicillin,Normal check-up.
+319,Linda Davis,28,Female,A+,Asthma,2025-08-19,Dr. Brown,HOSP-002,Atorvastatin,X-ray indicates fracture
+320,Maria Garcia,24,Male,B+,Cancer,2025-01-06,Dr. Davis,HOSP-002,No prescription,High blood sugar detected.
+321,Dennis Gomez,71,Other,A-,Arthritis,2025-06-08,Dr. Brown,HOSP-002,No prescription,X-ray indicates fracture
+322,Christopher Wilson,50,Male,A-,Heart Disease,2024-03-09,Dr. Davis,HOSP-002,Atorvastatin,X-ray indicates fracture
+323,Anthony Taylor,72,Other,A-,Diabetes,2024-04-23,Dr. Smith,HOSP-002,Lisinopril 10mg,X-ray indicates fracture
+324,Charles Gonzalez,69,Male,O+,Hypertension,2023-11-02,Dr. Smith,HOSP-002,Atorvastatin,Blood test normal
+325,Thomas Hernandez,74,Female,A-,Heart Disease,2025-11-12,Dr. Davis,HOSP-002,Ibuprofen,MRI shows no issues
+326,Justin Flores,50,Other,AB+,Arthritis,2025-04-06,Dr. Williams,HOSP-002,Amoxicillin,Normal check-up.
+327,James Smith,29,Other,O+,Infection,2025-02-22,Dr. Williams,HOSP-002,Atorvastatin,X-ray indicates fracture
+328,Jason Robinson,95,Female,A-,Infection,2024-09-05,Dr. Adams,HOSP-002,Metformin 500mg,High blood sugar detected.
+329,Brandon Adams,65,Male,A+,Heart Disease,2024-01-19,Dr. Jones,HOSP-002,Amoxicillin,Healthy checkup.
+330,Steven Martin,11,Other,A+,Diabetes,2025-06-03,Dr. Wilson,HOSP-002,Amoxicillin,X-ray indicates fracture
+331,Stephen Torres,73,Other,AB+,None,2024-04-02,Dr. Miller,HOSP-002,Atorvastatin,MRI shows no issues
+332,Ronald Ramirez,16,Other,A+,Heart Disease,2023-12-10,Dr. Smith,HOSP-002,No prescription,MRI shows no issues
+333,Justin Flores,8,Male,A+,Diabetes,2024-05-14,Dr. Smith,HOSP-002,Ibuprofen,Wheezing noted.
+334,Kevin Harris,27,Female,A-,None,2024-09-25,Dr. Adams,HOSP-002,Amoxicillin,High blood sugar detected.
+335,James Smith,78,Female,B+,Flu,2023-03-09,Dr. Adams,HOSP-002,Lisinopril 10mg,Blood test normal
+336,Ryan Young,88,Female,A+,None,2024-03-03,Dr. Wilson,HOSP-002,Amoxicillin,Healthy checkup.
+337,Jeffrey Walker,28,Other,A-,None,2023-01-30,Dr. Jones,HOSP-002,No prescription,MRI shows no issues
+338,Nicholas King,76,Female,AB-,Diabetes,2025-10-24,Dr. Brown,HOSP-002,Ibuprofen,Blood test normal
+339,Joshua White,36,Male,AB-,None,2024-03-18,Dr. Williams,HOSP-002,Metformin 500mg,Blood test normal
+340,Gary Allen,34,Other,B-,None,2025-01-08,Dr. Williams,HOSP-002,Atorvastatin,MRI shows no issues
+341,Michael Johnson,34,Male,AB+,None,2023-08-30,Dr. Williams,HOSP-002,Albuterol Inhaler,Wheezing noted.
+342,Thomas Hernandez,26,Other,AB+,Infection,2024-11-18,Dr. Miller,HOSP-002,Lisinopril 10mg,Blood test normal
+343,Edward Clark,66,Other,AB+,Infection,2023-05-31,Dr. Adams,HOSP-002,Metformin 500mg,Wheezing noted.
+344,Patrick Mitchell,63,Other,AB-,None,2023-10-10,Dr. Smith,HOSP-002,Lisinopril 10mg,High blood sugar detected.
+345,Donald Jackson,24,Other,AB-,Heart Disease,2025-04-24,Dr. Jones,HOSP-002,Lisinopril 10mg,MRI shows no issues
+346,Matthew Thomas,8,Other,A+,Flu,2024-08-09,Dr. Adams,HOSP-002,No prescription,X-ray indicates fracture
+347,Jerry Phillips,94,Female,O+,Asthma,2025-06-20,Dr. Wilson,HOSP-002,No prescription,MRI shows no issues
+348,Paul Lee,63,Male,B+,Diabetes,2023-07-01,Dr. Smith,HOSP-002,Ibuprofen,MRI shows no issues
+349,Gregory Hall,94,Male,O+,Infection,2024-07-31,Dr. Jones,HOSP-002,No prescription,Blood pressure elevated.
+350,Joseph Martinez,57,Other,A-,Heart Disease,2024-08-11,Dr. Davis,HOSP-002,Atorvastatin,Normal check-up.
+351,Brian Sanchez,87,Other,A-,Flu,2024-11-24,Dr. Williams,HOSP-002,Lisinopril 10mg,High blood sugar detected.
+352,Paul Lee,48,Female,B-,None,2025-03-30,Dr. Brown,HOSP-002,Ibuprofen,High blood sugar detected.
+353,Edward Clark,77,Other,A+,Asthma,2025-12-23,Dr. Wilson,HOSP-002,Metformin 500mg,MRI shows no issues
+354,Kenneth Thompson,55,Other,AB+,Hypertension,2023-06-04,Dr. Brown,HOSP-002,Atorvastatin,Blood pressure elevated.
+355,Gary Allen,21,Female,A+,Asthma,2024-08-12,Dr. Brown,HOSP-002,Ibuprofen,Healthy checkup.
+356,Charles Gonzalez,63,Female,O-,Hypertension,2024-03-19,Dr. Williams,HOSP-002,Albuterol Inhaler,X-ray indicates fracture
+357,Maria Garcia,7,Other,O+,Asthma,2025-11-24,Dr. Smith,HOSP-002,Ibuprofen,Blood pressure elevated.
+358,Michael Johnson,43,Female,O-,Asthma,2025-01-17,Dr. Smith,HOSP-002,Metformin 500mg,MRI shows no issues
+359,Dennis Gomez,50,Female,O-,Arthritis,2024-07-26,Dr. Miller,HOSP-002,No prescription,X-ray indicates fracture
+360,Daniel Anderson,23,Male,O+,Flu,2025-03-23,Dr. Miller,HOSP-002,Amoxicillin,MRI shows no issues
+361,Eric Wright,2,Female,AB-,Infection,2025-10-12,Dr. Jones,HOSP-002,Amoxicillin,Wheezing noted.
+362,Alexander Carter,43,Other,B-,Diabetes,2023-06-29,Dr. Williams,HOSP-002,Atorvastatin,X-ray indicates fracture
+363,Samuel Rivera,16,Female,O-,Flu,2023-01-12,Dr. Adams,HOSP-002,Ibuprofen,Healthy checkup.
+364,Dennis Gomez,43,Male,A+,Diabetes,2024-05-16,Dr. Williams,HOSP-002,Atorvastatin,High blood sugar detected.
+365,Justin Flores,14,Other,AB-,Arthritis,2023-10-19,Dr. Adams,HOSP-002,No prescription,Healthy checkup.
+366,Andrew Perez,52,Female,B+,Cancer,2025-11-09,Dr. Jones,HOSP-002,Amoxicillin,X-ray indicates fracture
+367,Benjamin Baker,13,Female,A-,Flu,2025-11-19,Dr. Smith,HOSP-002,Metformin 500mg,Blood test normal
+368,David Miller,10,Male,O+,Arthritis,2023-11-26,Dr. Smith,HOSP-002,Lisinopril 10mg,Healthy checkup.
+369,Jason Robinson,65,Male,AB+,Flu,2025-07-08,Dr. Williams,HOSP-002,Atorvastatin,High blood sugar detected.
+370,Joshua White,22,Female,A-,Heart Disease,2024-07-25,Dr. Davis,HOSP-002,No prescription,X-ray indicates fracture
+371,Edward Clark,25,Male,A-,Heart Disease,2024-06-07,Dr. Davis,HOSP-002,Lisinopril 10mg,MRI shows no issues
+372,Larry Hill,11,Other,AB-,Asthma,2023-10-29,Dr. Davis,HOSP-002,Atorvastatin,Wheezing noted.
+373,Frank Nelson,16,Female,B-,Heart Disease,2023-09-12,Dr. Miller,HOSP-002,No prescription,Normal check-up.
+374,Jerry Phillips,72,Male,A+,Flu,2025-03-28,Dr. Jones,HOSP-002,No prescription,Wheezing noted.
+375,Joseph Martinez,14,Other,B-,Asthma,2024-10-13,Dr. Miller,HOSP-002,Lisinopril 10mg,X-ray indicates fracture
+376,Edward Clark,40,Female,B+,Asthma,2023-03-05,Dr. Smith,HOSP-002,Lisinopril 10mg,Normal check-up.
+377,James Smith,69,Other,O-,Hypertension,2025-03-14,Dr. Miller,HOSP-002,Ibuprofen,MRI shows no issues
+378,Larry Hill,17,Female,B+,None,2024-07-20,Dr. Wilson,HOSP-002,No prescription,Blood pressure elevated.
+379,Ryan Young,86,Other,A-,Asthma,2023-03-02,Dr. Williams,HOSP-002,Amoxicillin,Blood test normal
+380,Paul Lee,11,Other,AB+,None,2023-05-29,Dr. Jones,HOSP-002,Amoxicillin,Blood pressure elevated.
+381,Patrick Mitchell,24,Female,A+,Cancer,2025-03-05,Dr. Williams,HOSP-002,No prescription,Blood pressure elevated.
+382,Justin Flores,7,Male,AB-,Asthma,2023-01-27,Dr. Adams,HOSP-002,Albuterol Inhaler,Blood pressure elevated.
+383,Kevin Harris,77,Female,O+,Cancer,2023-12-15,Dr. Wilson,HOSP-002,Ibuprofen,Blood test normal
+384,Robert Williams,27,Other,A-,Hypertension,2024-11-24,Dr. Wilson,HOSP-002,Metformin 500mg,Blood test normal
+385,Frank Nelson,47,Female,O+,None,2024-07-04,Dr. Davis,HOSP-002,Albuterol Inhaler,Blood test normal
+386,Jacob Scott,43,Other,A+,Asthma,2023-01-02,Dr. Davis,HOSP-002,Amoxicillin,Wheezing noted.
+387,Linda Davis,93,Other,A+,Asthma,2024-05-09,Dr. Miller,HOSP-002,No prescription,High blood sugar detected.
+388,Benjamin Baker,66,Male,A+,Heart Disease,2024-11-01,Dr. Williams,HOSP-002,Albuterol Inhaler,Normal check-up.
+389,Michael Johnson,36,Male,O+,Hypertension,2025-10-05,Dr. Smith,HOSP-002,No prescription,Blood test normal
+390,Sarah Lopez,70,Male,O+,Arthritis,2023-09-15,Dr. Jones,HOSP-002,Amoxicillin,Wheezing noted.
+391,Paul Lee,80,Male,AB+,Asthma,2023-02-09,Dr. Davis,HOSP-002,Metformin 500mg,Blood test normal
+392,Gary Allen,53,Other,O-,Arthritis,2025-07-21,Dr. Miller,HOSP-002,Lisinopril 10mg,High blood sugar detected.
+393,Gregory Hall,17,Male,O-,Arthritis,2023-05-22,Dr. Williams,HOSP-002,Lisinopril 10mg,High blood sugar detected.
+394,Jason Robinson,72,Male,AB-,Asthma,2025-05-25,Dr. Brown,HOSP-002,Lisinopril 10mg,Normal check-up.
+395,Anthony Taylor,3,Other,A+,Asthma,2024-04-16,Dr. Brown,HOSP-002,Ibuprofen,Wheezing noted.
+396,Samuel Rivera,87,Male,B+,Cancer,2024-08-07,Dr. Smith,HOSP-002,Metformin 500mg,Wheezing noted.
+397,Jerry Phillips,46,Male,O+,Flu,2024-10-19,Dr. Smith,HOSP-002,Lisinopril 10mg,High blood sugar detected.
+398,Michael Johnson,17,Male,O+,Flu,2023-11-09,Dr. Williams,HOSP-002,Atorvastatin,High blood sugar detected.
+399,Matthew Thomas,24,Male,AB+,Diabetes,2025-04-18,Dr. Brown,HOSP-002,No prescription,Healthy checkup.
+400,Joseph Martinez,83,Female,A+,Hypertension,2025-05-31,Dr. Adams,HOSP-002,Amoxicillin,Blood pressure elevated.
+401,Anthony Taylor,82,Male,A-,Infection,2025-01-01,Dr. Davis,HOSP-002,Atorvastatin,Normal check-up.
+402,Anthony Taylor,37,Male,B-,Flu,2025-09-24,Dr. Wilson,HOSP-002,Amoxicillin,Blood pressure elevated.
+403,Sarah Lopez,69,Female,AB+,Hypertension,2025-06-12,Dr. Wilson,HOSP-002,Lisinopril 10mg,Normal check-up.
+404,Susan Rodriguez,53,Male,AB+,Cancer,2024-10-20,Dr. Davis,HOSP-002,Albuterol Inhaler,X-ray indicates fracture
+405,Mark Moore,31,Other,AB-,None,2025-12-03,Dr. Smith,HOSP-002,Atorvastatin,Blood pressure elevated.
+406,Christopher Wilson,31,Male,B+,Flu,2023-07-01,Dr. Smith,HOSP-002,Albuterol Inhaler,Normal check-up.
+407,Kenneth Thompson,31,Other,AB-,Cancer,2023-03-02,Dr. Williams,HOSP-002,No prescription,Blood test normal
+408,Frank Nelson,3,Female,A-,Asthma,2025-11-05,Dr. Wilson,HOSP-002,Amoxicillin,Healthy checkup.
+409,Susan Rodriguez,51,Male,O-,Heart Disease,2023-05-17,Dr. Brown,HOSP-002,Lisinopril 10mg,X-ray indicates fracture
+410,Samuel Rivera,86,Female,A+,Infection,2025-11-30,Dr. Davis,HOSP-002,Amoxicillin,High blood sugar detected.
+411,Samuel Rivera,62,Female,O-,Infection,2023-01-12,Dr. Smith,HOSP-002,Metformin 500mg,MRI shows no issues
+412,Jacob Scott,56,Male,O-,Hypertension,2024-07-13,Dr. Wilson,HOSP-002,No prescription,High blood sugar detected.
+413,Mark Moore,17,Other,B-,Hypertension,2024-02-21,Dr. Davis,HOSP-002,Amoxicillin,High blood sugar detected.
+414,Robert Williams,61,Male,O-,Arthritis,2023-04-04,Dr. Miller,HOSP-002,Atorvastatin,Blood test normal
+415,Frank Nelson,84,Male,O-,Heart Disease,2025-07-05,Dr. Miller,HOSP-002,Ibuprofen,Normal check-up.
+416,Kevin Harris,6,Female,O+,Diabetes,2025-09-27,Dr. Wilson,HOSP-002,No prescription,Blood test normal
+417,Jeffrey Walker,33,Other,O+,Flu,2025-05-03,Dr. Jones,HOSP-002,Amoxicillin,X-ray indicates fracture
+418,Andrew Perez,63,Other,AB-,Diabetes,2024-01-28,Dr. Brown,HOSP-002,Metformin 500mg,High blood sugar detected.
+419,Donald Jackson,73,Male,A-,Arthritis,2024-12-06,Dr. Smith,HOSP-002,Atorvastatin,Blood test normal
+420,Maria Garcia,29,Male,AB-,Diabetes,2025-03-05,Dr. Wilson,HOSP-002,No prescription,Normal check-up.
+421,Jeffrey Walker,50,Female,AB-,Cancer,2025-04-05,Dr. Miller,HOSP-002,Atorvastatin,Blood pressure elevated.
+422,Michael Johnson,79,Male,O+,Hypertension,2025-09-28,Dr. Williams,HOSP-002,Metformin 500mg,Blood test normal
+423,Kevin Harris,67,Male,AB-,Flu,2025-06-05,Dr. Wilson,HOSP-002,Lisinopril 10mg,High blood sugar detected.
+424,Robert Williams,27,Other,O+,Cancer,2025-04-25,Dr. Smith,HOSP-002,Atorvastatin,High blood sugar detected.
+425,Susan Rodriguez,29,Female,O-,Diabetes,2023-09-02,Dr. Brown,HOSP-002,Lisinopril 10mg,Normal check-up.
+426,Daniel Anderson,90,Male,O-,Flu,2025-11-15,Dr. Williams,HOSP-002,Lisinopril 10mg,Healthy checkup.
+427,Dennis Gomez,37,Female,A-,Asthma,2023-12-08,Dr. Miller,HOSP-002,Metformin 500mg,High blood sugar detected.
+428,Matthew Thomas,20,Male,A-,Diabetes,2025-08-25,Dr. Miller,HOSP-002,Albuterol Inhaler,Normal check-up.
+429,Joshua White,44,Female,AB-,Infection,2023-08-24,Dr. Wilson,HOSP-002,No prescription,Normal check-up.
+430,Sarah Lopez,49,Female,AB+,Diabetes,2024-11-05,Dr. Jones,HOSP-002,Amoxicillin,High blood sugar detected.
+431,Alexander Carter,35,Other,O+,None,2023-05-07,Dr. Jones,HOSP-002,Lisinopril 10mg,Normal check-up.
+432,Scott Green,69,Other,B+,Flu,2025-11-23,Dr. Miller,HOSP-002,Albuterol Inhaler,X-ray indicates fracture
+433,Gregory Hall,19,Female,O-,Flu,2024-06-26,Dr. Williams,HOSP-002,Albuterol Inhaler,Healthy checkup.
+434,Nicholas King,59,Male,AB-,Asthma,2025-01-11,Dr. Jones,HOSP-002,Metformin 500mg,X-ray indicates fracture
+435,Jason Robinson,34,Male,AB+,Infection,2025-07-07,Dr. Smith,HOSP-002,Albuterol Inhaler,Healthy checkup.
+436,Eric Wright,48,Male,B-,Flu,2024-06-13,Dr. Wilson,HOSP-002,Atorvastatin,Wheezing noted.
+437,Jacob Scott,5,Male,A-,Hypertension,2025-06-20,Dr. Smith,HOSP-002,Amoxicillin,High blood sugar detected.
+438,Raymond Campbell,95,Female,AB-,Arthritis,2023-02-05,Dr. Adams,HOSP-002,No prescription,X-ray indicates fracture
+439,Justin Flores,39,Male,AB-,Arthritis,2025-02-23,Dr. Jones,HOSP-002,Amoxicillin,High blood sugar detected.
+440,Larry Hill,40,Other,AB-,Diabetes,2024-08-07,Dr. Adams,HOSP-002,Lisinopril 10mg,Blood test normal
+441,Ryan Young,39,Other,O+,Cancer,2024-04-19,Dr. Davis,HOSP-002,Atorvastatin,Normal check-up.
+442,James Smith,60,Male,O-,Asthma,2023-04-13,Dr. Williams,HOSP-002,Metformin 500mg,Normal check-up.
+443,Anthony Taylor,10,Male,A+,Diabetes,2023-03-10,Dr. Williams,HOSP-002,Ibuprofen,X-ray indicates fracture
+444,Eric Wright,8,Male,AB-,Cancer,2024-01-02,Dr. Jones,HOSP-002,Metformin 500mg,Wheezing noted.
+445,Samuel Rivera,6,Female,A-,Heart Disease,2024-01-25,Dr. Jones,HOSP-002,Albuterol Inhaler,X-ray indicates fracture
+446,Scott Green,23,Female,AB+,Cancer,2025-10-15,Dr. Wilson,HOSP-002,Amoxicillin,High blood sugar detected.
+447,Eric Wright,9,Female,A-,Diabetes,2024-04-06,Dr. Williams,HOSP-002,No prescription,MRI shows no issues
+448,Justin Flores,17,Female,B-,Asthma,2025-05-02,Dr. Miller,HOSP-002,Metformin 500mg,Healthy checkup.
+449,Raymond Campbell,33,Other,B-,Flu,2023-10-24,Dr. Williams,HOSP-002,Ibuprofen,MRI shows no issues
+450,Gary Allen,67,Female,AB-,Hypertension,2023-05-11,Dr. Jones,HOSP-002,Amoxicillin,High blood sugar detected.
+451,Kevin Harris,28,Male,B+,Cancer,2025-08-23,Dr. Davis,HOSP-002,Lisinopril 10mg,Normal check-up.
+452,Larry Hill,19,Male,AB-,None,2024-10-07,Dr. Adams,HOSP-002,Amoxicillin,High blood sugar detected.
+453,Brian Sanchez,92,Male,B+,Flu,2024-09-26,Dr. Adams,HOSP-002,No prescription,Healthy checkup.
+454,Brandon Adams,55,Male,A+,None,2023-01-21,Dr. Smith,HOSP-002,No prescription,Normal check-up.
+455,Dennis Gomez,91,Male,AB-,Infection,2025-07-23,Dr. Adams,HOSP-002,No prescription,X-ray indicates fracture
+456,Thomas Hernandez,35,Female,B-,Cancer,2024-09-11,Dr. Adams,HOSP-002,Amoxicillin,X-ray indicates fracture
+457,Joshua White,41,Other,AB-,Cancer,2023-09-04,Dr. Williams,HOSP-002,Lisinopril 10mg,Normal check-up.
+458,Thomas Hernandez,59,Other,O+,Flu,2024-03-03,Dr. Davis,HOSP-002,Atorvastatin,Blood test normal
+459,Edward Clark,2,Other,AB+,Arthritis,2025-07-15,Dr. Davis,HOSP-002,Amoxicillin,Wheezing noted.
+460,Christopher Wilson,11,Other,A-,Diabetes,2024-09-01,Dr. Adams,HOSP-002,Ibuprofen,Normal check-up.
+461,Benjamin Baker,57,Other,A+,Infection,2025-09-07,Dr. Davis,HOSP-002,No prescription,High blood sugar detected.
+462,Benjamin Baker,90,Male,A+,Diabetes,2025-07-28,Dr. Jones,HOSP-002,Atorvastatin,X-ray indicates fracture
+463,Samuel Rivera,32,Male,B-,Cancer,2023-07-23,Dr. Williams,HOSP-002,Albuterol Inhaler,Blood pressure elevated.
+464,Joseph Martinez,18,Other,A+,Hypertension,2024-05-20,Dr. Smith,HOSP-002,Lisinopril 10mg,Wheezing noted.
+465,Justin Flores,73,Female,AB-,Hypertension,2024-02-26,Dr. Jones,HOSP-002,No prescription,Normal check-up.
+466,Jonathan Nguyen,10,Male,O+,Heart Disease,2025-06-09,Dr. Wilson,HOSP-002,Albuterol Inhaler,High blood sugar detected.
+467,Edward Clark,47,Other,B-,None,2023-10-05,Dr. Davis,HOSP-002,No prescription,Blood pressure elevated.
+468,Jeffrey Walker,9,Other,B+,Diabetes,2023-08-26,Dr. Wilson,HOSP-002,Metformin 500mg,X-ray indicates fracture
+469,Kenneth Thompson,32,Female,O+,Cancer,2024-12-13,Dr. Williams,HOSP-002,Amoxicillin,Blood pressure elevated.
+470,Ronald Ramirez,28,Male,A-,Cancer,2025-02-28,Dr. Davis,HOSP-002,Atorvastatin,High blood sugar detected.
+471,Jacob Scott,56,Female,B-,Diabetes,2025-02-23,Dr. Jones,HOSP-002,Amoxicillin,X-ray indicates fracture
+472,Donald Jackson,68,Other,O+,Diabetes,2024-08-22,Dr. Wilson,HOSP-002,Ibuprofen,Blood test normal
+473,Patrick Mitchell,24,Other,A-,Hypertension,2025-08-30,Dr. Adams,HOSP-002,Lisinopril 10mg,Blood pressure elevated.
+474,Gregory Hall,30,Other,O+,Asthma,2023-03-16,Dr. Miller,HOSP-002,Atorvastatin,Normal check-up.
+475,Dennis Gomez,5,Male,B-,Cancer,2023-02-20,Dr. Jones,HOSP-002,Metformin 500mg,Normal check-up.
+476,Sarah Lopez,66,Male,AB+,Diabetes,2023-07-03,Dr. Adams,HOSP-002,No prescription,Normal check-up.
+477,Gary Allen,31,Male,B+,Heart Disease,2025-11-04,Dr. Davis,HOSP-002,Metformin 500mg,MRI shows no issues
+478,Eric Wright,63,Other,O+,Infection,2025-07-23,Dr. Smith,HOSP-002,Albuterol Inhaler,High blood sugar detected.
+479,Stephen Torres,63,Other,A+,Arthritis,2025-09-30,Dr. Davis,HOSP-002,Amoxicillin,X-ray indicates fracture
+480,Christopher Wilson,54,Male,O-,Asthma,2025-05-18,Dr. Smith,HOSP-002,Metformin 500mg,Blood pressure elevated.
+481,Matthew Thomas,94,Female,B-,Cancer,2025-08-23,Dr. Wilson,HOSP-002,Ibuprofen,X-ray indicates fracture
+482,Patrick Mitchell,31,Female,A+,Cancer,2023-12-03,Dr. Wilson,HOSP-002,Lisinopril 10mg,X-ray indicates fracture
+483,Kenneth Thompson,56,Male,B-,Diabetes,2025-01-30,Dr. Smith,HOSP-002,No prescription,High blood sugar detected.
+484,Robert Williams,5,Other,A-,Hypertension,2024-07-04,Dr. Smith,HOSP-002,No prescription,Wheezing noted.
+485,Ronald Ramirez,10,Male,O+,Diabetes,2025-08-14,Dr. Adams,HOSP-002,Ibuprofen,MRI shows no issues
+486,Anthony Taylor,70,Female,B-,Asthma,2024-03-03,Dr. Brown,HOSP-002,Atorvastatin,Blood pressure elevated.
+487,David Miller,76,Male,B+,Asthma,2025-04-10,Dr. Davis,HOSP-002,Atorvastatin,Blood test normal
+488,Charles Gonzalez,72,Male,B-,None,2023-10-06,Dr. Jones,HOSP-002,Lisinopril 10mg,High blood sugar detected.
+489,Linda Davis,42,Female,O+,None,2024-05-29,Dr. Wilson,HOSP-002,Metformin 500mg,Wheezing noted.
+490,Gary Allen,38,Female,AB+,Heart Disease,2024-07-01,Dr. Smith,HOSP-002,Metformin 500mg,Wheezing noted.
+491,Raymond Campbell,64,Female,A-,Hypertension,2024-12-13,Dr. Smith,HOSP-002,Amoxicillin,Normal check-up.
+492,Paul Lee,81,Female,B-,Flu,2024-10-30,Dr. Jones,HOSP-002,Lisinopril 10mg,Blood test normal
+493,Ronald Ramirez,25,Other,B+,Hypertension,2024-07-06,Dr. Williams,HOSP-002,Ibuprofen,Wheezing noted.
+494,Donald Jackson,34,Male,AB-,None,2023-10-15,Dr. Williams,HOSP-002,Lisinopril 10mg,MRI shows no issues
+495,Alexander Carter,81,Female,O+,Arthritis,2023-04-21,Dr. Brown,HOSP-002,Albuterol Inhaler,MRI shows no issues
+496,Mark Moore,23,Male,A+,Diabetes,2024-10-22,Dr. Smith,HOSP-002,Metformin 500mg,Blood test normal
+497,Brian Sanchez,30,Male,O-,Hypertension,2024-05-12,Dr. Davis,HOSP-002,Amoxicillin,Blood test normal
+498,Jack Roberts,88,Female,AB+,None,2025-05-09,Dr. Davis,HOSP-002,No prescription,MRI shows no issues
+499,Stephen Torres,79,Male,B+,Cancer,2024-09-30,Dr. Adams,HOSP-002,No prescription,High blood sugar detected.
+500,Mark Moore,28,Female,O+,Diabetes,2024-11-13,Dr. Miller,HOSP-002,Atorvastatin,Healthy checkup.

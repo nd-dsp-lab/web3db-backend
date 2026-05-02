@@ -12,7 +12,7 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 import duckdb
 from typing import List, Tuple, Optional
-from fastapi import FastAPI, Request, UploadFile, File
+from fastapi import FastAPI, Request, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import concurrent.futures
@@ -145,22 +145,33 @@ def decrypt_to_file(encrypted_data: bytes, cid: str, key: bytes) -> Optional[str
         return None
 
 @app.post("/upload/{table_name}")
-async def upload_data(table_name: str, file: UploadFile = File(...), req: Request = None):
+async def upload_data(
+    table_name: str,
+    file: UploadFile = File(...),
+    wallet_address: str = Form(...),
+    req: Request = None,
+):
     """
     Upload data to any table with auto-indexing and encryption.
 
     Supports CSV/SQL formats. Auto-detects indexes or uses first column as default.
+    The uploader's wallet_address is stamped as OwnerID on every row; any OwnerID
+    column in the input file is dropped to prevent owner spoofing.
     """
     if req:
         req.state.audit["action"] = "UPLOAD"
         req.state.audit["target_table"] = [table_name]
     logger.info(f"POST /upload/{table_name} - Processing data upload for table: {table_name}")
     try:
+        if not wallet_address or not wallet_address.strip():
+            return {"error": "wallet_address is required"}
+        wallet_address = wallet_address.strip()
+
         content = await file.read()
-        
+
         # Determine file type and process accordingly
         file_extension = file.filename.lower().split('.')[-1] if file.filename else 'csv'
-        
+
         if file_extension == 'sql':
             # Process SQL file
             df = process_sql_file(content, table_name)
@@ -169,6 +180,11 @@ async def upload_data(table_name: str, file: UploadFile = File(...), req: Reques
             df = pd.read_csv(io.BytesIO(content))
         else:
             return {"error": f"Unsupported file type: {file_extension}. Only CSV and SQL files are supported."}
+
+        # Server-side ownership: drop any user-supplied OwnerID and stamp uploader's wallet.
+        if "OwnerID" in df.columns:
+            df = df.drop(columns=["OwnerID"])
+        df["OwnerID"] = wallet_address
         
         # Determine if this is the first upload (no schema on chain yet).
         try:
@@ -267,10 +283,10 @@ async def upload_data(table_name: str, file: UploadFile = File(...), req: Reques
 
 # Backward compatibility: keep original endpoint for patient_data
 @app.post("/upload/patient-data")
-async def upload_patient_data(file: UploadFile = File(...)):
+async def upload_patient_data(file: UploadFile = File(...), wallet_address: str = Form(...)):
     """[DEPRECATED] Use POST /upload/patient_data instead."""
     logger.info("POST /upload/patient-data - [DEPRECATED] Redirecting to /upload/patient_data")
-    return await upload_data("patient_data", file)
+    return await upload_data("patient_data", file, wallet_address=wallet_address)
 
 
 class QueryRequest(BaseModel):

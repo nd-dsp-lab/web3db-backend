@@ -291,7 +291,7 @@ async def upload_patient_data(file: UploadFile = File(...), wallet_address: str 
 
 class QueryRequest(BaseModel):
     table_name: str = 'patient_data'  # Table to query
-    index_attribute: str = 'PatientID'
+    index_attribute: Optional[str] = None  # Auto-picked from query/indexes if omitted
     query: str = "select * from patient_data where PatientID = 'X'"
     wallet_address: str  # Required wallet address for access control
 
@@ -534,24 +534,34 @@ async def query(request: QueryRequest, req: Request = None):
     logger.info(f"Rewritten query for wallet {request.wallet_address}: {rewritten_query}")
 
     # Step 5: Continue with normal query processing using the rewritten query
+    # Auto-pick index attribute if caller didn't specify one
+    chosen_index_attr = request.index_attribute or pick_index_attribute(request.query, request.table_name)
+    if not chosen_index_attr:
+        return {
+            "error": f"No indexes registered for table '{request.table_name}'",
+            "table_name": request.table_name,
+            "hint": f"Upload data to create an index for '{request.table_name}'"
+        }
+    logger.info(f"Using index attribute '{chosen_index_attr}' for query on '{request.table_name}'")
+
     # Retrieve and decrypt index
-    index = retrieve_index(request.index_attribute, request.table_name)
+    index = retrieve_index(chosen_index_attr, request.table_name)
 
     if not index:
         return {
-            "error": f"Index for {request.table_name}.{request.index_attribute} not found",
+            "error": f"Index for {request.table_name}.{chosen_index_attr} not found",
             "table_name": request.table_name,
-            "index_attribute": request.index_attribute,
+            "index_attribute": chosen_index_attr,
             "hint": f"Upload data to create index or check available indexes at GET /index-cids?table_name={request.table_name}"
         }
 
-    cids = query_index(index, request.query, request.index_attribute)  # Use original query for index lookup
+    cids = query_index(index, request.query, chosen_index_attr)  # Use original query for index lookup
 
     if not cids:
         return {
             "message": "No matching CIDs found",
             "table_name": request.table_name,
-            "index_attribute": request.index_attribute
+            "index_attribute": chosen_index_attr
         }
 
     # Fetch all CIDs in parallel
@@ -914,6 +924,27 @@ def query_index(index, query, attr) -> List[str]:
     return list(out)
 
 # --- Multi-Table Helper Functions ---
+
+def pick_index_attribute(query: str, table_name: str) -> Optional[str]:
+    """
+    Pick the best index attribute for a SQL query against table_name.
+
+    Strategy: prefer an indexed attribute referenced in the WHERE clause
+    (narrows CID set); else fall back to the first registered indexed attribute
+    (returns all CIDs but still satisfies retrieve_index/query_index contract).
+    Returns None if the table has no registered indexes.
+    """
+    indexed_attrs = get_table_indexed_attributes(table_name)
+    if not indexed_attrs:
+        return None
+    where = re.search(r"\bwhere\b\s+(.*)", query, re.IGNORECASE | re.DOTALL)
+    if where:
+        clause = where.group(1)
+        for attr in indexed_attrs:
+            if re.search(rf"\b{re.escape(attr)}\b", clause):
+                return attr
+    return indexed_attrs[0]
+
 
 def get_table_indexed_attributes(table_name: str) -> List[str]:
     """

@@ -949,12 +949,32 @@ def pick_index_attribute(query: str, table_name: str) -> Optional[str]:
 def get_table_indexed_attributes(table_name: str) -> List[str]:
     """
     Get the list of indexed attributes for a table.
-    Falls back to default if table not configured.
+
+    In-memory cache is lost on restart, so lazy-recover from the on-chain
+    CREATE TABLE schema by extracting the PRIMARY KEY column (the index
+    registered at upload time).
     """
     if table_name in app.state.table_configs:
         return app.state.table_configs[table_name]['indexed_attributes']
-    
-    # Try to infer from schema or use common attributes
+
+    try:
+        has_schema, schema_sql = app.state.index_storage.get_table_schema(table_name)
+        if has_schema and schema_sql:
+            pk_match = re.search(
+                r"(\w+)\s+\w+(?:\([^)]*\))?[^,\n]*\bPRIMARY\s+KEY\b",
+                schema_sql,
+                re.IGNORECASE,
+            )
+            if not pk_match:
+                pk_match = re.search(r"PRIMARY\s+KEY\s*\(\s*(\w+)", schema_sql, re.IGNORECASE)
+            if pk_match:
+                pk_col = pk_match.group(1)
+                register_table_config(table_name, [pk_col])
+                logger.info(f"Recovered index config for '{table_name}' from on-chain schema: {pk_col}")
+                return [pk_col]
+    except Exception as e:
+        logger.warning(f"Failed to recover index config for '{table_name}' from chain: {e}")
+
     return ['ID']  # Default minimal index
 
 def register_table_config(table_name: str, indexed_attributes: List[str]):

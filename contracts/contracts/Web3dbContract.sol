@@ -64,6 +64,10 @@ contract Web3dbContract {
     // --- Original: Access policies ---
     mapping(address => AccessPolicy[]) private accessPolicies;
 
+    // --- Multi-tenant ownership: distinct uploader wallets per table ---
+    mapping(string => address[]) private tableOwners;
+    mapping(string => mapping(address => bool)) private tableOwnerExists;
+
     // --- CIDBatchLog: Batch storage (public for direct lookup by batchId) ---
     mapping(bytes32 => Batch) public batches;
 
@@ -78,6 +82,7 @@ contract Web3dbContract {
     event SchemaUpdated(string tableName, string oldSchema, string newSchema);
     event AccessPolicyAdded(address indexed object, address indexed subject, string tableName, string policySql);
     event AccessPolicyRemoved(address indexed object, address indexed subject, string tableName, string policySql);
+    event TableOwnerAdded(string tableName, address indexed owner);
 
     // --- CIDBatchLog events ---
     event BatchCreated(
@@ -274,6 +279,24 @@ contract Web3dbContract {
         }
 
         emit SchemaUpdated(tableName, oldSchema, "");
+    }
+
+    // SECTION 7B: Multi-tenant Ownership Tracking
+
+    function addTableOwner(string memory tableName, address owner) public {
+        if (!tableOwnerExists[tableName][owner]) {
+            tableOwnerExists[tableName][owner] = true;
+            tableOwners[tableName].push(owner);
+            emit TableOwnerAdded(tableName, owner);
+        }
+    }
+
+    function getTableOwners(string memory tableName) public view returns (address[] memory) {
+        return tableOwners[tableName];
+    }
+
+    function getTableOwnerCount(string memory tableName) public view returns (uint) {
+        return tableOwners[tableName].length;
     }
 
     // SECTION 8: Original — Access Policy Management

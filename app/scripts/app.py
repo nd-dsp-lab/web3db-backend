@@ -185,6 +185,12 @@ async def upload_data(
         if "OwnerID" in df.columns:
             df = df.drop(columns=["OwnerID"])
         df["OwnerID"] = wallet_address
+
+        # Persist multi-tenant ownership on-chain (idempotent).
+        try:
+            app.state.index_storage.add_table_owner(table_name, wallet_address)
+        except Exception as e:
+            logger.warning(f"Failed to record on-chain owner for {table_name}: {e}")
         
         # Determine if this is the first upload (no schema on chain yet).
         try:
@@ -2842,6 +2848,17 @@ async def remove_all_access_policies(object_address: str):
     except Exception as e:
         logger.error(f"Error removing all access policies for {object_address}: {e}")
         return {"status": "error", "message": str(e)}
+
+@app.get("/tables/{table_name}/owner-count")
+async def get_table_owner_count(table_name: str):
+    """Return the number of distinct uploader wallets that contributed data to the table."""
+    try:
+        count = app.state.index_storage.get_table_owner_count(table_name)
+        return {"status": "success", "table_name": table_name, "owner_count": count}
+    except Exception as e:
+        logger.error(f"Failed to fetch owner count for {table_name}: {e}")
+        return {"status": "error", "table_name": table_name, "owner_count": 0, "message": str(e)}
+
 
 @app.get("/query/count")
 async def get_row_count(

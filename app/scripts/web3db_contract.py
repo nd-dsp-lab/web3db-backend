@@ -646,9 +646,41 @@ class Web3dbContract:
                 ],
                 "stateMutability": "view",
                 "type": "function"
+            },
+            {
+                "inputs": [
+                    {"internalType": "string",  "name": "tableName", "type": "string"},
+                    {"internalType": "address", "name": "owner",     "type": "address"}
+                ],
+                "name": "addTableOwner",
+                "outputs": [],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {"internalType": "string", "name": "tableName", "type": "string"}
+                ],
+                "name": "getTableOwners",
+                "outputs": [
+                    {"internalType": "address[]", "name": "", "type": "address[]"}
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {"internalType": "string", "name": "tableName", "type": "string"}
+                ],
+                "name": "getTableOwnerCount",
+                "outputs": [
+                    {"internalType": "uint256", "name": "", "type": "uint256"}
+                ],
+                "stateMutability": "view",
+                "type": "function"
             }
         ]
-        
+
         # Create contract instance
         self.contract = self.w3.eth.contract(address=self.contract_address, abi=self.abi)
     
@@ -853,6 +885,42 @@ class Web3dbContract:
             print(f"Failed to remove index: {e}")
             return False
     
+    def add_table_owner(self, table_name, owner_address):
+        """
+        Register an uploader wallet as an owner of a table on-chain.
+        Idempotent: contract no-ops if already registered.
+        """
+        try:
+            owner = self.w3.to_checksum_address(owner_address)
+            nonce = self.w3.eth.get_transaction_count(self.address)
+            tx = self.contract.functions.addTableOwner(table_name, owner).build_transaction({
+                'from': self.address,
+                'gas': 200000,
+                'gasPrice': self._get_gas_price(),
+                'nonce': nonce,
+            })
+            signed_tx = self.w3.eth.account.sign_transaction(tx, self.private_key)
+            tx_hash = self.w3.eth.send_raw_transaction(signed_tx.raw_transaction)
+            self.w3.eth.wait_for_transaction_receipt(tx_hash)
+            return True
+        except Exception as e:
+            print(f"Failed to add table owner for {table_name}: {e}")
+            return False
+
+    def get_table_owner_count(self, table_name):
+        try:
+            return int(self.contract.functions.getTableOwnerCount(table_name).call())
+        except Exception as e:
+            print(f"Failed to get table owner count for {table_name}: {e}")
+            return 0
+
+    def get_table_owners(self, table_name):
+        try:
+            return list(self.contract.functions.getTableOwners(table_name).call())
+        except Exception as e:
+            print(f"Failed to get table owners for {table_name}: {e}")
+            return []
+
     def update_table_schema(self, table_name, schema_json):
         """
         Update a table schema in the smart contract

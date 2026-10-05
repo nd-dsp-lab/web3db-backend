@@ -1,10 +1,15 @@
 server:
-  REMOTE_HOST: ec2-3-144-34-23.us-east-2.compute.amazonaws.com
+  # Elastic IP behind this name (18.227.51.47). Use the name, not the raw
+  # address: the box previously ran on an auto-assigned public IP, which
+  # changed on restart and was recycled to another AWS tenant.
+  REMOTE_HOST: proxy.web3db.org
   REMOTE_USER: ubuntu
 
-nginx:
-  site_config_file_name: reverse_proxy
-  server_name: proxy.web3db.org
+# No nginx section on purpose. The proxy's vhosts and the :443 stream
+# config (streams-enabled/fs-split.conf, which forwards fs-api still
+# encrypted to the SGX enclave) are hand-maintained. Letting this container
+# generate a vhost would add a second "listen 80; server_name
+# proxy.web3db.org" and shadow the real one. Tunnels only.
 
 tunnels:
   web3db-backend:
